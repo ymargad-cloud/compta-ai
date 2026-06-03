@@ -1,0 +1,12 @@
+{
+  "name": "compta-ai",
+  "version": "1.0.0",
+  "description": "Application comptable avec extraction IA de factures et relevés",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
