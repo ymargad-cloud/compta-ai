@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>ComptaAI</title>
+<title>NEOEXPERT consulting</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Syne:wght@700;800&family=Inter:wght@300;400;500&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
@@ -137,9 +137,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 .toast{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:11px 16px;font-size:13px;display:flex;align-items:center;gap:8px;box-shadow:0 8px 32px rgba(0,0,0,.4);animation:slide-in .3s ease;max-width:320px}
 @keyframes slide-in{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
 .toast.success{border-left:3px solid var(--success)}.toast.error{border-left:3px solid var(--danger)}.toast.info{border-left:3px solid var(--accent)}
-.portal-public{position:fixed;inset:0;background:var(--bg);display:none;align-items:center;justify-content:center}
+.portal-public{position:fixed;inset:0;background:linear-gradient(135deg,#EDF2FB 0%,#F4F6FA 50%,#FEF9E7 100%);display:none;align-items:center;justify-content:center}
 .portal-public.active{display:flex}
-.portal-box{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:40px;width:500px;text-align:center}
+.portal-box{background:#FFFFFF;border:1px solid var(--border);border-radius:20px;padding:40px;width:500px;text-align:center;box-shadow:0 8px 32px rgba(59,94,166,.12);border-top:4px solid #F2C12E}
 .chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
 .chart-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px}
 .chart-card h4{font-family:var(--display);font-size:12px;font-weight:700;margin-bottom:14px;color:var(--muted)}
@@ -163,7 +163,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 <!-- PORTAIL PUBLIC -->
 <div class="portal-public" id="portal-public">
   <div class="portal-box">
-    <div style="font-family:var(--display);font-size:22px;font-weight:800;background:linear-gradient(135deg,#3B5EA6,#2A4580);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:6px">ComptaAI</div>
+    <div style="font-family:var(--display);font-size:22px;font-weight:800;color:#3B5EA6;letter-spacing:1px;margin-bottom:2px">NEOEXPERT</div>
+    <div style="font-size:11px;color:#9A7700;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px">consulting</div>
     <div style="color:var(--muted);font-size:13px;margin-bottom:6px" id="portal-company-name">Dépôt de documents</div>
     <div style="color:var(--muted);font-size:12px;margin-bottom:28px">Déposez vos factures et relevés bancaires</div>
     <div class="drop-zone" id="portal-drop" ondragover="handlePortalDrag(event)" ondragleave="handlePortalDragLeave(event)" ondrop="handlePortalDrop(event)" style="margin-bottom:16px">
@@ -228,7 +229,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 <!-- APP -->
 <div class="app" id="app">
   <div class="sidebar">
-    <div class="logo"><div style="display:flex;align-items:center;gap:10px;margin-bottom:4px"><div style="display:flex;align-items:center;gap:3px"><div style="width:12px;height:20px;background:#3B5EA6;clip-path:polygon(0 0,100% 20%,100% 80%,0 100%)"></div><div style="width:8px;height:10px;background:#F2C12E;margin-left:-2px;margin-top:4px"></div><div style="width:10px;height:20px;background:#6B6B6B;clip-path:polygon(0 20%,100% 0,100% 100%,0 80%)"></div></div><h1 style="font-family:var(--display);font-size:16px;font-weight:800;color:#3B5EA6;-webkit-text-fill-color:#3B5EA6;background:none">NEOEXPERT</h1></div><span style="font-family:var(--sans);font-size:9px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase">consulting · ComptaAI</span></div>
+    <div class="logo"><div style="display:flex;align-items:center;gap:10px;margin-bottom:4px"><div style="display:flex;align-items:center;gap:3px"><div style="width:12px;height:20px;background:#3B5EA6;clip-path:polygon(0 0,100% 20%,100% 80%,0 100%)"></div><div style="width:8px;height:10px;background:#F2C12E;margin-left:-2px;margin-top:4px"></div><div style="width:10px;height:20px;background:#6B6B6B;clip-path:polygon(0 20%,100% 0,100% 100%,0 80%)"></div></div><h1 style="font-family:var(--display);font-size:16px;font-weight:800;color:#3B5EA6;-webkit-text-fill-color:#3B5EA6;background:none">NEOEXPERT</h1></div><span style="font-family:var(--sans);font-size:9px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase">consulting</span></div>
     <div class="company-section">
       <div class="company-label">Société active</div>
       <select class="company-select" id="company-select" onchange="selectCompany(this.value)">
@@ -779,7 +780,7 @@ function exportAll(){
   const wb=XLSX.utils.book_new();
   if(allFactures.length){const ws=XLSX.utils.json_to_sheet(allFactures.map(f=>({'Date':f.date_facture,'Fournisseur':f.fournisseur,'N°':f.numero,'Catégorie':f.categorie,'HT':f.montant_ht,'TVA':f.montant_tva,'TTC':f.montant_ttc})));XLSX.utils.book_append_sheet(wb,ws,'Factures');}
   if(allTransactions.length){const ws=XLSX.utils.json_to_sheet(allTransactions.map(t=>({'Date':t.date_operation,'Libellé':t.libelle,'Type':t.type_mouvement,'Montant':t.montant,'Solde':t.solde})));XLSX.utils.book_append_sheet(wb,ws,'Relevés');}
-  XLSX.writeFile(wb,`ComptaAI_Export_${new Date().toISOString().slice(0,10)}.xlsx`);
+  XLSX.writeFile(wb,`NEOEXPERT_Export_${new Date().toISOString().slice(0,10)}.xlsx`);
   toast('Export Excel généré ✓','success');
 }
 function dlFile(content,filename,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=filename;a.click();}
