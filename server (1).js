@@ -1,0 +1,266 @@
+const http   = require('http');
+const https  = require('https');
+const fs     = require('fs');
+const path   = require('path');
+const jwt    = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
+
+const PORT       = process.env.PORT || 3000;
+const HTML_FILE  = path.join(__dirname, 'compta-app.html');
+const JWT_SECRET = process.env.JWT_SECRET || 'secret';
+const SUPA_URL   = (process.env.SUPABASE_URL || '').replace(/\/+$/, '');
+const SUPA_KEY   = process.env.SUPABASE_KEY || '';
+
+console.log('=== NEOEXPERT ComptaAI demarrage ===');
+console.log('SUPABASE_URL:', SUPA_URL || 'MANQUANTE');
+console.log('SUPABASE_KEY:', SUPA_KEY ? SUPA_KEY.slice(0,20)+'...' : 'MANQUANTE');
+
+// Helper HTTP request
+function httpReq(options, body) {
+  return new Promise((resolve, reject) => {
+    const req = https.request(options, res => {
+      let data = '';
+      res.on('data', c => data += c);
+      res.on('end', () => resolve({ status: res.statusCode, body: data }));
+    });
+    req.on('error', reject);
+    if (body) req.write(body);
+    req.end();
+  });
+}
+
+// Supabase REST call
+async function supa(method, table, { filter, body, select } = {}) {
+  let urlPath = `/rest/v1/${table}`;
+  const qs = [];
+  if (select) qs.push(`select=${select}`);
+  if (filter) qs.push(filter);
+  if (qs.length) urlPath += '?' + qs.join('&');
+
+  const parsed = new URL(SUPA_URL + urlPath);
+  const bodyStr = body ? JSON.stringify(Array.isArray(body) ? body : body) : null;
+
+  const options = {
+    hostname: parsed.hostname,
+    port: 443,
+    path: parsed.pathname + parsed.search,
+    method,
+    headers: {
+      'apikey': SUPA_KEY,
+      'Authorization': `Bearer ${SUPA_KEY}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'Prefer': method === 'POST' ? 'return=representation' : 'return=representation',
+    }
+  };
+  if (bodyStr) options.headers['Content-Length'] = Buffer.byteLength(bodyStr);
+
+  const { status, body: responseBody } = await httpReq(options, bodyStr);
+  let parsed2;
+  try { parsed2 = JSON.parse(responseBody); } catch { parsed2 = responseBody; }
+  console.log(`SUPA ${method} ${table} → ${status}`);
+  if (status >= 400) console.log('SUPA ERROR:', responseBody.slice(0, 300));
+  return { data: parsed2, status };
+}
+
+function parseBody(req) {
+  return new Promise(res => {
+    let b = '';
+    req.on('data', c => b += c);
+    req.on('end', () => { try { res(JSON.parse(b)); } catch { res({}); } });
+  });
+}
+
+function send(res, status, data) {
+  res.writeHead(status, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+  res.end(JSON.stringify(data));
+}
+
+async function getUser(req) {
+  const h = req.headers.authorization || '';
+  if (!h.startsWith('Bearer ')) return null;
+  try {
+    const p = jwt.verify(h.slice(7), JWT_SECRET);
+    const { data } = await supa('GET', 'users', { filter: `id=eq.${p.sub}` });
+    return Array.isArray(data) && data[0] ? data[0] : null;
+  } catch(e) { console.log('Auth error:', e.message); return null; }
+}
+
+const server = http.createServer(async (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,x-api-key,anthropic-version');
+  if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
+
+  const url = req.url.split('?')[0];
+  console.log(`${req.method} ${url}`);
+
+  // Health
+  if (url === '/health') {
+    return send(res, 200, { ok: true, supabase_url: !!SUPA_URL, supabase_key: !!SUPA_KEY, key_preview: SUPA_KEY.slice(0,15) });
+  }
+
+  // Test Supabase direct
+  if (url === '/test-supa') {
+    const result = await supa('GET', 'users', { select: 'id,email' });
+    return send(res, 200, { status: result.status, data: result.data });
+  }
+
+  // HTML
+  if (req.method === 'GET' && !url.startsWith('/api')) {
+    if (!fs.existsSync(HTML_FILE)) { res.writeHead(404); return res.end('HTML introuvable'); }
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    return res.end(fs.readFileSync(HTML_FILE));
+  }
+
+  // POST /api/auth/login
+  if (req.method === 'POST' && url === '/api/auth/login') {
+    const body = await parseBody(req);
+    const { email, password } = body;
+    console.log('Login attempt:', email);
+    const { data, status } = await supa('GET', 'users', { filter: `email=eq.${(email||'').toLowerCase().trim()}` });
+    console.log('Users found:', Array.isArray(data) ? data.length : 'not array', 'status:', status);
+    const user = Array.isArray(data) && data[0] ? data[0] : null;
+    if (!user) return send(res, 401, { error: 'Email ou mot de passe incorrect' });
+    const ok = await bcrypt.compare(password, user.password);
+    if (!ok) return send(res, 401, { error: 'Email ou mot de passe incorrect' });
+    const token = jwt.sign({ sub: user.id }, JWT_SECRET, { expiresIn: '30d' });
+    return send(res, 200, { token, user: { id: user.id, email: user.email, nom: user.nom, prenom: user.prenom, role: user.role } });
+  }
+
+  // POST /api/auth/register
+  if (req.method === 'POST' && url === '/api/auth/register') {
+    const body = await parseBody(req);
+    const { email, password, nom, prenom, role } = body;
+    if (!email || !password || !nom || !prenom) return send(res, 400, { error: 'Champs manquants' });
+    const hash = await bcrypt.hash(password, 10);
+    const { data, status } = await supa('POST', 'users', { body: { email: email.toLowerCase().trim(), password: hash, nom, prenom, role: role || 'comptable' } });
+    if (status >= 400) return send(res, 409, { error: 'Email déjà utilisé ou erreur' });
+    const user = Array.isArray(data) ? data[0] : data;
+    const token = jwt.sign({ sub: user.id }, JWT_SECRET, { expiresIn: '30d' });
+    return send(res, 201, { token, user: { id: user.id, email: user.email, nom: user.nom, prenom: user.prenom, role: user.role } });
+  }
+
+  // GET /api/auth/me
+  if (req.method === 'GET' && url === '/api/auth/me') {
+    const user = await getUser(req);
+    if (!user) return send(res, 401, { error: 'Non authentifié' });
+    return send(res, 200, { user: { id: user.id, email: user.email, nom: user.nom, prenom: user.prenom, role: user.role } });
+  }
+
+  // GET /api/companies
+  if (req.method === 'GET' && url === '/api/companies') {
+    const user = await getUser(req);
+    if (!user) return send(res, 401, { error: 'Non authentifié' });
+    let result;
+    if (user.role === 'admin') {
+      result = await supa('GET', 'companies', {});
+    } else {
+      const links = await supa('GET', 'user_companies', { filter: `user_id=eq.${user.id}` });
+      const ids = (links.data || []).map(l => l.company_id);
+      if (!ids.length) return send(res, 200, []);
+      result = await supa('GET', 'companies', { filter: `id=in.(${ids.join(',')})` });
+    }
+    return send(res, 200, result.data || []);
+  }
+
+  // POST /api/companies
+  if (req.method === 'POST' && url === '/api/companies') {
+    const user = await getUser(req);
+    if (!user) return send(res, 401, { error: 'Non authentifié' });
+    const body = await parseBody(req);
+    const { data } = await supa('POST', 'companies', { body: { name: body.name, ice: body.ice, ville: body.ville, owner_id: user.id } });
+    const company = Array.isArray(data) ? data[0] : data;
+    await supa('POST', 'user_companies', { body: { user_id: user.id, company_id: company.id } });
+    return send(res, 201, company);
+  }
+
+  // GET /api/companies/portal/:token
+  if (req.method === 'GET' && url.startsWith('/api/companies/portal/')) {
+    const token = url.split('/').pop();
+    const { data } = await supa('GET', 'companies', { filter: `portal_token=eq.${token}`, select: 'id,name' });
+    const company = Array.isArray(data) && data[0] ? data[0] : null;
+    if (!company) return send(res, 404, { error: 'Lien invalide' });
+    return send(res, 200, company);
+  }
+
+  // GET /api/factures
+  if (req.method === 'GET' && url === '/api/factures') {
+    const user = await getUser(req);
+    if (!user) return send(res, 401, { error: 'Non authentifié' });
+    const p = new URLSearchParams(req.url.split('?')[1] || '');
+    const { data } = await supa('GET', 'factures', { filter: `company_id=eq.${p.get('company_id')}&order=date_facture.desc` });
+    return send(res, 200, data || []);
+  }
+
+  // POST /api/factures
+  if (req.method === 'POST' && url === '/api/factures') {
+    const user = await getUser(req);
+    if (!user) return send(res, 401, { error: 'Non authentifié' });
+    const body = await parseBody(req);
+    const { data } = await supa('POST', 'factures', { body });
+    return send(res, 201, Array.isArray(data) ? data[0] : data);
+  }
+
+  // GET /api/transactions
+  if (req.method === 'GET' && url === '/api/transactions') {
+    const user = await getUser(req);
+    if (!user) return send(res, 401, { error: 'Non authentifié' });
+    const p = new URLSearchParams(req.url.split('?')[1] || '');
+    const { data } = await supa('GET', 'transactions', { filter: `company_id=eq.${p.get('company_id')}&order=date_operation.desc` });
+    return send(res, 200, data || []);
+  }
+
+  // POST /api/transactions
+  if (req.method === 'POST' && url === '/api/transactions') {
+    const user = await getUser(req);
+    if (!user) return send(res, 401, { error: 'Non authentifié' });
+    const body = await parseBody(req);
+    const rows = Array.isArray(body) ? body : [body];
+    const { data } = await supa('POST', 'transactions', { body: rows });
+    return send(res, 201, data);
+  }
+
+  // GET /api/users
+  if (req.method === 'GET' && url === '/api/users') {
+    const user = await getUser(req);
+    if (!user || user.role !== 'admin') return send(res, 403, { error: 'Admin requis' });
+    const { data } = await supa('GET', 'users', { select: 'id,email,nom,prenom,role,created_at' });
+    return send(res, 200, data || []);
+  }
+
+  // POST /api/portal/upload
+  if (req.method === 'POST' && url === '/api/portal/upload') {
+    const body = await parseBody(req);
+    const docs = (body.files || []).map(f => ({ company_id: body.company_id, original_name: f.name, status: 'pending', from_client: true }));
+    await supa('POST', 'documents', { body: docs });
+    return send(res, 201, { ok: true });
+  }
+
+  // POST /api/messages (proxy Anthropic)
+  if (req.method === 'POST' && url === '/api/messages') {
+    const user = await getUser(req);
+    if (!user) return send(res, 401, { error: 'Non authentifié' });
+    const apiKey = req.headers['x-api-key'] || '';
+    let body = '';
+    req.on('data', c => body += c);
+    req.on('end', () => {
+      const opts = {
+        hostname: 'api.anthropic.com', port: 443, path: '/v1/messages', method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'Content-Length': Buffer.byteLength(body) }
+      };
+      const pr = https.request(opts, pres => {
+        let rb = '';
+        pres.on('data', c => rb += c);
+        pres.on('end', () => { res.writeHead(pres.statusCode, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }); res.end(rb); });
+      });
+      pr.on('error', e => send(res, 502, { error: e.message }));
+      pr.write(body); pr.end();
+    });
+    return;
+  }
+
+  send(res, 404, { error: 'Route inconnue: ' + url });
+});
+
+server.listen(PORT, '0.0.0.0', () => console.log(`Serveur démarré port ${PORT}`));
