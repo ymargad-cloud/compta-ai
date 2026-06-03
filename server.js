@@ -5,28 +5,64 @@ const fs      = require('fs');
 const path    = require('path');
 const jwt     = require('jsonwebtoken');
 const bcrypt  = require('bcryptjs');
-const { createClient } = require('@supabase/supabase-js');
 
 const PORT       = process.env.PORT || 3000;
 const HTML_FILE  = path.join(__dirname, 'compta-app.html');
 const JWT_SECRET = process.env.JWT_SECRET || 'compta-ai-secret-change-me';
+const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
+const SUPABASE_KEY = process.env.SUPABASE_KEY || '';
 
-// Supabase client
-const supabase = createClient(
-  process.env.SUPABASE_URL || '',
-  process.env.SUPABASE_KEY || ''
-);
+// ── Helper Supabase REST direct (sans SDK) ───────────────────────────────────
+async function supaFetch(method, table, opts = {}) {
+  const { filter, body, select } = opts;
+  let url = `${SUPABASE_URL}/rest/v1/${table}`;
+  const params = [];
+  if (select) params.push(`select=${select}`);
+  if (filter) params.push(filter);
+  if (params.length) url += '?' + params.join('&');
+
+  return new Promise((resolve, reject) => {
+    const parsed = new URL(url);
+    const bodyStr = body ? JSON.stringify(body) : null;
+    const options = {
+      hostname: parsed.hostname,
+      port: 443,
+      path: parsed.pathname + parsed.search,
+      method,
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Prefer': method === 'POST' ? 'return=representation' : '',
+      },
+    };
+    if (bodyStr) options.headers['Content-Length'] = Buffer.byteLength(bodyStr);
+
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', c => data += c);
+      res.on('end', () => {
+        try {
+          const parsed = JSON.parse(data);
+          resolve({ data: parsed, status: res.statusCode });
+        } catch {
+          resolve({ data: data, status: res.statusCode });
+        }
+      });
+    });
+    req.on('error', reject);
+    if (bodyStr) req.write(bodyStr);
+    req.end();
+  });
+}
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function parseBody(req) {
-  return new Promise((res, rej) => {
+  return new Promise((res) => {
     let body = '';
     req.on('data', c => body += c);
-    req.on('end', () => {
-      try { res(JSON.parse(body)); }
-      catch { res({}); }
-    });
-    req.on('error', rej);
+    req.on('end', () => { try { res(JSON.parse(body)); } catch { res({}); } });
   });
 }
 
@@ -43,14 +79,14 @@ async function authMiddleware(req) {
   if (!h.startsWith('Bearer ')) return null;
   try {
     const payload = jwt.verify(h.slice(7), JWT_SECRET);
-    const { data } = await supabase.from('users').select('*').eq('id', payload.sub).single();
-    return data;
+    const { data } = await supaFetch('GET', 'users', { filter: `id=eq.${payload.sub}` });
+    return Array.isArray(data) && data.length ? data[0] : null;
   } catch { return null; }
 }
 
 // ── Serveur HTTP ──────────────────────────────────────────────────────────────
 const server = http.createServer(async (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin',  '*');
+  res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,x-api-key,anthropic-version');
   if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
@@ -58,31 +94,33 @@ const server = http.createServer(async (req, res) => {
   const url = req.url.split('?')[0];
 
   // ── HTML ──────────────────────────────────────────────────────────────────
-  if (req.method === 'GET' && (url === '/' || url === '/index.html' || !url.startsWith('/api'))) {
+  if (req.method === 'GET' && (url === '/' || !url.startsWith('/api'))) {
     if (!fs.existsSync(HTML_FILE)) { res.writeHead(404); return res.end('compta-app.html introuvable'); }
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
     return res.end(fs.readFileSync(HTML_FILE));
   }
 
-  // ── AUTH: POST /api/auth/register ─────────────────────────────────────────
+  // ── POST /api/auth/register ───────────────────────────────────────────────
   if (req.method === 'POST' && url === '/api/auth/register') {
     const body = await parseBody(req);
     const { email, password, nom, prenom, role } = body;
     if (!email || !password || !nom || !prenom) return send(res, 400, { error: 'Champs manquants' });
     const hash = await bcrypt.hash(password, 10);
-    const { data, error } = await supabase.from('users')
-      .insert({ email: email.toLowerCase(), password: hash, nom, prenom, role: role || 'comptable' })
-      .select().single();
-    if (error) return send(res, 409, { error: 'Email déjà utilisé' });
-    const token = jwt.sign({ sub: data.id }, JWT_SECRET, { expiresIn: '30d' });
-    return send(res, 201, { token, user: { id: data.id, email: data.email, nom: data.nom, prenom: data.prenom, role: data.role } });
+    const { data, status } = await supaFetch('POST', 'users', {
+      body: { email: email.toLowerCase(), password: hash, nom, prenom, role: role || 'comptable' }
+    });
+    if (status !== 201) return send(res, 409, { error: 'Email déjà utilisé' });
+    const user = Array.isArray(data) ? data[0] : data;
+    const token = jwt.sign({ sub: user.id }, JWT_SECRET, { expiresIn: '30d' });
+    return send(res, 201, { token, user: { id: user.id, email: user.email, nom: user.nom, prenom: user.prenom, role: user.role } });
   }
 
-  // ── AUTH: POST /api/auth/login ────────────────────────────────────────────
+  // ── POST /api/auth/login ──────────────────────────────────────────────────
   if (req.method === 'POST' && url === '/api/auth/login') {
     const body = await parseBody(req);
     const { email, password } = body;
-    const { data: user } = await supabase.from('users').select('*').eq('email', (email||'').toLowerCase()).single();
+    const { data } = await supaFetch('GET', 'users', { filter: `email=eq.${(email||'').toLowerCase()}` });
+    const user = Array.isArray(data) && data.length ? data[0] : null;
     if (!user) return send(res, 401, { error: 'Email ou mot de passe incorrect' });
     const ok = await bcrypt.compare(password, user.password);
     if (!ok) return send(res, 401, { error: 'Email ou mot de passe incorrect' });
@@ -90,115 +128,110 @@ const server = http.createServer(async (req, res) => {
     return send(res, 200, { token, user: { id: user.id, email: user.email, nom: user.nom, prenom: user.prenom, role: user.role } });
   }
 
-  // ── AUTH: GET /api/auth/me ────────────────────────────────────────────────
+  // ── GET /api/auth/me ──────────────────────────────────────────────────────
   if (req.method === 'GET' && url === '/api/auth/me') {
     const user = await authMiddleware(req);
     if (!user) return send(res, 401, { error: 'Non authentifié' });
     return send(res, 200, { user: { id: user.id, email: user.email, nom: user.nom, prenom: user.prenom, role: user.role } });
   }
 
-  // ── SOCIÉTÉS: GET /api/companies ──────────────────────────────────────────
+  // ── GET /api/companies ────────────────────────────────────────────────────
   if (req.method === 'GET' && url === '/api/companies') {
     const user = await authMiddleware(req);
     if (!user) return send(res, 401, { error: 'Non authentifié' });
-    let query;
+    let result;
     if (user.role === 'admin') {
-      query = supabase.from('companies').select('*').order('created_at');
+      result = await supaFetch('GET', 'companies', { filter: 'order=created_at' });
     } else {
-      const { data: links } = await supabase.from('user_companies').select('company_id').eq('user_id', user.id);
-      const ids = (links || []).map(l => l.company_id);
+      const links = await supaFetch('GET', 'user_companies', { filter: `user_id=eq.${user.id}` });
+      const ids = (links.data || []).map(l => l.company_id);
       if (!ids.length) return send(res, 200, []);
-      query = supabase.from('companies').select('*').in('id', ids).order('created_at');
+      result = await supaFetch('GET', 'companies', { filter: `id=in.(${ids.join(',')})` });
     }
-    const { data } = await query;
-    return send(res, 200, data || []);
+    return send(res, 200, result.data || []);
   }
 
-  // ── SOCIÉTÉS: POST /api/companies ─────────────────────────────────────────
+  // ── POST /api/companies ───────────────────────────────────────────────────
   if (req.method === 'POST' && url === '/api/companies') {
     const user = await authMiddleware(req);
     if (!user) return send(res, 401, { error: 'Non authentifié' });
     const body = await parseBody(req);
     const { name, ice, ville } = body;
     if (!name) return send(res, 400, { error: 'Nom requis' });
-    const { data: company } = await supabase.from('companies')
-      .insert({ name, ice, ville, owner_id: user.id })
-      .select().single();
-    // Affecter automatiquement la société à l'utilisateur créateur
-    await supabase.from('user_companies').insert({ user_id: user.id, company_id: company.id });
+    const { data } = await supaFetch('POST', 'companies', { body: { name, ice, ville, owner_id: user.id } });
+    const company = Array.isArray(data) ? data[0] : data;
+    await supaFetch('POST', 'user_companies', { body: { user_id: user.id, company_id: company.id } });
     return send(res, 201, company);
   }
 
-  // ── SOCIÉTÉS: GET /api/companies/portal/:token ────────────────────────────
+  // ── GET /api/companies/portal/:token ─────────────────────────────────────
   if (req.method === 'GET' && url.startsWith('/api/companies/portal/')) {
     const token = url.split('/').pop();
-    const { data } = await supabase.from('companies').select('id,name').eq('portal_token', token).single();
-    if (!data) return send(res, 404, { error: 'Lien invalide' });
-    return send(res, 200, data);
+    const { data } = await supaFetch('GET', 'companies', { filter: `portal_token=eq.${token}&select=id,name` });
+    const company = Array.isArray(data) && data.length ? data[0] : null;
+    if (!company) return send(res, 404, { error: 'Lien invalide' });
+    return send(res, 200, company);
   }
 
-  // ── FACTURES: GET /api/factures?company_id=xxx ────────────────────────────
+  // ── GET /api/factures ─────────────────────────────────────────────────────
   if (req.method === 'GET' && url === '/api/factures') {
     const user = await authMiddleware(req);
     if (!user) return send(res, 401, { error: 'Non authentifié' });
     const params = new URLSearchParams(req.url.split('?')[1] || '');
     const companyId = params.get('company_id');
     if (!companyId) return send(res, 400, { error: 'company_id requis' });
-    const { data } = await supabase.from('factures').select('*')
-      .eq('company_id', companyId).order('date_facture', { ascending: false });
+    const { data } = await supaFetch('GET', 'factures', { filter: `company_id=eq.${companyId}&order=date_facture.desc` });
     return send(res, 200, data || []);
   }
 
-  // ── FACTURES: POST /api/factures ──────────────────────────────────────────
+  // ── POST /api/factures ────────────────────────────────────────────────────
   if (req.method === 'POST' && url === '/api/factures') {
     const user = await authMiddleware(req);
     if (!user) return send(res, 401, { error: 'Non authentifié' });
     const body = await parseBody(req);
-    const { data, error } = await supabase.from('factures').insert(body).select().single();
-    if (error) return send(res, 400, { error: error.message });
-    return send(res, 201, data);
+    const { data } = await supaFetch('POST', 'factures', { body });
+    return send(res, 201, Array.isArray(data) ? data[0] : data);
   }
 
-  // ── TRANSACTIONS: GET /api/transactions?company_id=xxx ────────────────────
+  // ── GET /api/transactions ─────────────────────────────────────────────────
   if (req.method === 'GET' && url === '/api/transactions') {
     const user = await authMiddleware(req);
     if (!user) return send(res, 401, { error: 'Non authentifié' });
     const params = new URLSearchParams(req.url.split('?')[1] || '');
     const companyId = params.get('company_id');
-    const { data } = await supabase.from('transactions').select('*')
-      .eq('company_id', companyId).order('date_operation', { ascending: false });
+    const { data } = await supaFetch('GET', 'transactions', { filter: `company_id=eq.${companyId}&order=date_operation.desc` });
     return send(res, 200, data || []);
   }
 
-  // ── TRANSACTIONS: POST /api/transactions ──────────────────────────────────
+  // ── POST /api/transactions ────────────────────────────────────────────────
   if (req.method === 'POST' && url === '/api/transactions') {
     const user = await authMiddleware(req);
     if (!user) return send(res, 401, { error: 'Non authentifié' });
     const body = await parseBody(req);
     const rows = Array.isArray(body) ? body : [body];
-    const { data, error } = await supabase.from('transactions').insert(rows).select();
-    if (error) return send(res, 400, { error: error.message });
+    const { data } = await supaFetch('POST', 'transactions', { body: rows });
     return send(res, 201, data);
   }
 
-  // ── UTILISATEURS: GET /api/users (admin seulement) ────────────────────────
+  // ── GET /api/users ────────────────────────────────────────────────────────
   if (req.method === 'GET' && url === '/api/users') {
     const user = await authMiddleware(req);
     if (!user || user.role !== 'admin') return send(res, 403, { error: 'Admin requis' });
-    const { data } = await supabase.from('users').select('id,email,nom,prenom,role,created_at').order('created_at');
+    const { data } = await supaFetch('GET', 'users', { select: 'id,email,nom,prenom,role,created_at' });
     return send(res, 200, data || []);
   }
 
-  // ── UTILISATEURS: POST /api/users/companies (affecter société) ────────────
-  if (req.method === 'POST' && url === '/api/users/companies') {
-    const user = await authMiddleware(req);
-    if (!user || user.role !== 'admin') return send(res, 403, { error: 'Admin requis' });
+  // ── POST /api/portal/upload ───────────────────────────────────────────────
+  if (req.method === 'POST' && url === '/api/portal/upload') {
     const body = await parseBody(req);
-    await supabase.from('user_companies').upsert({ user_id: body.user_id, company_id: body.company_id });
-    return send(res, 200, { ok: true });
+    const { company_id, files } = body;
+    if (!company_id || !files) return send(res, 400, { error: 'Données manquantes' });
+    const docs = files.map(f => ({ company_id, original_name: f.name, status: 'pending', from_client: true }));
+    await supaFetch('POST', 'documents', { body: docs });
+    return send(res, 201, { message: 'Documents reçus', count: files.length });
   }
 
-  // ── PROXY ANTHROPIC: POST /api/messages ───────────────────────────────────
+  // ── POST /api/messages (proxy Anthropic) ─────────────────────────────────
   if (req.method === 'POST' && url === '/api/messages') {
     const user = await authMiddleware(req);
     if (!user) return send(res, 401, { error: 'Non authentifié' });
@@ -231,40 +264,16 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // ── DÉPÔT CLIENT: POST /api/portal/upload ────────────────────────────────
-  if (req.method === 'POST' && url === '/api/portal/upload') {
-    const body = await parseBody(req);
-    const { company_id, files } = body;
-    if (!company_id || !files) return send(res, 400, { error: 'Données manquantes' });
-    const docs = files.map(f => ({ company_id, original_name: f.name, status: 'pending', from_client: true }));
-    const { data } = await supabase.from('documents').insert(docs).select();
-    return send(res, 201, { message: 'Documents reçus', count: data.length });
+  // ── Health check ──────────────────────────────────────────────────────────
+  if (url === '/health') {
+    return send(res, 200, { status: 'ok', supabase: !!SUPABASE_URL, uptime: process.uptime() });
   }
 
-  // ── STATS: GET /api/stats?company_id=xxx ──────────────────────────────────
-  if (req.method === 'GET' && url === '/api/stats') {
-    const user = await authMiddleware(req);
-    if (!user) return send(res, 401, { error: 'Non authentifié' });
-    const params = new URLSearchParams(req.url.split('?')[1] || '');
-    const companyId = params.get('company_id');
-    const [factures, transactions] = await Promise.all([
-      supabase.from('factures').select('montant_ht,montant_tva,montant_ttc,categorie').eq('company_id', companyId),
-      supabase.from('transactions').select('montant,type_mouvement').eq('company_id', companyId),
-    ]);
-    const f = factures.data || [];
-    const t = transactions.data || [];
-    return send(res, 200, {
-      nb_factures:  f.length,
-      total_ht:     f.reduce((s, x) => s + (+x.montant_ht  || 0), 0),
-      total_tva:    f.reduce((s, x) => s + (+x.montant_tva || 0), 0),
-      total_ttc:    f.reduce((s, x) => s + (+x.montant_ttc || 0), 0),
-      nb_transactions: t.length,
-    });
-  }
-
-  send(res, 404, { error: 'Route inconnue' });
+  send(res, 404, { error: 'Route inconnue: ' + url });
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`ComptaAI démarré sur le port ${PORT}`);
+  console.log(`NEOEXPERT ComptaAI démarré sur le port ${PORT}`);
+  console.log(`Supabase URL: ${SUPABASE_URL ? '✓ configurée' : '✗ manquante'}`);
+  console.log(`Supabase Key: ${SUPABASE_KEY ? '✓ configurée' : '✗ manquante'}`);
 });

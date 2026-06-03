@@ -1,16 +1,14 @@
 {
   "name": "compta-ai",
   "version": "3.0.0",
-  "description": "Application comptable IA — multi-utilisateurs avec base de données",
+  "description": "NEOEXPERT ComptaAI — Gestion intelligente de documents comptables",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.39.0",
     "jsonwebtoken": "^9.0.2",
-    "bcryptjs": "^2.4.3",
-    "node-fetch": "^2.7.0"
+    "bcryptjs": "^2.4.3"
   },
   "engines": {
     "node": ">=18.0.0"
