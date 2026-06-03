@@ -10,7 +10,6 @@
 :root{--bg:#0D0F14;--bg2:#13161D;--bg3:#1A1E28;--card:#1E2230;--border:#2A2F40;--accent:#4F8EF7;--accent2:#7B5CF0;--success:#2ECC71;--warn:#F39C12;--danger:#E74C3C;--text:#E8EBF2;--muted:#6B7591;--mono:'IBM Plex Mono',monospace;--sans:'Inter',sans-serif;--display:'Syne',sans-serif}
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;min-height:100vh}
-/* AUTH */
 .auth-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:500}
 .auth-card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:48px;width:420px;text-align:center}
 .auth-logo{font-family:var(--display);font-size:28px;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:8px}
@@ -25,38 +24,32 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 .form-input::placeholder{color:var(--muted)}
 .btn-auth{background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:10px;padding:12px;color:#fff;font-size:14px;font-weight:500;cursor:pointer;width:100%;font-family:var(--sans);margin-top:8px;transition:opacity .2s}
 .btn-auth:hover{opacity:.9}
-.auth-error{background:rgba(231,76,60,.12);border:1px solid rgba(231,76,60,.3);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--danger);text-align:center;display:none}
-/* LAYOUT */
+.btn-auth:disabled{opacity:.5;cursor:not-allowed}
+.auth-error{background:rgba(231,76,60,.12);border:1px solid rgba(231,76,60,.3);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--danger);text-align:center;display:none;margin-top:8px}
 .app{display:none}
 .app.visible{display:flex}
 .sidebar{position:fixed;left:0;top:0;width:220px;height:100vh;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:100;overflow-y:auto}
 .logo{padding:20px;border-bottom:1px solid var(--border)}
 .logo h1{font-family:var(--display);font-size:20px;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .logo span{font-family:var(--mono);font-size:10px;color:var(--muted)}
-/* COMPANY SELECTOR */
 .company-section{padding:12px;border-bottom:1px solid var(--border)}
 .company-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;font-family:var(--mono);margin-bottom:6px}
 .company-select{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-size:12px;font-family:var(--sans);outline:none;cursor:pointer}
-.company-select:focus{border-color:var(--accent)}
 .btn-new-company{width:100%;background:rgba(79,142,247,.1);border:1px solid rgba(79,142,247,.2);border-radius:8px;padding:7px;color:var(--accent);font-size:12px;cursor:pointer;font-family:var(--sans);margin-top:6px;transition:all .2s}
 .btn-new-company:hover{background:rgba(79,142,247,.2)}
-/* NAV */
 .nav{flex:1;padding:12px 0}
 .nav-section-label{padding:6px 20px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;font-family:var(--mono)}
-.nav-item{display:flex;align-items:center;gap:10px;padding:9px 20px;cursor:pointer;color:var(--muted);transition:all .2s;font-size:13px;font-weight:500}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 20px;cursor:pointer;color:var(--muted);transition:all .2s;font-size:13px;font-weight:500;position:relative}
 .nav-item:hover{color:var(--text);background:var(--bg3)}
 .nav-item.active{color:var(--accent);background:rgba(79,142,247,.08)}
 .nav-item.active::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent);border-radius:0 2px 2px 0}
-.nav-item{position:relative}
 .nav-icon{width:17px;height:17px;flex-shrink:0}
-.nav-badge{margin-left:auto;background:var(--accent);color:#fff;font-size:10px;font-family:var(--mono);padding:2px 6px;border-radius:10px}
 .sidebar-footer{padding:14px;border-top:1px solid var(--border)}
-.user-pill{display:flex;align-items:center;gap:10px;cursor:pointer}
+.user-pill{display:flex;align-items:center;gap:10px}
 .avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:700;font-size:12px;color:#fff;flex-shrink:0}
 .user-info{flex:1;min-width:0}
 .user-name{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .user-role{font-size:10px;color:var(--muted);font-family:var(--mono)}
-/* MAIN */
 .main{margin-left:220px;min-height:100vh;display:flex;flex-direction:column}
 .topbar{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 24px;height:54px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:50}
 .page-title{font-family:var(--display);font-size:17px;font-weight:700;flex:1}
@@ -67,34 +60,26 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 .btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border)}
 .btn-ghost:hover{color:var(--text);border-color:var(--muted)}
 .btn-success{background:rgba(46,204,113,.12);color:var(--success);border:1px solid rgba(46,204,113,.25)}
-.btn-danger{background:rgba(231,76,60,.12);color:var(--danger);border:1px solid rgba(231,76,60,.25)}
-.btn-warn{background:rgba(243,156,18,.12);color:var(--warn);border:1px solid rgba(243,156,18,.25)}
 .content{flex:1;padding:24px}
-/* PAGES */
 .page{display:none}.page.active{display:block}
-/* STATS */
 .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
-.stat-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;cursor:pointer}
 .stat-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-family:var(--mono);margin-bottom:6px}
 .stat-value{font-family:var(--display);font-size:26px;font-weight:700;margin-bottom:4px}
 .stat-sub{font-size:12px;color:var(--muted)}
 .stat-value.accent{color:var(--accent)}.stat-value.success{color:var(--success)}.stat-value.warn{color:var(--warn)}
-/* CARDS */
 .card{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px}
 .card-head{display:flex;align-items:center;padding:14px 18px;border-bottom:1px solid var(--border);gap:10px}
 .card-head h3{font-family:var(--display);font-size:14px;font-weight:700;flex:1}
-/* UPLOAD */
 .drop-zone{border:2px dashed var(--border);border-radius:14px;background:var(--bg2);padding:40px;text-align:center;cursor:pointer;transition:all .3s;position:relative}
 .drop-zone:hover,.drop-zone.drag-over{border-color:var(--accent);background:rgba(79,142,247,.04)}
 .drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
 .drop-icon{width:44px;height:44px;background:rgba(79,142,247,.12);border-radius:10px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:22px}
 .fmt-badges{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:12px}
 .fmt-badge{background:var(--bg3);border:1px solid var(--border);padding:3px 10px;border-radius:20px;font-family:var(--mono);font-size:11px;color:var(--muted)}
-/* QUEUE */
 .queue-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .queue-list{max-height:280px;overflow-y:auto}
-.queue-item{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid rgba(42,47,64,.5);transition:background .15s}
-.queue-item:hover{background:var(--bg3)}
+.queue-item{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid rgba(42,47,64,.5)}
 .file-icon{width:32px;height:32px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
 .file-icon.pdf{background:rgba(231,76,60,.12)}.file-icon.img{background:rgba(79,142,247,.12)}
 .file-info{flex:1;min-width:0}
@@ -106,9 +91,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 .status-badge.done{background:rgba(46,204,113,.12);color:var(--success)}
 .status-badge.error{background:rgba(231,76,60,.12);color:var(--danger)}
 .progress-bar{height:3px;background:var(--bg3);border-radius:2px;overflow:hidden;margin-top:4px}
-.progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .4s;animation:pulse-bar 1.5s infinite}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));animation:pulse-bar 1.5s infinite}
 @keyframes pulse-bar{0%,100%{opacity:1}50%{opacity:.6}}
-/* TABLE */
 .table-header{display:flex;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);gap:10px}
 .table-header h3{font-family:var(--display);font-size:13px;font-weight:700;flex:1}
 .search-input{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:6px 12px;color:var(--text);font-size:13px;font-family:var(--sans);width:200px;outline:none}
@@ -121,12 +105,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 .data-table tr:hover td{background:var(--bg3)}
 .amount{font-family:var(--mono);font-weight:500}
 .amount.pos{color:var(--success)}.amount.neg{color:var(--danger)}
-/* KEY SECTION */
 .key-section{background:rgba(79,142,247,.06);border:1px solid rgba(79,142,247,.15);border-radius:10px;padding:14px;margin-bottom:18px;display:flex;gap:10px;align-items:center}
 .key-input{flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;font-family:var(--mono);outline:none}
 .key-input:focus{border-color:var(--accent)}
-.key-status{font-size:11px;color:var(--muted);margin-top:4px;font-family:var(--mono)}
-/* MODAL */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:300;display:none;align-items:center;justify-content:center;padding:20px}
 .modal-overlay.open{display:flex}
 .modal{background:var(--card);border:1px solid var(--border);border-radius:16px;width:100%;max-width:600px;max-height:88vh;overflow-y:auto}
@@ -134,13 +115,12 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 .modal-head h2{font-family:var(--display);font-size:15px;font-weight:700;flex:1}
 .modal-body{padding:22px}
 .result-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.result-field{margin-bottom:8px}
 .result-field label{display:block;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;font-family:var(--mono);margin-bottom:5px}
 .result-value{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:13px;font-family:var(--mono)}
-/* PORTAIL CLIENT */
 .portal-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px}
 .portal-link{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-family:var(--mono);font-size:12px;color:var(--accent);word-break:break-all;flex:1}
 .link-row{display:flex;align-items:center;gap:10px;margin-top:10px}
-/* USERS */
 .users-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px}
 .user-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;text-align:center}
 .user-avatar-lg{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:700;font-size:16px;color:#fff;margin:0 auto 12px}
@@ -148,17 +128,13 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 .role-badge.admin{background:rgba(231,76,60,.12);color:var(--danger)}
 .role-badge.comptable{background:rgba(79,142,247,.12);color:var(--accent)}
 .role-badge.auditeur{background:rgba(243,156,18,.12);color:var(--warn)}
-/* SECTION DIVIDER */
 .divider{display:flex;align-items:center;gap:10px;margin-bottom:16px;margin-top:8px}
 .divider h2{font-family:var(--display);font-size:14px;font-weight:700;white-space:nowrap}
 .divider-line{flex:1;height:1px;background:var(--border)}
-/* TOAST */
 .toast-container{position:fixed;bottom:20px;right:20px;z-index:400;display:flex;flex-direction:column;gap:8px}
-.toast{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:11px 16px;font-size:13px;display:flex;align-items:center;gap:8px;box-shadow:0 8px 32px rgba(0,0,0,.4);animation:slide-in .3s ease;max-width:300px}
+.toast{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:11px 16px;font-size:13px;display:flex;align-items:center;gap:8px;box-shadow:0 8px 32px rgba(0,0,0,.4);animation:slide-in .3s ease;max-width:320px}
 @keyframes slide-in{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
 .toast.success{border-left:3px solid var(--success)}.toast.error{border-left:3px solid var(--danger)}.toast.info{border-left:3px solid var(--accent)}
-::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
-/* PORTAIL PUBLIC (page dépôt) */
 .portal-public{position:fixed;inset:0;background:var(--bg);display:none;align-items:center;justify-content:center}
 .portal-public.active{display:flex}
 .portal-box{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:40px;width:500px;text-align:center}
@@ -174,16 +150,19 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 .pie-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
 .pie-label{flex:1;color:var(--muted)}.pie-pct{font-family:var(--mono);font-size:11px}
 .no-company{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;color:var(--muted);text-align:center;gap:12px}
-.no-company-icon{font-size:48px;opacity:.3}
+.loading{display:flex;align-items:center;justify-content:center;padding:40px;color:var(--muted);font-size:13px;gap:10px}
+.spinner{width:18px;height:18px;border:2px solid rgba(79,142,247,.3);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
 </style>
 </head>
 <body>
 
-<!-- PORTAIL PUBLIC (dépôt client) -->
+<!-- PORTAIL PUBLIC -->
 <div class="portal-public" id="portal-public">
   <div class="portal-box">
     <div style="font-family:var(--display);font-size:22px;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:6px">ComptaAI</div>
-    <div style="color:var(--muted);font-size:13px;margin-bottom:8px" id="portal-company-name">Dépôt de documents</div>
+    <div style="color:var(--muted);font-size:13px;margin-bottom:6px" id="portal-company-name">Dépôt de documents</div>
     <div style="color:var(--muted);font-size:12px;margin-bottom:28px">Déposez vos factures et relevés bancaires</div>
     <div class="drop-zone" id="portal-drop" ondragover="handlePortalDrag(event)" ondragleave="handlePortalDragLeave(event)" ondrop="handlePortalDrop(event)" style="margin-bottom:16px">
       <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.webp" onchange="handlePortalFiles(this.files)"/>
@@ -193,14 +172,12 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
       <div class="fmt-badges"><span class="fmt-badge">PDF</span><span class="fmt-badge">JPG</span><span class="fmt-badge">PNG</span></div>
     </div>
     <div id="portal-files-list" style="max-height:200px;overflow-y:auto;margin-bottom:16px"></div>
-    <div id="portal-success" style="display:none;background:rgba(46,204,113,.1);border:1px solid rgba(46,204,113,.3);border-radius:10px;padding:14px;color:var(--success);font-size:13px">
-      ✓ Documents déposés avec succès. Votre comptable les traitera prochainement.
-    </div>
+    <div id="portal-success" style="display:none;background:rgba(46,204,113,.1);border:1px solid rgba(46,204,113,.3);border-radius:10px;padding:14px;color:var(--success);font-size:13px">✓ Documents déposés avec succès. Votre comptable les traitera prochainement.</div>
     <button class="btn-auth" id="portal-submit" onclick="submitPortalFiles()" style="display:none">Envoyer les documents</button>
   </div>
 </div>
 
-<!-- AUTH SCREEN -->
+<!-- AUTH -->
 <div class="auth-screen" id="auth-screen">
   <div class="auth-card">
     <div class="auth-logo">ComptaAI</div>
@@ -209,19 +186,15 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
       <button class="auth-tab active" onclick="switchAuthTab('login')">Connexion</button>
       <button class="auth-tab" onclick="switchAuthTab('register')">Créer un compte</button>
     </div>
-    <!-- LOGIN -->
     <div id="tab-login">
       <div class="auth-form">
         <div class="form-group"><label>Email</label><input class="form-input" type="email" id="login-email" placeholder="votre@email.com"/></div>
-        <div class="form-group"><label>Mot de passe</label><input class="form-input" type="password" id="login-password" placeholder="••••••••"/></div>
+        <div class="form-group"><label>Mot de passe</label><input class="form-input" type="password" id="login-password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"/></div>
         <div class="auth-error" id="login-error"></div>
-        <button class="btn-auth" onclick="doLogin()">Se connecter</button>
+        <button class="btn-auth" id="btn-login" onclick="doLogin()">Se connecter</button>
       </div>
-      <div style="margin-top:16px;font-size:12px;color:var(--muted)">
-        Compte démo : <span style="font-family:var(--mono);color:var(--accent)">admin@demo.com</span> / <span style="font-family:var(--mono);color:var(--accent)">demo1234</span>
-      </div>
+      <div style="margin-top:14px;font-size:12px;color:var(--muted)">Compte admin par défaut :<br><span style="font-family:var(--mono);color:var(--accent)">admin@comptaai.com</span> / <span style="font-family:var(--mono);color:var(--accent)">Admin1234</span></div>
     </div>
-    <!-- REGISTER -->
     <div id="tab-register" style="display:none">
       <div class="auth-form">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
@@ -231,14 +204,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
         <div class="form-group"><label>Email</label><input class="form-input" type="email" id="reg-email" placeholder="votre@email.com"/></div>
         <div class="form-group"><label>Mot de passe</label><input class="form-input" type="password" id="reg-password" placeholder="Minimum 6 caractères"/></div>
         <div class="form-group"><label>Rôle</label>
-          <select class="form-input" id="reg-role" style="cursor:pointer">
-            <option value="admin">Admin — accès complet</option>
-            <option value="comptable" selected>Comptable — upload, extraction, export</option>
-            <option value="auditeur">Auditeur — lecture et export uniquement</option>
-          </select>
+          <select class="form-input" id="reg-role"><option value="comptable">Comptable</option><option value="auditeur">Auditeur</option><option value="admin">Admin</option></select>
         </div>
         <div class="auth-error" id="reg-error"></div>
-        <button class="btn-auth" onclick="doRegister()">Créer mon compte</button>
+        <button class="btn-auth" id="btn-register" onclick="doRegister()">Créer mon compte</button>
       </div>
     </div>
   </div>
@@ -246,10 +215,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 
 <!-- APP -->
 <div class="app" id="app">
-  <!-- SIDEBAR -->
   <div class="sidebar">
-    <div class="logo"><h1>ComptaAI</h1><span>v3.0 · Multi-sociétés</span></div>
-    <!-- SÉLECTEUR DE SOCIÉTÉ -->
+    <div class="logo"><h1>ComptaAI</h1><span>v4.0 · Cloud · Multi-utilisateurs</span></div>
     <div class="company-section">
       <div class="company-label">Société active</div>
       <select class="company-select" id="company-select" onchange="selectCompany(this.value)">
@@ -260,42 +227,33 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
     <nav class="nav">
       <div class="nav-section-label">Navigation</div>
       <div class="nav-item active" onclick="showPage('dashboard')">
-        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-        Tableau de bord
+        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Tableau de bord
       </div>
       <div class="nav-item" onclick="showPage('upload')">
-        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
-        Upload documents
-        <span class="nav-badge" id="queue-badge">0</span>
+        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>Upload documents
       </div>
       <div class="nav-item" onclick="showPage('factures')">
-        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-        Factures
+        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Factures
       </div>
       <div class="nav-item" onclick="showPage('releves')">
-        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
-        Relevés bancaires
+        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>Relevés bancaires
       </div>
       <div class="nav-item" onclick="showPage('rapprochement')">
-        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-        Rapprochement
+        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Rapprochement
       </div>
       <div class="nav-item" onclick="showPage('export')">
-        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-        Export
+        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Export
       </div>
       <div class="nav-section-label" style="margin-top:8px">Administration</div>
       <div class="nav-item" id="nav-users" onclick="showPage('users')">
-        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
-        Utilisateurs
+        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>Utilisateurs
       </div>
       <div class="nav-item" onclick="showPage('portail')">
-        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
-        Portail clients
+        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>Portail clients
       </div>
     </nav>
     <div class="sidebar-footer">
-      <div class="user-pill" onclick="showPage('profile')">
+      <div class="user-pill">
         <div class="avatar" id="sidebar-avatar">?</div>
         <div class="user-info">
           <div class="user-name" id="sidebar-username">—</div>
@@ -306,7 +264,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
     </div>
   </div>
 
-  <!-- MAIN -->
   <div class="main">
     <div class="topbar">
       <span class="page-title" id="page-title">Tableau de bord</span>
@@ -319,17 +276,16 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
       <!-- DASHBOARD -->
       <div class="page active" id="page-dashboard">
         <div id="dashboard-no-company" class="no-company" style="display:none">
-          <div class="no-company-icon">🏢</div>
+          <div style="font-size:48px;opacity:.3">🏢</div>
           <div style="font-size:16px;font-weight:500;color:var(--text)">Aucune société sélectionnée</div>
-          <div style="font-size:13px">Créez ou sélectionnez une société dans le menu gauche pour commencer</div>
           <button class="btn btn-primary" onclick="openNewCompanyModal()">+ Créer une société</button>
         </div>
         <div id="dashboard-content">
           <div class="stats-grid">
-            <div class="stat-card"><div class="stat-label">Documents traités</div><div class="stat-value accent" id="stat-total">0</div><div class="stat-sub">ce mois</div></div>
-            <div class="stat-card"><div class="stat-label">Total factures HT</div><div class="stat-value" id="stat-ht">0 MAD</div><div class="stat-sub">hors TVA</div></div>
+            <div class="stat-card"><div class="stat-label">Factures</div><div class="stat-value accent" id="stat-total">0</div><div class="stat-sub">documents extraits</div></div>
+            <div class="stat-card"><div class="stat-label">Total HT</div><div class="stat-value" id="stat-ht">0 MAD</div><div class="stat-sub">hors TVA</div></div>
             <div class="stat-card"><div class="stat-label">TVA collectée</div><div class="stat-value warn" id="stat-tva">0 MAD</div><div class="stat-sub">à déclarer</div></div>
-            <div class="stat-card"><div class="stat-label">Rapprochements</div><div class="stat-value success" id="stat-match">0%</div><div class="stat-sub">taux matching</div></div>
+            <div class="stat-card"><div class="stat-label">Transactions</div><div class="stat-value success" id="stat-tx">0</div><div class="stat-sub">relevés bancaires</div></div>
           </div>
           <div class="chart-grid">
             <div class="chart-card"><h4>Répartition par catégorie</h4><div class="pie-legend" id="pie-legend"><div class="pie-row"><div class="pie-dot" style="background:#4F8EF7"></div><span class="pie-label">Aucune donnée</span><span class="pie-pct">—</span></div></div></div>
@@ -344,25 +300,24 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
           <span style="font-size:20px">🔑</span>
           <div style="flex:1">
             <input class="key-input" type="password" id="api-key" placeholder="Clé API Anthropic (sk-ant-...)"/>
-            <div class="key-status" id="key-status">⚠ Entrez votre clé API pour activer l'extraction IA</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:4px;font-family:var(--mono)" id="key-status">⚠ Entrez votre clé API pour activer l'extraction IA</div>
           </div>
           <button class="btn btn-ghost" onclick="saveKey()">Sauvegarder</button>
         </div>
         <div id="upload-no-company" class="no-company" style="display:none">
-          <div class="no-company-icon">🏢</div>
+          <div style="font-size:48px;opacity:.3">🏢</div>
           <div style="font-size:14px;font-weight:500;color:var(--text)">Sélectionnez d'abord une société</div>
           <button class="btn btn-primary" onclick="openNewCompanyModal()">+ Créer une société</button>
         </div>
         <div id="upload-content">
           <div class="divider"><h2>Zone d'upload</h2><div class="divider-line"></div></div>
-          <div class="drop-zone" id="drop-zone" style="margin-bottom:18px" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+          <div class="drop-zone" style="margin-bottom:18px" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
             <input type="file" id="file-input" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.tiff" onchange="handleFiles(this.files)"/>
             <div class="drop-icon">📄</div>
             <div style="font-size:15px;font-weight:500;margin-bottom:6px">Glissez vos documents ici</div>
-            <div style="color:var(--muted);font-size:13px;margin-bottom:4px">Factures, relevés bancaires, reçus — upload groupé (50 fichiers max)</div>
+            <div style="color:var(--muted);font-size:13px;margin-bottom:4px">Factures, relevés bancaires — upload groupé (50 max)</div>
             <div class="fmt-badges"><span class="fmt-badge">PDF</span><span class="fmt-badge">JPG</span><span class="fmt-badge">PNG</span><span class="fmt-badge">WEBP</span></div>
           </div>
-          <div class="divider"><h2>File de traitement</h2><div class="divider-line"></div></div>
           <div class="queue-grid">
             <div class="card"><div class="card-head"><h3>⏳ En cours</h3></div><div class="queue-list" id="queue-pending"><div style="padding:20px;text-align:center;color:var(--muted);font-size:12px">Aucun document en attente</div></div></div>
             <div class="card"><div class="card-head"><h3>✅ Traités</h3></div><div class="queue-list" id="queue-done"><div style="padding:20px;text-align:center;color:var(--muted);font-size:12px">Aucun document traité</div></div></div>
@@ -374,7 +329,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
       <div class="page" id="page-factures">
         <div class="card">
           <div class="table-header"><h3>Factures</h3><input class="search-input" placeholder="Rechercher..." id="search-factures" oninput="filterTable('factures',this.value)"/><button class="btn btn-success" onclick="exportTable('factures')">CSV</button></div>
-          <div style="overflow-x:auto"><table class="data-table"><thead><tr><th>Date</th><th>Fournisseur</th><th>N°</th><th>Catégorie</th><th>HT</th><th>TVA</th><th>TTC</th><th>Statut</th><th></th></tr></thead><tbody id="tbody-factures"><tr><td colspan="9" style="text-align:center;color:var(--muted);padding:40px">Aucune facture</td></tr></tbody></table></div>
+          <div style="overflow-x:auto"><table class="data-table"><thead><tr><th>Date</th><th>Fournisseur</th><th>N°</th><th>Catégorie</th><th>HT</th><th>TVA</th><th>TTC</th><th>Statut</th></tr></thead><tbody id="tbody-factures"><tr><td colspan="8" style="text-align:center;color:var(--muted);padding:40px">Aucune facture</td></tr></tbody></table></div>
         </div>
       </div>
 
@@ -382,7 +337,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
       <div class="page" id="page-releves">
         <div class="card">
           <div class="table-header"><h3>Relevés bancaires</h3><input class="search-input" placeholder="Rechercher..." id="search-releves" oninput="filterTable('releves',this.value)"/><button class="btn btn-success" onclick="exportTable('releves')">CSV</button></div>
-          <div style="overflow-x:auto"><table class="data-table"><thead><tr><th>Date</th><th>Libellé</th><th>Type</th><th>Débit</th><th>Crédit</th><th>Solde</th><th>Statut</th></tr></thead><tbody id="tbody-releves"><tr><td colspan="7" style="text-align:center;color:var(--muted);padding:40px">Aucune transaction</td></tr></tbody></table></div>
+          <div style="overflow-x:auto"><table class="data-table"><thead><tr><th>Date</th><th>Libellé</th><th>Type</th><th>Débit</th><th>Crédit</th><th>Solde</th></tr></thead><tbody id="tbody-releves"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:40px">Aucune transaction</td></tr></tbody></table></div>
         </div>
       </div>
 
@@ -401,34 +356,26 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
       <!-- EXPORT -->
       <div class="page" id="page-export">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">
-          <div class="stat-card" style="cursor:pointer;border:2px solid rgba(123,92,240,.5);grid-column:span 2" onclick="exportECRIT()">
+          <div class="stat-card" style="border:2px solid rgba(123,92,240,.5);grid-column:span 2" onclick="exportECRIT()">
             <div style="display:flex;align-items:center;gap:20px">
               <div style="font-size:40px">📒</div>
               <div style="flex:1">
                 <div style="font-size:10px;color:var(--accent2);text-transform:uppercase;letter-spacing:.8px;font-family:var(--mono);margin-bottom:4px">Lot comptable — Format Excel 5.0/95</div>
                 <div style="font-size:15px;font-weight:600;margin-bottom:4px">Export ECRIT</div>
-                <div style="font-size:12px;color:var(--muted)">Code journal · N° compte · Contrepartie · Libellé · Débit · Crédit</div>
+                <div style="font-size:12px;color:var(--muted)">Code journal · N° compte · Libellé · Débit · Crédit</div>
               </div>
-              <div style="background:rgba(123,92,240,.12);border:1px solid rgba(123,92,240,.3);border-radius:10px;padding:12px 20px;text-align:center;flex-shrink:0">
+              <div style="background:rgba(123,92,240,.12);border:1px solid rgba(123,92,240,.3);border-radius:10px;padding:12px 20px;text-align:center">
                 <div style="font-family:var(--mono);font-size:14px;color:var(--accent2);font-weight:600">ECRIT.xls</div>
                 <div style="font-size:11px;color:var(--muted);margin-top:3px">Cliquez pour générer</div>
               </div>
             </div>
           </div>
-          <div class="stat-card" style="cursor:pointer" onclick="exportAll()"><div style="font-size:28px;margin-bottom:10px">📊</div><div class="stat-label">Export complet</div><div style="font-size:13px;font-weight:500;margin-bottom:4px">Tout en Excel</div><div class="stat-sub">Factures + Relevés</div></div>
-          <div class="stat-card" style="cursor:pointer" onclick="exportTable('factures')"><div style="font-size:28px;margin-bottom:10px">🧾</div><div class="stat-label">Factures CSV</div><div style="font-size:13px;font-weight:500;margin-bottom:4px">Factures uniquement</div><div class="stat-sub">Format CSV</div></div>
+          <div class="stat-card" onclick="exportAll()"><div style="font-size:28px;margin-bottom:10px">📊</div><div class="stat-label">Export complet Excel</div><div style="font-size:13px;font-weight:500;margin-bottom:4px">Factures + Relevés</div></div>
+          <div class="stat-card" onclick="exportTable('factures')"><div style="font-size:28px;margin-bottom:10px">🧾</div><div class="stat-label">Factures CSV</div><div style="font-size:13px;font-weight:500;margin-bottom:4px">Format CSV</div></div>
         </div>
         <div class="card">
-          <div class="card-head">
-            <h3>📒 Prévisualisation — Lot comptable ECRIT</h3>
-            <button class="btn btn-primary" onclick="exportECRIT()">↓ Télécharger ECRIT.xls</button>
-          </div>
-          <div style="overflow-x:auto">
-            <table class="data-table" id="table-ecrit">
-              <thead><tr><th>Code journal</th><th>Date écriture</th><th>N° de compte</th><th>Contrepartie</th><th>Libellé écriture</th><th>N° pièce</th><th>Lettrage</th><th>Débit</th><th>Crédit</th></tr></thead>
-              <tbody id="tbody-ecrit"><tr><td colspan="9" style="text-align:center;color:var(--muted);padding:30px">Importez des factures et relevés pour générer le lot comptable</td></tr></tbody>
-            </table>
-          </div>
+          <div class="card-head"><h3>📒 Prévisualisation — Lot ECRIT</h3><button class="btn btn-primary" onclick="exportECRIT()">↓ ECRIT.xls</button></div>
+          <div style="overflow-x:auto"><table class="data-table" id="table-ecrit"><thead><tr><th>Code journal</th><th>Date écriture</th><th>N° de compte</th><th>Contrepartie</th><th>Libellé</th><th>N° pièce</th><th>Lettrage</th><th>Débit</th><th>Crédit</th></tr></thead><tbody id="tbody-ecrit"><tr><td colspan="9" style="text-align:center;color:var(--muted);padding:30px">Importez des documents pour générer le lot comptable</td></tr></tbody></table></div>
         </div>
       </div>
 
@@ -436,30 +383,25 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
       <div class="page" id="page-users">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
           <div style="font-family:var(--display);font-size:16px;font-weight:700">Gestion des utilisateurs</div>
-          <button class="btn btn-primary" onclick="openNewUserModal()">+ Ajouter un utilisateur</button>
+          <button class="btn btn-primary" onclick="openNewUserModal()">+ Ajouter</button>
         </div>
-        <div class="users-grid" id="users-grid"></div>
+        <div class="users-grid" id="users-grid"><div class="loading"><div class="spinner"></div> Chargement...</div></div>
       </div>
 
       <!-- PORTAIL CLIENTS -->
       <div class="page" id="page-portail">
         <div style="margin-bottom:18px">
           <div style="font-family:var(--display);font-size:16px;font-weight:700;margin-bottom:6px">Portail de dépôt clients</div>
-          <div style="color:var(--muted);font-size:13px">Générez un lien unique à partager avec vos clients pour qu'ils déposent leurs documents directement.</div>
+          <div style="color:var(--muted);font-size:13px">Partagez un lien unique à vos clients pour qu'ils déposent leurs documents.</div>
         </div>
         <div id="portail-companies"></div>
-        <div class="divider" style="margin-top:20px"><h2>Documents reçus des clients</h2><div class="divider-line"></div></div>
-        <div class="card">
-          <div class="table-header"><h3>Dépôts clients en attente de traitement</h3></div>
-          <div id="client-uploads-list" style="padding:20px;color:var(--muted);font-size:13px;text-align:center">Aucun document déposé par les clients</div>
-        </div>
       </div>
 
     </div>
   </div>
 </div>
 
-<!-- MODAL GÉNÉRIQUE -->
+<!-- MODAL -->
 <div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
   <div class="modal">
     <div class="modal-head"><h2 id="modal-title">Modal</h2><button class="btn btn-ghost" style="padding:4px 10px" onclick="closeModal()">✕</button></div>
@@ -470,63 +412,79 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 <div class="toast-container" id="toast-container"></div>
 
 <script>
-// ===== ÉTAT GLOBAL =====
-const DB_KEY = 'compta_ai_db';
-let db = JSON.parse(localStorage.getItem(DB_KEY) || 'null') || {
-  users: [{ id:'u1', email:'admin@demo.com', password:'demo1234', nom:'Admin', prenom:'Demo', role:'admin', companies:[] }],
-  companies: [],
-  data: {}   // data[companyId] = { factures:[], releves:[], queue:[] }
-};
+// ===== CONFIG =====
+const API = '';  // URL de base (vide = même domaine)
+let token = localStorage.getItem('compta_token') || '';
 let currentUser = null;
 let currentCompanyId = null;
-const state = { apiKey: localStorage.getItem('compta_api_key') || '' };
+let allFactures = [];
+let allTransactions = [];
 
-function saveDB() { localStorage.setItem(DB_KEY, JSON.stringify(db)); }
-function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+// ===== API HELPER =====
+async function api(method, path, body) {
+  const opts = {
+    method,
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
+  };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(API + path, opts);
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || 'Erreur serveur');
+  return data;
+}
 
 // ===== AUTH =====
 function switchAuthTab(tab) {
   document.querySelectorAll('.auth-tab').forEach((t,i)=>t.classList.toggle('active',i===(tab==='login'?0:1)));
-  document.getElementById('tab-login').style.display = tab==='login' ? '' : 'none';
-  document.getElementById('tab-register').style.display = tab==='register' ? '' : 'none';
+  document.getElementById('tab-login').style.display = tab==='login'?'':'none';
+  document.getElementById('tab-register').style.display = tab==='register'?'':'none';
 }
 
-function doLogin() {
-  const email = document.getElementById('login-email').value.trim().toLowerCase();
-  const pass  = document.getElementById('login-password').value;
-  const user  = db.users.find(u => u.email===email && u.password===pass);
-  if(!user) { showAuthError('login-error','Email ou mot de passe incorrect'); return; }
-  currentUser = user;
-  localStorage.setItem('compta_session', user.id);
-  enterApp();
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const btn = document.getElementById('btn-login');
+  btn.disabled = true; btn.textContent = 'Connexion...';
+  try {
+    const data = await api('POST', '/api/auth/login', { email, password });
+    token = data.token;
+    localStorage.setItem('compta_token', token);
+    currentUser = data.user;
+    enterApp();
+  } catch(e) {
+    showAuthError('login-error', e.message);
+  } finally { btn.disabled = false; btn.textContent = 'Se connecter'; }
 }
 
-function doRegister() {
+async function doRegister() {
   const prenom = document.getElementById('reg-prenom').value.trim();
   const nom    = document.getElementById('reg-nom').value.trim();
-  const email  = document.getElementById('reg-email').value.trim().toLowerCase();
-  const pass   = document.getElementById('reg-password').value;
+  const email  = document.getElementById('reg-email').value.trim();
+  const password = document.getElementById('reg-password').value;
   const role   = document.getElementById('reg-role').value;
-  if(!prenom||!nom||!email||!pass) { showAuthError('reg-error','Remplissez tous les champs'); return; }
-  if(pass.length < 6) { showAuthError('reg-error','Mot de passe: 6 caractères minimum'); return; }
-  if(db.users.find(u=>u.email===email)) { showAuthError('reg-error','Cet email est déjà utilisé'); return; }
-  const user = { id:genId(), email, password:pass, nom, prenom, role, companies:[] };
-  db.users.push(user);
-  saveDB();
-  currentUser = user;
-  localStorage.setItem('compta_session', user.id);
-  enterApp();
+  const btn = document.getElementById('btn-register');
+  btn.disabled = true; btn.textContent = 'Création...';
+  try {
+    const data = await api('POST', '/api/auth/register', { prenom, nom, email, password, role });
+    token = data.token;
+    localStorage.setItem('compta_token', token);
+    currentUser = data.user;
+    enterApp();
+  } catch(e) {
+    showAuthError('reg-error', e.message);
+  } finally { btn.disabled = false; btn.textContent = 'Créer mon compte'; }
 }
 
 function showAuthError(id, msg) {
   const el = document.getElementById(id);
   el.textContent = msg; el.style.display = 'block';
-  setTimeout(()=>el.style.display='none', 4000);
+  setTimeout(()=>el.style.display='none', 5000);
 }
 
 function doLogout() {
-  localStorage.removeItem('compta_session');
-  currentUser = null; currentCompanyId = null;
+  localStorage.removeItem('compta_token');
+  token = ''; currentUser = null; currentCompanyId = null;
+  allFactures = []; allTransactions = [];
   document.getElementById('app').classList.remove('visible');
   document.getElementById('auth-screen').style.display = 'flex';
 }
@@ -534,203 +492,185 @@ function doLogout() {
 function enterApp() {
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('app').classList.add('visible');
-  // Sidebar user info
-  const initials = (currentUser.prenom[0]||'') + (currentUser.nom[0]||'');
-  document.getElementById('sidebar-avatar').textContent = initials.toUpperCase();
-  document.getElementById('sidebar-username').textContent = currentUser.prenom + ' ' + currentUser.nom;
+  const init = (currentUser.prenom[0]||'')+(currentUser.nom[0]||'');
+  document.getElementById('sidebar-avatar').textContent = init.toUpperCase();
+  document.getElementById('sidebar-username').textContent = currentUser.prenom+' '+currentUser.nom;
   document.getElementById('sidebar-role').textContent = currentUser.role;
-  // Cacher gestion users si pas admin
-  document.getElementById('nav-users').style.display = currentUser.role==='admin' ? '' : 'none';
-  // API Key
-  if(state.apiKey) { document.getElementById('api-key').value=state.apiKey; updateKeyStatus(); }
-  refreshCompanySelect();
-  renderUsers();
-  renderPortailCompanies();
+  document.getElementById('nav-users').style.display = currentUser.role==='admin'?'':'none';
+  const savedKey = localStorage.getItem('compta_api_key');
+  if(savedKey) { document.getElementById('api-key').value=savedKey; updateKeyStatus(); }
+  loadCompanies();
   showPage('dashboard');
 }
 
 // ===== SOCIÉTÉS =====
-function getMyCompanies() {
-  if(currentUser.role==='admin') return db.companies;
-  return db.companies.filter(c => currentUser.companies && currentUser.companies.includes(c.id));
+async function loadCompanies() {
+  try {
+    const companies = await api('GET', '/api/companies');
+    const sel = document.getElementById('company-select');
+    sel.innerHTML = '<option value="">— Choisir une société —</option>' +
+      companies.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+    renderPortailCompanies(companies);
+    if(companies.length === 1) { sel.value = companies[0].id; selectCompany(companies[0].id); }
+  } catch(e) { toast('Erreur chargement sociétés','error'); }
 }
 
-function refreshCompanySelect() {
-  const sel = document.getElementById('company-select');
-  const companies = getMyCompanies();
-  sel.innerHTML = '<option value="">— Choisir une société —</option>' +
-    companies.map(c=>`<option value="${c.id}" ${c.id===currentCompanyId?'selected':''}>${c.name}</option>`).join('');
-  if(currentCompanyId && !companies.find(c=>c.id===currentCompanyId)) {
-    currentCompanyId = null;
-  }
-  updateCompanyUI();
-}
-
-function selectCompany(id) {
+async function selectCompany(id) {
   currentCompanyId = id || null;
-  if(!db.data[id]) db.data[id] = { factures:[], releves:[], queue:[] };
-  updateCompanyUI();
-  renderFactures(); renderReleves(); updateDashboard();
-  renderPortailCompanies();
-}
-
-function updateCompanyUI() {
-  const company = db.companies.find(c=>c.id===currentCompanyId);
-  const name = company ? company.name : 'Aucune société';
+  const sel = document.getElementById('company-select');
+  const opt = sel.options[sel.selectedIndex];
+  const name = id ? opt.text : 'Aucune société';
   document.getElementById('topbar-company').textContent = name;
-  const noComp = !currentCompanyId;
-  document.getElementById('dashboard-no-company').style.display = noComp ? 'flex' : 'none';
-  document.getElementById('dashboard-content').style.display  = noComp ? 'none' : 'block';
-  document.getElementById('upload-no-company').style.display  = noComp ? 'flex' : 'none';
-  document.getElementById('upload-content').style.display     = noComp ? 'none' : 'block';
+  const noComp = !id;
+  document.getElementById('dashboard-no-company').style.display = noComp?'flex':'none';
+  document.getElementById('dashboard-content').style.display = noComp?'none':'block';
+  document.getElementById('upload-no-company').style.display = noComp?'flex':'none';
+  document.getElementById('upload-content').style.display = noComp?'none':'block';
+  if(id) { await loadFactures(); await loadTransactions(); updateDashboard(); }
 }
 
 function openNewCompanyModal() {
   document.getElementById('modal-title').textContent = '+ Nouvelle société';
   document.getElementById('modal-body').innerHTML = `
     <div class="auth-form">
-      <div class="form-group"><label>Nom de la société</label><input class="form-input" id="new-company-name" placeholder="Ex: SARL Atlas" autofocus/></div>
-      <div class="form-group"><label>ICE (optionnel)</label><input class="form-input" id="new-company-ice" placeholder="Identifiant fiscal"/></div>
-      <div class="form-group"><label>Ville</label><input class="form-input" id="new-company-ville" placeholder="Casablanca"/></div>
+      <div class="form-group"><label>Nom de la société</label><input class="form-input" id="new-co-name" placeholder="Ex: SARL Atlas" autofocus/></div>
+      <div class="form-group"><label>ICE (optionnel)</label><input class="form-input" id="new-co-ice" placeholder="Identifiant fiscal"/></div>
+      <div class="form-group"><label>Ville</label><input class="form-input" id="new-co-ville" placeholder="Casablanca"/></div>
       <div style="display:flex;gap:10px;margin-top:8px">
-        <button class="btn btn-primary" style="flex:1" onclick="createCompany()">Créer le dossier</button>
+        <button class="btn btn-primary" style="flex:1" onclick="createCompany()">Créer</button>
         <button class="btn btn-ghost" onclick="closeModal()">Annuler</button>
       </div>
     </div>`;
   openModal();
 }
 
-function createCompany() {
-  const name = document.getElementById('new-company-name').value.trim();
-  const ice  = document.getElementById('new-company-ice').value.trim();
-  const ville= document.getElementById('new-company-ville').value.trim();
+async function createCompany() {
+  const name  = document.getElementById('new-co-name').value.trim();
+  const ice   = document.getElementById('new-co-ice').value.trim();
+  const ville = document.getElementById('new-co-ville').value.trim();
   if(!name) { toast('Entrez le nom de la société','error'); return; }
-  const company = { id:genId(), name, ice, ville, createdAt: new Date().toISOString(), portalToken: genId() };
-  db.companies.push(company);
-  db.data[company.id] = { factures:[], releves:[], queue:[] };
-  // Affecter à l'utilisateur courant si pas admin
-  if(currentUser.role!=='admin') {
-    if(!currentUser.companies) currentUser.companies=[];
-    currentUser.companies.push(company.id);
-  }
-  saveDB();
-  closeModal();
-  refreshCompanySelect();
-  selectCompany(company.id);
-  document.getElementById('company-select').value = company.id;
-  toast(`Société "${name}" créée ✓`, 'success');
-  renderPortailCompanies();
+  try {
+    await api('POST', '/api/companies', { name, ice, ville });
+    closeModal();
+    await loadCompanies();
+    toast(`Société "${name}" créée ✓`,'success');
+  } catch(e) { toast(e.message,'error'); }
 }
 
 // ===== NAVIGATION =====
-const pageTitles = {dashboard:'Tableau de bord',upload:'Upload & traitement',factures:'Factures',releves:'Relevés bancaires',rapprochement:'Rapprochement',export:'Export',users:'Utilisateurs',portail:'Portail clients'};
+const pageTitles={dashboard:'Tableau de bord',upload:'Upload & traitement',factures:'Factures',releves:'Relevés bancaires',rapprochement:'Rapprochement',export:'Export',users:'Utilisateurs',portail:'Portail clients'};
 function showPage(id) {
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-  const page = document.getElementById('page-'+id);
-  if(page) page.classList.add('active');
-  const navItems = document.querySelectorAll('.nav-item');
-  const navMap = ['dashboard','upload','factures','releves','rapprochement','export',null,'users','portail'];
-  const idx = navMap.indexOf(id);
-  if(idx>=0 && navItems[idx]) navItems[idx].classList.add('active');
-  document.getElementById('page-title').textContent = pageTitles[id]||id;
+  document.getElementById('page-'+id)?.classList.add('active');
+  const navMap=['dashboard','upload','factures','releves','rapprochement','export',null,'users','portail'];
+  const idx=navMap.indexOf(id);
+  if(idx>=0) document.querySelectorAll('.nav-item')[idx]?.classList.add('active');
+  document.getElementById('page-title').textContent=pageTitles[id]||id;
   if(id==='dashboard') updateDashboard();
   if(id==='rapprochement') renderRapprochement();
   if(id==='export') renderECRITPreview();
+  if(id==='users') loadUsers();
 }
 
 // ===== API KEY =====
 function saveKey() {
   const key = document.getElementById('api-key').value.trim();
-  state.apiKey = key;
   localStorage.setItem('compta_api_key', key);
   updateKeyStatus();
   toast('Clé API sauvegardée','success');
 }
 function updateKeyStatus() {
-  const st = document.getElementById('key-status');
-  if(state.apiKey.startsWith('sk-ant-')) { st.textContent='✓ Clé API configurée'; st.style.color='#2ECC71'; }
+  const key = document.getElementById('api-key').value.trim();
+  const st  = document.getElementById('key-status');
+  if(key.startsWith('sk-ant-')) { st.textContent='✓ Clé API configurée'; st.style.color='#2ECC71'; }
   else { st.textContent='⚠ Format invalide — doit commencer par sk-ant-'; st.style.color='#F39C12'; }
 }
 
 // ===== UPLOAD =====
-function getData() {
-  if(!currentCompanyId) return null;
-  if(!db.data[currentCompanyId]) db.data[currentCompanyId]={factures:[],releves:[],queue:[]};
-  return db.data[currentCompanyId];
-}
-
-function handleDragOver(e){e.preventDefault();document.getElementById('drop-zone').classList.add('drag-over');}
-function handleDragLeave(){document.getElementById('drop-zone').classList.remove('drag-over');}
-function handleDrop(e){e.preventDefault();document.getElementById('drop-zone').classList.remove('drag-over');handleFiles(e.dataTransfer.files);}
+let localQueue = [];
+function handleDragOver(e){e.preventDefault();e.currentTarget.classList.add('drag-over');}
+function handleDragLeave(e){e.currentTarget.classList.remove('drag-over');}
+function handleDrop(e){e.preventDefault();e.currentTarget.classList.remove('drag-over');handleFiles(e.dataTransfer.files);}
 
 function handleFiles(files) {
-  if(!currentCompanyId){toast('Sélectionnez une société d\'abord','error');return;}
-  if(!files||!files.length)return;
-  const data = getData();
+  if(!currentCompanyId){toast('Sélectionnez une société','error');return;}
   for(const file of files){
-    const item={id:genId(),file,name:file.name,size:fmtSize(file.size),type:file.type.includes('pdf')?'pdf':'img',status:'pending',result:null,companyId:currentCompanyId};
-    data.queue.push(item);
+    const item={id:genId(),file,name:file.name,size:fmtSize(file.size),type:file.type.includes('pdf')?'pdf':'img',status:'pending',result:null};
+    localQueue.push(item);
   }
-  saveDB();
-  updateQueueBadge(); renderQueue(); processQueue();
+  renderQueue(); processQueue();
 }
 
+function genId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
 function fmtSize(b){return b>1048576?(b/1048576).toFixed(1)+' MB':(b/1024).toFixed(0)+' KB';}
-function updateQueueBadge(){
-  const data=getData();
-  const n=data?data.queue.filter(i=>i.status==='pending'||i.status==='processing').length:0;
-  document.getElementById('queue-badge').textContent=n;
-}
 
 function renderQueue(){
-  const data=getData();
-  if(!data){document.getElementById('queue-pending').innerHTML='<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px">Sélectionnez une société</div>';return;}
-  const pending=data.queue.filter(i=>i.status!=='done'&&i.status!=='error');
-  const done=data.queue.filter(i=>i.status==='done'||i.status==='error');
-  const elP=document.getElementById('queue-pending'),elD=document.getElementById('queue-done');
-  elP.innerHTML=pending.length?pending.map(renderQueueItem).join(''):'<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px">Aucun document en attente</div>';
-  elD.innerHTML=done.length?done.map(renderQueueItem).join(''):'<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px">Aucun document traité</div>';
+  const pending=localQueue.filter(i=>i.status!=='done'&&i.status!=='error');
+  const done=localQueue.filter(i=>i.status==='done'||i.status==='error');
+  const renderItem=item=>{
+    const icon=item.type==='pdf'?'📄':'🖼️';
+    const lbl={pending:'En attente',processing:'Traitement IA...',done:'Extrait',error:'Erreur'}[item.status];
+    const prog=item.status==='processing'?'<div class="progress-bar"><div class="progress-fill" style="width:60%"></div></div>':'';
+    return `<div class="queue-item"><div class="file-icon ${item.type}">${icon}</div><div class="file-info"><div class="file-name">${item.name}</div><div class="file-meta">${item.size}${prog}</div></div><span class="status-badge ${item.status}">${lbl}</span></div>`;
+  };
+  document.getElementById('queue-pending').innerHTML=pending.length?pending.map(renderItem).join(''):'<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px">Aucun document en attente</div>';
+  document.getElementById('queue-done').innerHTML=done.length?done.map(renderItem).join(''):'<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px">Aucun document traité</div>';
 }
 
-function renderQueueItem(item){
-  const icon=item.type==='pdf'?'📄':'🖼️';
-  const lbl={pending:'En attente',processing:'Traitement IA...',done:'Extrait',error:'Erreur'}[item.status];
-  const prog=item.status==='processing'?`<div class="progress-bar"><div class="progress-fill" style="width:60%"></div></div>`:'';
-  const btn=item.status==='done'?`<button onclick="showResult('${item.id}')" style="background:rgba(79,142,247,.1);border:1px solid rgba(79,142,247,.2);color:var(--accent);padding:3px 8px;border-radius:6px;cursor:pointer;font-size:10px;font-family:var(--mono)">Voir</button>`:'';
-  return `<div class="queue-item"><div class="file-icon ${item.type}">${icon}</div><div class="file-info"><div class="file-name">${item.name}</div><div class="file-meta">${item.size}${prog}</div></div><span class="status-badge ${item.status}">${lbl}</span>${btn}</div>`;
-}
-
-// ===== IA =====
 async function processQueue(){
-  const data=getData(); if(!data)return;
-  const pending=data.queue.filter(i=>i.status==='pending');
+  const pending=localQueue.filter(i=>i.status==='pending');
   for(const item of pending){
-    item.status='processing'; saveDB(); renderQueue();
+    item.status='processing'; renderQueue();
     try{
       const result=await extractWithAI(item);
       item.result=result; item.status='done';
-      if(result.type==='facture') data.factures.push({...result,id:item.id,fileName:item.name,companyId:currentCompanyId});
-      else if(result.type==='releve_bancaire'&&result.transactions) data.releves.push(...result.transactions.map(t=>({...t,id:genId(),fileName:item.name,companyId:currentCompanyId,releve_info:{banque:result.banque,periode:result.periode_debut+' → '+result.periode_fin}})));
-      saveDB(); renderFactures(); renderReleves(); updateDashboard(); if(document.getElementById('page-export').classList.contains('active')) renderECRITPreview();
+      // Sauvegarder en base Supabase
+      if(result.type==='facture'){
+        await api('POST','/api/factures',{
+          company_id:currentCompanyId,
+          numero:result.numero,
+          date_facture:result.date_facture,
+          fournisseur:result.fournisseur,
+          fournisseur_ice:result.fournisseur_ice,
+          categorie:result.categorie,
+          description:result.description,
+          montant_ht:result.montant_ht,
+          taux_tva:result.taux_tva,
+          montant_tva:result.montant_tva,
+          montant_ttc:result.montant_ttc,
+          devise:result.devise||'MAD'
+        });
+      } else if(result.type==='releve_bancaire' && result.transactions){
+        const rows=result.transactions.map(t=>({
+          company_id:currentCompanyId,
+          date_operation:t.date_operation,
+          libelle:t.libelle,
+          type_mouvement:t.type_mouvement,
+          montant:t.montant,
+          solde:t.solde
+        }));
+        if(rows.length) await api('POST','/api/transactions',rows);
+      }
+      await loadFactures(); await loadTransactions(); updateDashboard();
       toast(`✓ ${item.name}`,'success');
-    }catch(err){item.status='error';item.error=err.message;toast(`Erreur: ${item.name} — ${err.message}`,'error');}
-    updateQueueBadge(); saveDB(); renderQueue();
+    }catch(err){item.status='error';toast(`Erreur: ${item.name} — ${err.message}`,'error');}
+    renderQueue();
   }
 }
 
 async function extractWithAI(item){
-  if(!state.apiKey||!state.apiKey.startsWith('sk-ant-')) return generateDemoData(item);
+  const key=localStorage.getItem('compta_api_key')||'';
+  if(!key.startsWith('sk-ant-')) return generateDemoData(item);
   const base64=await fileToBase64(item.file);
   const isPdf=item.type==='pdf';
   const mediaType=isPdf?'application/pdf':(item.file.type||'image/jpeg');
-  const prompt=`Tu es expert en comptabilité marocaine. Analyse ce document.
-Réponds UNIQUEMENT en JSON valide sans markdown.
-Si FACTURE: {"type":"facture","numero":"","date_facture":"YYYY-MM-DD","fournisseur":"","fournisseur_ice":"","categorie":"Fournitures|Services|Transport|Loyer|Télécommunications|Autre","description":"","montant_ht":0,"taux_tva":20,"montant_tva":0,"montant_ttc":0,"devise":"MAD","statut":"a_valider"}
-Si RELEVÉ BANCAIRE: {"type":"releve_bancaire","banque":"","compte":"","periode_debut":"YYYY-MM-DD","periode_fin":"YYYY-MM-DD","solde_initial":0,"solde_final":0,"transactions":[{"date_operation":"YYYY-MM-DD","libelle":"","type_mouvement":"debit|credit","montant":0,"solde":0}]}
+  const prompt=`Tu es expert en comptabilité marocaine. Analyse ce document. Réponds UNIQUEMENT en JSON valide sans markdown.
+Si FACTURE: {"type":"facture","numero":"","date_facture":"YYYY-MM-DD","fournisseur":"","fournisseur_ice":"","categorie":"Fournitures|Services|Transport|Loyer|Télécommunications|Autre","description":"","montant_ht":0,"taux_tva":20,"montant_tva":0,"montant_ttc":0,"devise":"MAD"}
+Si RELEVÉ: {"type":"releve_bancaire","banque":"","periode_debut":"YYYY-MM-DD","periode_fin":"YYYY-MM-DD","solde_initial":0,"solde_final":0,"transactions":[{"date_operation":"YYYY-MM-DD","libelle":"","type_mouvement":"debit|credit","montant":0,"solde":0}]}
 Si autre: {"type":"autre"}`;
   const body={model:'claude-haiku-4-5-20251001',max_tokens:2000,messages:[{role:'user',content:[{type:isPdf?'document':'image',source:{type:'base64',media_type:mediaType,data:base64}},{type:'text',text:prompt}]}]};
-  const resp=await fetch('/api/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':state.apiKey,'anthropic-version':'2023-06-01'},body:JSON.stringify(body)});
+  const resp=await fetch('/api/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','Authorization':`Bearer ${token}`},body:JSON.stringify(body)});
   if(!resp.ok){const e=await resp.json().catch(()=>({}));throw new Error(e?.error?.message||'API '+resp.status);}
   const d=await resp.json();
   const text=d.content.map(c=>c.text||'').join('').replace(/```json|```/g,'').trim();
@@ -742,136 +682,150 @@ function fileToBase64(file){return new Promise((res,rej)=>{const r=new FileReade
 function generateDemoData(item){
   return new Promise(res=>setTimeout(()=>{
     const isRel=item.name.toLowerCase().includes('relev')||item.name.toLowerCase().includes('bank');
-    if(isRel){res({type:'releve_bancaire',banque:'Attijariwafa Bank',compte:'012-345678',periode_debut:'2026-05-01',periode_fin:'2026-05-31',solde_initial:45200,solde_final:38750,transactions:[
+    if(isRel){res({type:'releve_bancaire',banque:'Attijariwafa Bank',periode_debut:'2026-05-01',periode_fin:'2026-05-31',solde_initial:45200,solde_final:38750,transactions:[
       {date_operation:'2026-05-02',libelle:'VIREMENT CLIENT SAFI CORP',type_mouvement:'credit',montant:12500,solde:57700},
-      {date_operation:'2026-05-05',libelle:'FACTURE LOYER MAI',type_mouvement:'debit',montant:8000,solde:49700},
+      {date_operation:'2026-05-05',libelle:'LOYER MAI 2026',type_mouvement:'debit',montant:8000,solde:49700},
       {date_operation:'2026-05-10',libelle:'FOURNITURES BUREAU',type_mouvement:'debit',montant:2340,solde:47360},
-      {date_operation:'2026-05-20',libelle:'VIREMENT CLIENT TANGER',type_mouvement:'credit',montant:18500,solde:65860},
     ]});}
     else{const cats=[{f:'SARL Papeterie Atlas',c:'Fournitures',ht:2500},{f:'Orange Maroc Pro',c:'Télécommunications',ht:1800},{f:'Transporteur Express',c:'Transport',ht:950},{f:'Immobilière Casa',c:'Loyer',ht:12000}];
     const p=cats[Math.floor(Math.random()*cats.length)];const tva=p.ht*.2;
-    res({type:'facture',numero:'F-2026-'+Math.floor(1000+Math.random()*9000),date_facture:'2026-05-'+String(Math.floor(1+Math.random()*28)).padStart(2,'0'),fournisseur:p.f,fournisseur_ice:'ICE '+Math.floor(100000+Math.random()*900000),categorie:p.c,description:'Facture '+p.c,montant_ht:p.ht,taux_tva:20,montant_tva:tva,montant_ttc:p.ht+tva,devise:'MAD',statut:'a_valider'});}
+    res({type:'facture',numero:'F-2026-'+Math.floor(1000+Math.random()*9000),date_facture:'2026-05-'+String(Math.floor(1+Math.random()*28)).padStart(2,'0'),fournisseur:p.f,fournisseur_ice:'ICE '+Math.floor(100000+Math.random()*900000),categorie:p.c,description:'Facture '+p.c,montant_ht:p.ht,taux_tva:20,montant_tva:tva,montant_ttc:p.ht+tva,devise:'MAD'});}
   },1200+Math.random()*1200));
+}
+
+// ===== CHARGEMENT DONNÉES =====
+async function loadFactures(){
+  if(!currentCompanyId)return;
+  try{ allFactures=await api('GET',`/api/factures?company_id=${currentCompanyId}`); renderFactures(); }
+  catch(e){ console.error(e); }
+}
+async function loadTransactions(){
+  if(!currentCompanyId)return;
+  try{ allTransactions=await api('GET',`/api/transactions?company_id=${currentCompanyId}`); renderReleves(); }
+  catch(e){ console.error(e); }
 }
 
 // ===== TABLES =====
 function renderFactures(){
-  const data=getData();const tbody=document.getElementById('tbody-factures');
-  if(!data||!data.factures.length){tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:40px">Aucune facture</td></tr>';return;}
-  tbody.innerHTML=data.factures.map(f=>`<tr><td style="font-family:var(--mono);font-size:12px">${f.date_facture||'—'}</td><td><div style="font-weight:500">${f.fournisseur||'—'}</div><div style="font-size:11px;color:var(--muted)">${f.fournisseur_ice||''}</div></td><td style="font-family:var(--mono);font-size:11px">${f.numero||'—'}</td><td><span style="background:rgba(79,142,247,.1);color:var(--accent);padding:2px 8px;border-radius:6px;font-size:11px">${f.categorie||'—'}</span></td><td class="amount">${fmtAmt(f.montant_ht)}</td><td class="amount" style="color:var(--warn)">${fmtAmt(f.montant_tva)}</td><td class="amount pos">${fmtAmt(f.montant_ttc)}</td><td><span class="status-badge done">${f.statut||'validée'}</span></td><td><button onclick="showFactureDetail('${f.id}')" style="background:none;border:1px solid var(--border);color:var(--muted);padding:3px 8px;border-radius:6px;cursor:pointer;font-size:11px">Détail</button></td></tr>`).join('');
+  const tbody=document.getElementById('tbody-factures');
+  if(!allFactures.length){tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:40px">Aucune facture</td></tr>';return;}
+  tbody.innerHTML=allFactures.map(f=>`<tr><td style="font-family:var(--mono);font-size:12px">${f.date_facture||'—'}</td><td><div style="font-weight:500">${f.fournisseur||'—'}</div><div style="font-size:11px;color:var(--muted)">${f.fournisseur_ice||''}</div></td><td style="font-family:var(--mono);font-size:11px">${f.numero||'—'}</td><td><span style="background:rgba(79,142,247,.1);color:var(--accent);padding:2px 8px;border-radius:6px;font-size:11px">${f.categorie||'—'}</span></td><td class="amount">${fmtAmt(f.montant_ht)}</td><td class="amount" style="color:var(--warn)">${fmtAmt(f.montant_tva)}</td><td class="amount pos">${fmtAmt(f.montant_ttc)}</td><td><span class="status-badge done">${f.statut||'a_valider'}</span></td></tr>`).join('');
 }
 
 function renderReleves(){
-  const data=getData();const tbody=document.getElementById('tbody-releves');
-  if(!data||!data.releves.length){tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:40px">Aucune transaction</td></tr>';return;}
-  tbody.innerHTML=data.releves.map(t=>`<tr><td style="font-family:var(--mono);font-size:12px">${t.date_operation||'—'}</td><td>${t.libelle||'—'}</td><td><span class="status-badge ${t.type_mouvement==='credit'?'done':'pending'}">${t.type_mouvement==='credit'?'Crédit':'Débit'}</span></td><td class="amount neg">${t.type_mouvement==='debit'?fmtAmt(t.montant):'—'}</td><td class="amount pos">${t.type_mouvement==='credit'?fmtAmt(t.montant):'—'}</td><td class="amount" style="font-family:var(--mono)">${fmtAmt(t.solde)}</td><td><span class="status-badge pending">Non rapproché</span></td></tr>`).join('');
+  const tbody=document.getElementById('tbody-releves');
+  if(!allTransactions.length){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:40px">Aucune transaction</td></tr>';return;}
+  tbody.innerHTML=allTransactions.map(t=>`<tr><td style="font-family:var(--mono);font-size:12px">${t.date_operation||'—'}</td><td>${t.libelle||'—'}</td><td><span class="status-badge ${t.type_mouvement==='credit'?'done':'pending'}">${t.type_mouvement==='credit'?'Crédit':'Débit'}</span></td><td class="amount neg">${t.type_mouvement==='debit'?fmtAmt(t.montant):'—'}</td><td class="amount pos">${t.type_mouvement==='credit'?fmtAmt(t.montant):'—'}</td><td class="amount" style="font-family:var(--mono)">${fmtAmt(t.solde)}</td></tr>`).join('');
 }
 
-function fmtAmt(v){if(!v&&v!==0)return '—';return Number(v).toLocaleString('fr-MA',{minimumFractionDigits:2,maximumFractionDigits:2})+' MAD';}
-function filterTable(type,q){document.querySelectorAll(`#tbody-${type} tr`).forEach(r=>{r.style.display=r.textContent.toLowerCase().includes(q.toLowerCase())?'':'none';});}
-
-// ===== DÉTAIL MODAL =====
-function showResult(id){const data=getData();if(!data)return;const item=data.queue.find(i=>i.id==id);if(!item||!item.result)return;document.getElementById('modal-title').textContent=item.name;document.getElementById('modal-body').innerHTML=renderResultBody(item.result);openModal();}
-function showFactureDetail(id){const data=getData();if(!data)return;const f=data.factures.find(i=>i.id==id);if(!f)return;document.getElementById('modal-title').textContent=f.fileName||'Facture';document.getElementById('modal-body').innerHTML=renderResultBody(f);openModal();}
-
-function renderResultBody(r){
-  if(r.type==='facture'||r.montant_ttc) return `<div class="result-grid">
-    <div class="result-field"><label>N° Facture</label><div class="result-value">${r.numero||'—'}</div></div>
-    <div class="result-field"><label>Date</label><div class="result-value">${r.date_facture||'—'}</div></div>
-    <div class="result-field"><label>Fournisseur</label><div class="result-value">${r.fournisseur||'—'}</div></div>
-    <div class="result-field"><label>ICE</label><div class="result-value">${r.fournisseur_ice||'—'}</div></div>
-    <div class="result-field"><label>Catégorie</label><div class="result-value">${r.categorie||'—'}</div></div>
-    <div class="result-field"><label>Statut</label><div class="result-value">${r.statut||'—'}</div></div>
-    <div class="result-field"><label>Montant HT</label><div class="result-value" style="color:var(--accent)">${fmtAmt(r.montant_ht)}</div></div>
-    <div class="result-field"><label>TVA (${r.taux_tva||20}%)</label><div class="result-value" style="color:var(--warn)">${fmtAmt(r.montant_tva)}</div></div>
-    <div class="result-field" style="grid-column:span 2"><label>Montant TTC</label><div class="result-value" style="color:var(--success);font-size:18px">${fmtAmt(r.montant_ttc)}</div></div>
-  </div>`;
-  if(r.type==='releve_bancaire') return `<div class="result-field" style="margin-bottom:10px"><label>Banque</label><div class="result-value">${r.banque||'—'}</div></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-      <div class="result-field"><label>Solde initial</label><div class="result-value">${fmtAmt(r.solde_initial)}</div></div>
-      <div class="result-field"><label>Solde final</label><div class="result-value">${fmtAmt(r.solde_final)}</div></div>
-    </div>
-    <div class="result-field"><label>${(r.transactions||[]).length} transactions</label>
-    <div style="max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:8px">
-    ${(r.transactions||[]).map(t=>`<div style="padding:8px 12px;border-bottom:1px solid rgba(42,47,64,.5);font-size:12px;display:flex;gap:8px"><span style="font-family:var(--mono);color:var(--muted)">${t.date_operation}</span><span style="flex:1">${t.libelle}</span><span style="font-family:var(--mono);color:${t.type_mouvement==='credit'?'var(--success)':'var(--danger)'}">${t.type_mouvement==='credit'?'+':'-'}${fmtAmt(t.montant)}</span></div>`).join('')}
-    </div></div>`;
-  return `<pre style="font-family:var(--mono);font-size:12px;color:var(--muted)">${JSON.stringify(r,null,2)}</pre>`;
-}
-
-// ===== RAPPROCHEMENT =====
-function renderRapprochement(){const data=getData();if(!data)return;
-  if(data.factures.length) document.getElementById('rappr-factures').innerHTML=data.factures.map(f=>`<div style="padding:10px 16px;border-bottom:1px solid rgba(42,47,64,.5);font-size:12px;display:flex;align-items:center;gap:10px"><div style="flex:1"><div>${f.fournisseur}</div></div><span style="font-family:var(--mono);font-size:11px;color:var(--muted)">${fmtAmt(f.montant_ttc)}</span></div>`).join('');
-  if(data.releves.length) document.getElementById('rappr-releves').innerHTML=data.releves.slice(0,8).map(t=>`<div style="padding:10px 16px;border-bottom:1px solid rgba(42,47,64,.5);font-size:12px;display:flex;align-items:center;gap:10px"><div style="flex:1">${t.libelle}</div><span style="font-family:var(--mono);font-size:11px;color:var(--muted)">${fmtAmt(t.montant)}</span></div>`).join('');
-}
-
-function runRapprochement(){
-  const data=getData();if(!data||!data.factures.length||!data.releves.length){toast('Importez factures et relevés d\'abord','info');return;}
-  let matched=0;
-  data.factures.forEach(f=>{const ttc=parseFloat(f.montant_ttc)||0;const match=data.releves.find(r=>Math.abs(r.montant-ttc)<5);if(match){matched++;match.rapprochee=true;f.rapprochee=true;}});
-  const pct=Math.round(matched/data.factures.length*100);
-  document.getElementById('stat-match').textContent=pct+'%';
-  document.getElementById('rappr-status').textContent=`${matched}/${data.factures.length} rapprochements réussis`;
-  saveDB();toast(`Rapprochement: ${pct}% de matching`,pct>60?'success':'info');
-}
+function fmtAmt(v){if(!v&&v!==0)return'—';return Number(v).toLocaleString('fr-MA',{minimumFractionDigits:2,maximumFractionDigits:2})+' MAD';}
+function filterTable(type,q){document.querySelectorAll(`#tbody-${type==='factures'?'factures':'releves'} tr`).forEach(r=>{r.style.display=r.textContent.toLowerCase().includes(q.toLowerCase())?'':'none';});}
 
 // ===== DASHBOARD =====
 function updateDashboard(){
-  const data=getData();if(!data)return;
-  document.getElementById('stat-total').textContent=data.queue.filter(i=>i.status==='done').length;
-  const totalHT=data.factures.reduce((s,f)=>s+(parseFloat(f.montant_ht)||0),0);
-  const totalTVA=data.factures.reduce((s,f)=>s+(parseFloat(f.montant_tva)||0),0);
+  document.getElementById('stat-total').textContent=allFactures.length;
+  document.getElementById('stat-tx').textContent=allTransactions.length;
+  const totalHT=allFactures.reduce((s,f)=>s+(+f.montant_ht||0),0);
+  const totalTVA=allFactures.reduce((s,f)=>s+(+f.montant_tva||0),0);
   document.getElementById('stat-ht').textContent=totalHT.toLocaleString('fr-MA',{maximumFractionDigits:0})+' MAD';
   document.getElementById('stat-tva').textContent=totalTVA.toLocaleString('fr-MA',{maximumFractionDigits:0})+' MAD';
-  const cats={};data.factures.forEach(f=>{const c=f.categorie||'Autre';cats[c]=(cats[c]||0)+(parseFloat(f.montant_ttc)||0);});
+  const cats={};allFactures.forEach(f=>{const c=f.categorie||'Autre';cats[c]=(cats[c]||0)+(+f.montant_ttc||0);});
   const total=Object.values(cats).reduce((a,b)=>a+b,0);
   const colors=['#4F8EF7','#7B5CF0','#2ECC71','#F39C12','#E74C3C','#1ABC9C'];
-  const legend=document.getElementById('pie-legend');
-  if(Object.keys(cats).length) legend.innerHTML=Object.entries(cats).map(([k,v],i)=>`<div class="pie-row"><div class="pie-dot" style="background:${colors[i%colors.length]}"></div><span class="pie-label">${k}</span><span class="pie-pct">${total?Math.round(v/total*100):0}%</span></div>`).join('');
-  const months={};data.factures.forEach(f=>{const m=(f.date_facture||'').slice(0,7);if(m)months[m]=(months[m]||0)+1;});
-  const chart=document.getElementById('bar-chart');
+  if(Object.keys(cats).length) document.getElementById('pie-legend').innerHTML=Object.entries(cats).map(([k,v],i)=>`<div class="pie-row"><div class="pie-dot" style="background:${colors[i%colors.length]}"></div><span class="pie-label">${k}</span><span class="pie-pct">${total?Math.round(v/total*100):0}%</span></div>`).join('');
+  const months={};allFactures.forEach(f=>{const m=(f.date_facture||'').slice(0,7);if(m)months[m]=(months[m]||0)+1;});
   const mNames={'01':'Jan','02':'Fév','03':'Mar','04':'Avr','05':'Mai','06':'Jun','07':'Jul','08':'Aoû','09':'Sep','10':'Oct','11':'Nov','12':'Déc'};
-  if(Object.keys(months).length){const max=Math.max(...Object.values(months));chart.innerHTML=Object.entries(months).map(([m,v])=>`<div class="bar-col"><div class="bar" style="height:${v/max*100}%"></div><span class="bar-label">${mNames[m.slice(5)]||m}</span></div>`).join('');}
+  if(Object.keys(months).length){const max=Math.max(...Object.values(months));document.getElementById('bar-chart').innerHTML=Object.entries(months).map(([m,v])=>`<div class="bar-col"><div class="bar" style="height:${v/max*100}%"></div><span class="bar-label">${mNames[m.slice(5)]||m}</span></div>`).join('');}
+}
+
+// ===== RAPPROCHEMENT =====
+function renderRapprochement(){
+  if(allFactures.length) document.getElementById('rappr-factures').innerHTML=allFactures.map(f=>`<div style="padding:10px 16px;border-bottom:1px solid rgba(42,47,64,.5);font-size:12px;display:flex;align-items:center;gap:10px"><div style="flex:1">${f.fournisseur}</div><span style="font-family:var(--mono);font-size:11px;color:var(--muted)">${fmtAmt(f.montant_ttc)}</span></div>`).join('');
+  if(allTransactions.length) document.getElementById('rappr-releves').innerHTML=allTransactions.slice(0,8).map(t=>`<div style="padding:10px 16px;border-bottom:1px solid rgba(42,47,64,.5);font-size:12px;display:flex;align-items:center;gap:10px"><div style="flex:1">${t.libelle}</div><span style="font-family:var(--mono);font-size:11px;color:var(--muted)">${fmtAmt(t.montant)}</span></div>`).join('');
+}
+function runRapprochement(){
+  if(!allFactures.length||!allTransactions.length){toast('Importez factures et relevés d\'abord','info');return;}
+  let matched=0;
+  allFactures.forEach(f=>{const ttc=+f.montant_ttc||0;const match=allTransactions.find(t=>Math.abs(t.montant-ttc)<5&&!t._matched);if(match){matched++;match._matched=true;f._matched=true;}});
+  const pct=allFactures.length?Math.round(matched/allFactures.length*100):0;
+  document.getElementById('rappr-status').textContent=`${matched}/${allFactures.length} rapprochements réussis`;
+  toast(`Rapprochement: ${pct}% de matching`,pct>60?'success':'info');
 }
 
 // ===== EXPORT =====
 function exportTable(type){
-  const data=getData();if(!data)return;
-  const rows=type==='factures'?data.factures:data.releves;
-  if(!rows.length){toast('Aucune donnée à exporter','info');return;}
-  const headers=type==='factures'?['Date','Fournisseur','N° Facture','Catégorie','HT','TVA','TTC','Statut']:['Date','Libellé','Type','Montant','Solde'];
-  const dataRows=type==='factures'?rows.map(f=>[f.date_facture,f.fournisseur,f.numero,f.categorie,f.montant_ht,f.montant_tva,f.montant_ttc,f.statut]):rows.map(t=>[t.date_operation,t.libelle,t.type_mouvement,t.montant,t.solde]);
+  const rows=type==='factures'?allFactures:allTransactions;
+  if(!rows.length){toast('Aucune donnée','info');return;}
+  const headers=type==='factures'?['Date','Fournisseur','N°','Catégorie','HT','TVA','TTC']:['Date','Libellé','Type','Montant','Solde'];
+  const dataRows=type==='factures'?rows.map(f=>[f.date_facture,f.fournisseur,f.numero,f.categorie,f.montant_ht,f.montant_tva,f.montant_ttc]):rows.map(t=>[t.date_operation,t.libelle,t.type_mouvement,t.montant,t.solde]);
   const csv=[headers,...dataRows].map(r=>r.map(c=>`"${c||''}"`).join(',')).join('\n');
   dlFile(csv,`compta_${type}_${new Date().toISOString().slice(0,10)}.csv`,'text/csv');
-  toast(`Export CSV ${type} ✓`,'success');
+  toast(`Export CSV ✓`,'success');
 }
-
 function exportAll(){
-  const data=getData();if(!data||(!data.factures.length&&!data.releves.length)){toast('Aucune donnée','info');return;}
+  if(!allFactures.length&&!allTransactions.length){toast('Aucune donnée','info');return;}
   const wb=XLSX.utils.book_new();
-  if(data.factures.length){const ws=XLSX.utils.json_to_sheet(data.factures.map(f=>({'Date':f.date_facture,'Fournisseur':f.fournisseur,'N° Facture':f.numero,'Catégorie':f.categorie,'HT (MAD)':f.montant_ht,'TVA (MAD)':f.montant_tva,'TTC (MAD)':f.montant_ttc,'Statut':f.statut})));XLSX.utils.book_append_sheet(wb,ws,'Factures');}
-  if(data.releves.length){const ws=XLSX.utils.json_to_sheet(data.releves.map(t=>({'Date':t.date_operation,'Libellé':t.libelle,'Type':t.type_mouvement,'Montant':t.montant,'Solde':t.solde})));XLSX.utils.book_append_sheet(wb,ws,'Relevés');}
-  const company=db.companies.find(c=>c.id===currentCompanyId);
-  XLSX.writeFile(wb,`ComptaAI_${company?company.name:'Export'}_${new Date().toISOString().slice(0,10)}.xlsx`);
+  if(allFactures.length){const ws=XLSX.utils.json_to_sheet(allFactures.map(f=>({'Date':f.date_facture,'Fournisseur':f.fournisseur,'N°':f.numero,'Catégorie':f.categorie,'HT':f.montant_ht,'TVA':f.montant_tva,'TTC':f.montant_ttc})));XLSX.utils.book_append_sheet(wb,ws,'Factures');}
+  if(allTransactions.length){const ws=XLSX.utils.json_to_sheet(allTransactions.map(t=>({'Date':t.date_operation,'Libellé':t.libelle,'Type':t.type_mouvement,'Montant':t.montant,'Solde':t.solde})));XLSX.utils.book_append_sheet(wb,ws,'Relevés');}
+  XLSX.writeFile(wb,`ComptaAI_Export_${new Date().toISOString().slice(0,10)}.xlsx`);
   toast('Export Excel généré ✓','success');
 }
-
 function dlFile(content,filename,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=filename;a.click();}
 
+// ===== EXPORT ECRIT =====
+const JOURNAUX={ACHATS:'A',VENTES:'V',BANQUE:'B',CAISSE:'C',OD:'OD'};
+function getCompteCharge(cat){const map={'Fournitures':'6125000000','Services':'6126000000','Transport':'6143100000','Loyer':'6131000000','Télécommunications':'6125000000','Restauration':'6143600000','Honoraires':'6126000000','Energie':'6125000000'};return map[cat]||'6126000000';}
+function excelDate(d){if(!d)return'';const dt=new Date(d);if(isNaN(dt))return d;return String(dt.getDate()).padStart(2,'0')+'/'+String(dt.getMonth()+1).padStart(2,'0')+'/'+dt.getFullYear();}
+function buildECRITRows(){
+  const rows=[];
+  allFactures.forEach(f=>{
+    const date=excelDate(f.date_facture),lib=((f.description||f.categorie||'FACTURE')+' '+(f.fournisseur||'')).substring(0,40).toUpperCase(),piece=f.numero||'',ht=+f.montant_ht||0,tva=+f.montant_tva||0,ttc=+f.montant_ttc||0,cpte=getCompteCharge(f.categorie);
+    rows.push([JOURNAUX.ACHATS,date,cpte,'',lib,piece,'',ht,null]);
+    if(tva>0)rows.push([JOURNAUX.ACHATS,date,'3455000000','','TVA / '+lib.substring(0,35),piece,'',tva,null]);
+    rows.push([JOURNAUX.ACHATS,date,'4411000000','',lib,piece,'',null,ttc]);
+  });
+  allTransactions.forEach(t=>{
+    const date=excelDate(t.date_operation),lib=(t.libelle||'').substring(0,40).toUpperCase(),montant=+t.montant||0;
+    if(t.type_mouvement==='credit'){rows.push([JOURNAUX.BANQUE,date,'5141000000','',lib,'','',montant,null]);rows.push([JOURNAUX.BANQUE,date,'3421000000','',lib,'','',null,montant]);}
+    else{rows.push([JOURNAUX.BANQUE,date,'4411000000','',lib,'','',montant,null]);rows.push([JOURNAUX.BANQUE,date,'5141000000','',lib,'','',null,montant]);}
+  });
+  return rows;
+}
+function renderECRITPreview(){
+  const rows=buildECRITRows();const tbody=document.getElementById('tbody-ecrit');if(!tbody)return;
+  if(!rows.length){tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:30px">Importez des documents pour générer le lot comptable</td></tr>';return;}
+  const jrnColors={'A':'var(--accent)','V':'var(--success)','B':'var(--warn)','C':'#1ABC9C','OD':'var(--muted)'};
+  tbody.innerHTML=rows.map(r=>{const[cj,date,cpte,,lib,piece,,debit,credit]=r;const col=jrnColors[cj]||'var(--muted)';
+    return`<tr><td><span style="background:rgba(79,142,247,.1);color:${col};padding:2px 8px;border-radius:6px;font-family:var(--mono);font-size:11px;font-weight:600">${cj}</span></td><td style="font-family:var(--mono);font-size:12px">${date}</td><td style="font-family:var(--mono);font-size:11px">${cpte}</td><td></td><td style="font-size:12px">${lib}</td><td style="font-family:var(--mono);font-size:11px;color:var(--muted)">${piece||''}</td><td></td><td style="font-family:var(--mono);font-size:12px;color:var(--accent);text-align:right">${debit?Number(debit).toLocaleString('fr-MA',{minimumFractionDigits:2,maximumFractionDigits:2}):''}</td><td style="font-family:var(--mono);font-size:12px;color:var(--success);text-align:right">${credit?Number(credit).toLocaleString('fr-MA',{minimumFractionDigits:2,maximumFractionDigits:2}):''}</td></tr>`;
+  }).join('');
+}
+function exportECRIT(){
+  if(!allFactures.length&&!allTransactions.length){toast('Aucune donnée','info');return;}
+  const rows=buildECRITRows();if(!rows.length){toast('Aucune écriture','info');return;}
+  const wb=XLSX.utils.book_new();
+  const header=[['Code journal','Date écriture',"n° de compte",'Contrepartie',"Libéllé d'écriture",'N° pièce','Lettrage ','Débit','Crédit']];
+  const ws=XLSX.utils.aoa_to_sheet([...header,...rows.map(r=>r.map(v=>v===null?'':v))]);
+  ws['!cols']=[{wch:12},{wch:14},{wch:14},{wch:22},{wch:42},{wch:12},{wch:10},{wch:14},{wch:14}];
+  XLSX.utils.book_append_sheet(wb,ws,'ECRIT');
+  XLSX.writeFile(wb,'ECRIT.xls',{bookType:'biff8'});
+  toast(`ECRIT.xls généré — ${rows.length} lignes ✓`,'success');
+  renderECRITPreview();
+}
+
 // ===== UTILISATEURS =====
-function renderUsers(){
-  if(!currentUser||currentUser.role!=='admin') return;
-  const grid=document.getElementById('users-grid');
-  grid.innerHTML=db.users.map(u=>`
-    <div class="user-card">
-      <div class="user-avatar-lg">${(u.prenom[0]||'')+(u.nom[0]||'')}</div>
-      <div style="font-weight:500">${u.prenom} ${u.nom}</div>
-      <div style="font-size:12px;color:var(--muted);margin-top:3px">${u.email}</div>
-      <span class="role-badge ${u.role}">${u.role}</span>
-      <div style="margin-top:12px;font-size:11px;color:var(--muted)">
-        ${db.companies.filter(c=>u.role==='admin'||u.companies?.includes(c.id)).map(c=>`<span style="background:var(--bg2);padding:2px 8px;border-radius:10px;margin:2px;display:inline-block">${c.name}</span>`).join('')||'Aucune société'}
-      </div>
-      ${u.id!==currentUser.id?`<button onclick="deleteUser('${u.id}')" class="btn btn-danger" style="margin-top:10px;font-size:11px;padding:4px 10px">Supprimer</button>`:'<div style="margin-top:10px;font-size:11px;color:var(--muted)">(vous)</div>'}
-    </div>`).join('');
+async function loadUsers(){
+  if(!currentUser||currentUser.role!=='admin')return;
+  try{
+    const users=await api('GET','/api/users');
+    const companies=await api('GET','/api/companies');
+    document.getElementById('users-grid').innerHTML=users.map(u=>`
+      <div class="user-card">
+        <div class="user-avatar-lg">${(u.prenom[0]||'')+(u.nom[0]||'')}</div>
+        <div style="font-weight:500">${u.prenom} ${u.nom}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:3px">${u.email}</div>
+        <span class="role-badge ${u.role}">${u.role}</span>
+      </div>`).join('');
+  }catch(e){toast('Erreur chargement utilisateurs','error');}
 }
 
 function openNewUserModal(){
@@ -887,46 +841,33 @@ function openNewUserModal(){
       <div class="form-group"><label>Rôle</label>
         <select class="form-input" id="nu-role"><option value="comptable">Comptable</option><option value="auditeur">Auditeur</option><option value="admin">Admin</option></select>
       </div>
-      <div class="form-group"><label>Sociétés accessibles</label>
-        <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
-          ${db.companies.map(c=>`<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px"><input type="checkbox" value="${c.id}" class="nu-company-cb" style="width:14px;height:14px"/> ${c.name}</label>`).join('')}
-          ${!db.companies.length?'<div style="color:var(--muted);font-size:12px">Aucune société créée</div>':''}
-        </div>
-      </div>
       <div style="display:flex;gap:10px;margin-top:8px">
-        <button class="btn btn-primary" style="flex:1" onclick="createUser()">Créer l'utilisateur</button>
+        <button class="btn btn-primary" style="flex:1" onclick="createUser()">Créer</button>
         <button class="btn btn-ghost" onclick="closeModal()">Annuler</button>
       </div>
     </div>`;
   openModal();
 }
 
-function createUser(){
+async function createUser(){
   const prenom=document.getElementById('nu-prenom').value.trim();
   const nom=document.getElementById('nu-nom').value.trim();
-  const email=document.getElementById('nu-email').value.trim().toLowerCase();
-  const pass=document.getElementById('nu-password').value;
+  const email=document.getElementById('nu-email').value.trim();
+  const password=document.getElementById('nu-password').value;
   const role=document.getElementById('nu-role').value;
-  const companies=[...document.querySelectorAll('.nu-company-cb:checked')].map(c=>c.value);
-  if(!prenom||!nom||!email||!pass){toast('Remplissez tous les champs','error');return;}
-  if(db.users.find(u=>u.email===email)){toast('Email déjà utilisé','error');return;}
-  db.users.push({id:genId(),email,password:pass,nom,prenom,role,companies});
-  saveDB();closeModal();renderUsers();toast(`Utilisateur ${prenom} ${nom} créé ✓`,'success');
-}
-
-function deleteUser(id){
-  if(!confirm('Supprimer cet utilisateur ?'))return;
-  db.users=db.users.filter(u=>u.id!==id);saveDB();renderUsers();toast('Utilisateur supprimé','info');
+  try{
+    await api('POST','/api/auth/register',{prenom,nom,email,password,role});
+    closeModal(); loadUsers(); toast(`Utilisateur ${prenom} ${nom} créé ✓`,'success');
+  }catch(e){toast(e.message,'error');}
 }
 
 // ===== PORTAIL CLIENTS =====
-function renderPortailCompanies(){
+function renderPortailCompanies(companies){
   const el=document.getElementById('portail-companies');if(!el)return;
-  const companies=getMyCompanies();
-  if(!companies.length){el.innerHTML='<div class="no-company"><div class="no-company-icon">🔗</div><div>Créez une société pour générer un lien de dépôt</div></div>';return;}
+  if(!companies||!companies.length){el.innerHTML='<div class="no-company"><div style="font-size:48px;opacity:.3">🔗</div><div>Créez une société pour générer un lien de dépôt</div></div>';return;}
   el.innerHTML=companies.map(c=>{
-    const link=`${window.location.origin}${window.location.pathname}?portal=${c.portalToken||c.id}`;
-    return `<div class="portal-card">
+    const link=`${window.location.origin}/?portal=${c.portal_token}`;
+    return`<div class="portal-card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
         <div><div style="font-weight:500;font-size:14px">${c.name}</div><div style="font-size:12px;color:var(--muted)">Lien de dépôt pour vos clients</div></div>
         <span class="status-badge done">Actif</span>
@@ -934,65 +875,31 @@ function renderPortailCompanies(){
       <div class="link-row">
         <span class="portal-link">${link}</span>
         <button class="btn btn-ghost" onclick="copyLink('${link}')">📋 Copier</button>
-        <button class="btn btn-warn" onclick="openPortalPreview('${c.id}')">👁 Aperçu</button>
       </div>
     </div>`;
   }).join('');
 }
-
 function copyLink(link){navigator.clipboard.writeText(link).then(()=>toast('Lien copié ✓','success'));}
 
-function openPortalPreview(companyId){
-  const c=db.companies.find(x=>x.id===companyId);
-  document.getElementById('portal-company-name').textContent=c?c.name:'Dépôt de documents';
-  document.getElementById('portal-public').classList.add('active');
-  document.getElementById('portal-public').dataset.companyId=companyId;
-}
-
-// PORTAIL PUBLIC — gestion des fichiers déposés
+// ===== PORTAIL PUBLIC =====
 let portalFiles=[];
 function handlePortalDrag(e){e.preventDefault();document.getElementById('portal-drop').classList.add('drag-over');}
 function handlePortalDragLeave(){document.getElementById('portal-drop').classList.remove('drag-over');}
 function handlePortalDrop(e){e.preventDefault();document.getElementById('portal-drop').classList.remove('drag-over');handlePortalFiles(e.dataTransfer.files);}
 function handlePortalFiles(files){
   portalFiles=[...files];
-  const list=document.getElementById('portal-files-list');
-  list.innerHTML=portalFiles.map(f=>`<div style="padding:8px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;margin-bottom:6px;display:flex;align-items:center;gap:8px"><span>📄</span><span style="flex:1;font-size:12px">${f.name}</span><span style="font-size:11px;color:var(--muted);font-family:var(--mono)">${fmtSize(f.size)}</span></div>`).join('');
+  document.getElementById('portal-files-list').innerHTML=portalFiles.map(f=>`<div style="padding:8px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;margin-bottom:6px;display:flex;align-items:center;gap:8px"><span>📄</span><span style="flex:1;font-size:12px">${f.name}</span><span style="font-size:11px;color:var(--muted);font-family:var(--mono)">${fmtSize(f.size)}</span></div>`).join('');
   document.getElementById('portal-submit').style.display=portalFiles.length?'block':'none';
 }
-function submitPortalFiles(){
+async function submitPortalFiles(){
   const companyId=document.getElementById('portal-public').dataset.companyId;
-  if(!db.data[companyId])db.data[companyId]={factures:[],releves:[],queue:[]};
-  const data=db.data[companyId];
-  const clientUploads=db.clientUploads||(db.clientUploads=[]);
-  portalFiles.forEach(file=>{
-    const item={id:genId(),file,name:file.name,size:fmtSize(file.size),type:file.type.includes('pdf')?'pdf':'img',status:'pending',result:null,companyId,fromClient:true,uploadedAt:new Date().toISOString()};
-    data.queue.push(item);
-    clientUploads.push({id:item.id,name:file.name,size:item.size,companyId,companyName:db.companies.find(c=>c.id===companyId)?.name||'—',uploadedAt:item.uploadedAt});
-  });
-  saveDB();
-  document.getElementById('portal-success').style.display='block';
-  document.getElementById('portal-submit').style.display='none';
-  document.getElementById('portal-files-list').innerHTML='';
-  renderClientUploads();
-  setTimeout(()=>{document.getElementById('portal-public').classList.remove('active');document.getElementById('portal-success').style.display='none';portalFiles=[];},3000);
-}
-
-function renderClientUploads(){
-  const el=document.getElementById('client-uploads-list');if(!el)return;
-  const uploads=(db.clientUploads||[]).filter(u=>getMyCompanies().some(c=>c.id===u.companyId));
-  if(!uploads.length){el.innerHTML='<div style="padding:20px;text-align:center;color:var(--muted);font-size:13px">Aucun document déposé par les clients</div>';return;}
-  el.innerHTML=`<table class="data-table"><thead><tr><th>Fichier</th><th>Société</th><th>Déposé le</th><th>Taille</th><th>Action</th></tr></thead><tbody>${
-    uploads.reverse().map(u=>`<tr><td>📄 ${u.name}</td><td><span style="background:rgba(79,142,247,.1);color:var(--accent);padding:2px 8px;border-radius:6px;font-size:11px">${u.companyName}</span></td><td style="font-family:var(--mono);font-size:11px">${new Date(u.uploadedAt).toLocaleDateString('fr-FR')}</td><td style="font-family:var(--mono);font-size:11px">${u.size}</td><td><button class="btn btn-primary" style="font-size:11px;padding:4px 10px" onclick="processClientUpload('${u.companyId}')">Traiter</button></td></tr>`).join('')
-  }</tbody></table>`;
-}
-
-function processClientUpload(companyId){
-  selectCompany(companyId);
-  document.getElementById('company-select').value=companyId;
-  showPage('upload');
-  processQueue();
-  toast('Traitement lancé pour les dépôts clients ✓','success');
+  try{
+    await api('POST','/api/portal/upload',{company_id:companyId,files:portalFiles.map(f=>({name:f.name,size:f.size}))});
+    document.getElementById('portal-success').style.display='block';
+    document.getElementById('portal-submit').style.display='none';
+    document.getElementById('portal-files-list').innerHTML='';
+    setTimeout(()=>{document.getElementById('portal-public').classList.remove('active');document.getElementById('portal-success').style.display='none';portalFiles=[];},3000);
+  }catch(e){toast('Erreur dépôt: '+e.message,'error');}
 }
 
 // ===== MODAL =====
@@ -1004,250 +911,31 @@ function toast(msg,type='info'){
   const c=document.getElementById('toast-container');
   const el=document.createElement('div');el.className=`toast ${type}`;
   el.innerHTML=`<span style="font-weight:600">${{success:'✓',error:'✗',info:'ℹ'}[type]||''}</span> ${msg}`;
-  c.appendChild(el);setTimeout(()=>{el.style.opacity='0';el.style.transition='opacity .3s';setTimeout(()=>el.remove(),300);},3500);
-}
-
-// ===== PORTAIL URL =====
-function checkPortalURL(){
-  const params=new URLSearchParams(window.location.search);
-  const token=params.get('portal');
-  if(token){
-    const company=db.companies.find(c=>c.portalToken===token||c.id===token);
-    document.getElementById('auth-screen').style.display='none';
-    if(company){
-      document.getElementById('portal-company-name').textContent=company.name;
-      document.getElementById('portal-public').dataset.companyId=company.id;
-    }
-    document.getElementById('portal-public').classList.add('active');
-    return true;
-  }
-  return false;
-}
-
-
-// ===== EXPORT ECRIT (Format lot comptable Excel 5.0/95) =====
-// Codes journaux : 01=Report à nouveau | A=Achats | V=Ventes | B=Banque | C=Caisse | OD=Opérations diverses
-
-// Plan comptable marocain (issu du fichier PLAN_COMPTABLE_MAROC.xlsx)
-const PLAN_COMPTABLE = {
-  // Capitaux
-  '1111000000': 'CAPITAL SOCIAL',
-  '1140000000': 'RESERVE LEGALE',
-  '1161000000': 'REPORT A NOUVEAU (SOLDE CREDITEUR)',
-  // Immobilisations
-  '2351000000': 'MOBILIER DE BUREAU',
-  '2352000000': 'MATERIEL DE BUREAU',
-  '2355000000': 'MATERIEL INFORMATIQUE',
-  '2340000000': 'MATERIEL DE TRANSPORT',
-  // Clients / Tiers
-  '3421000000': 'CLIENTS',
-  '3453000000': 'ACOMPTES SUR IMPOTS S.RESULTAT',
-  '3455000000': 'ETAT - T.V.A. RECUPERABLE',
-  '3456000000': 'ETAT-CREDIT T.V.A.',
-  // Fournisseurs
-  '4411000000': 'FOURNISSEURS',
-  '4432000000': 'REMUNERATIONS DUES AU PERSON.',
-  '4437000000': 'CHARGES DU PERSONNEL A PAYER',
-  '4441000000': 'CAISSE NATIONALE SECU. SOCIALE',
-  '4452000000': 'ETAT IMPOTS TAXES ET ASSIMILES',
-  '4453000000': 'ETAT IMPOT SUR LES RESULTATS',
-  '4455000000': 'ETAT, T.V.A. FACTUREE',
-  '4456000000': 'ETAT T.V.A. DUE',
-  '4457000000': 'ETAT. IMPOTS + TAXES A PAYER',
-  '4463000000': 'COMPTE COURANT ASSOCIE',
-  '4488000000': 'DIVERS CREANCIERS',
-  // Trésorerie
-  '5141000000': 'BANQUES (SOLDE DEBITEURS)',
-  '5161000000': 'CAISSES',
-  // Charges — Achats
-  '6122600000': 'ACHATS DE FOURNITURES DE MAGASIN',
-  '6125000000': 'ACHATS N.STOCK.MAT.+FOURNITURE',
-  '6126000000': 'ACHATS TRAV.+ETUD.PREST.SERVIC',
-  '6131000000': 'LOCATION ET CHARGES LOCATIVES',
-  '6143100000': 'VOYAGES DEPLACEMENTS',
-  '6143600000': 'RECEPTIONS',
-  '6144000000': 'PUBLICITE, PUBLICATION REL.PUB',
-  '6147000000': 'SERVICES BANCAIRES',
-  '6161200000': 'PATENTE',
-  '6171000000': 'REMUNERATION DU PERSONNEL',
-  '6174000000': 'CHARGES SOCIALES',
-  '6174100000': 'COTISATIONS DE SECURITE SOCIALE',
-  '6191000000': 'DOT. EXPLOIT. AMORT. IMMO',
-  '6193000000': 'DOT. EXPLOI. AMOR. IMMO CORPOR',
-  '6311000000': 'INTERETS EMPRUNTS ET DETTES',
-  '6701000000': 'IMPOTS SUR LES BENEFICES',
-  // Produits
-  '7124000000': 'VENTES SERVICES PDTS AU MAROC',
-  '7124300000': 'PRESTATIONS DE SERVICE',
-};
-
-// Codes journaux officiels
-const JOURNAUX = {
-  REPORT:  '01',   // Report à nouveau
-  ACHATS:  'A',    // Achats fournisseurs
-  VENTES:  'V',    // Ventes clients
-  BANQUE:  'B',    // Journal de banque
-  CAISSE:  'C',    // Journal de caisse
-  OD:      'OD',   // Opérations diverses
-};
-
-// Correspondance catégorie → compte de charge (Plan comptable marocain)
-function getCompteCharge(categorie) {
-  const map = {
-    'Fournitures':        '6125000000',  // ACHATS N.STOCK.MAT.+FOURNITURE
-    'Services':           '6126000000',  // ACHATS TRAV.+ETUD.PREST.SERVIC
-    'Transport':          '6143100000',  // VOYAGES DEPLACEMENTS
-    'Loyer':              '6131000000',  // LOCATION ET CHARGES LOCATIVES
-    'Télécommunications': '6125000000',  // ACHATS N.STOCK.MAT.+FOURNITURE
-    'Restauration':       '6143600000',  // RECEPTIONS
-    'Honoraires':         '6126000000',  // ACHATS TRAV.+ETUD.PREST.SERVIC
-    'Energie':            '6125000000',  // ACHATS N.STOCK.MAT.+FOURNITURE
-    'Autre':              '6126000000',  // ACHATS TRAV.+ETUD.PREST.SERVIC
-  };
-  return map[categorie] || '6126000000';
-}
-
-function getLibelleCompte(code) {
-  return PLAN_COMPTABLE[code] || '';
-}
-
-function buildECRITRows() {
-  const data = getData();
-  if (!data) return [];
-  const rows = [];
-
-  // ── Journal A — ACHATS fournisseurs ──────────────────────────────────────
-  // Principe de la partie double :
-  //   Débit  → Compte de charge (6xxx)
-  //   Débit  → TVA récupérable (3455000000) si TVA > 0
-  //   Crédit → Fournisseur (4411000000)
-  data.factures.forEach(f => {
-    const date     = f.date_facture ? excelDate(f.date_facture) : '';
-    const fourniss = (f.fournisseur || '').substring(0, 30).toUpperCase();
-    const libelle  = ((f.description || f.categorie || 'FACTURE') + ' ' + (f.fournisseur||'')).substring(0, 40).toUpperCase();
-    const numPiece = f.numero || '';
-    const ht       = parseFloat(f.montant_ht)  || 0;
-    const tva      = parseFloat(f.montant_tva) || 0;
-    const ttc      = parseFloat(f.montant_ttc) || 0;
-    const cpteChg  = getCompteCharge(f.categorie);
-
-    // Ligne 1 : Compte de charge HT — Débit
-    rows.push([JOURNAUX.ACHATS, date, cpteChg, '', libelle, numPiece, '', ht, null]);
-
-    // Ligne 2 : TVA récupérable — Débit (si TVA > 0)
-    if (tva > 0) {
-      rows.push([JOURNAUX.ACHATS, date, '3455000000', '', 'TVA / ' + libelle.substring(0,35), numPiece, '', tva, null]);
-    }
-
-    // Ligne 3 : Fournisseur — Crédit
-    rows.push([JOURNAUX.ACHATS, date, '4411000000', '', libelle, numPiece, '', null, ttc]);
-  });
-
-  // ── Journal B — BANQUE (transactions du relevé bancaire) ──────────────────
-  // Débit banque  → encaissement client (3421000000 en crédit)
-  // Crédit banque → paiement fournisseur (4411000000 en débit)
-  data.releves.forEach(t => {
-    const date    = t.date_operation ? excelDate(t.date_operation) : '';
-    const libelle = (t.libelle || '').substring(0, 40).toUpperCase();
-    const montant = parseFloat(t.montant) || 0;
-
-    if (t.type_mouvement === 'credit') {
-      // Encaissement : Débit Banque / Crédit Client
-      rows.push([JOURNAUX.BANQUE, date, '5141000000', '', libelle, '', '', montant, null]);
-      rows.push([JOURNAUX.BANQUE, date, '3421000000', '', libelle, '', '', null, montant]);
-    } else {
-      // Paiement : Débit Fournisseur (ou OD) / Crédit Banque
-      rows.push([JOURNAUX.BANQUE, date, '4411000000', '', libelle, '', '', montant, null]);
-      rows.push([JOURNAUX.BANQUE, date, '5141000000', '', libelle, '', '', null, montant]);
-    }
-  });
-
-  return rows;
-}
-
-function excelDate(dateStr) {
-  if (!dateStr) return '';
-  const d = new Date(dateStr);
-  if (isNaN(d)) return dateStr;
-  return String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0') + '/' + d.getFullYear();
-}
-
-function renderECRITPreview() {
-  const rows = buildECRITRows();
-  const tbody = document.getElementById('tbody-ecrit');
-  if (!tbody) return;
-  if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:30px">Importez des factures et relevés pour générer le lot comptable</td></tr>';
-    return;
-  }
-  const jrnColors = { 'A':'var(--accent)', 'V':'var(--success)', 'B':'var(--warn)', 'C':'#1ABC9C', 'OD':'var(--muted)', '01':'var(--accent2)' };
-  tbody.innerHTML = rows.map(r => {
-    const [cj, date, cpte, cpt, lib, piece, lettr, debit, credit] = r;
-    const col = jrnColors[cj] || 'var(--muted)';
-    const libelleCompte = getLibelleCompte(cpte);
-    return `<tr>
-      <td><span style="background:rgba(79,142,247,.1);color:${col};padding:2px 8px;border-radius:6px;font-family:var(--mono);font-size:11px;font-weight:600">${cj}</span></td>
-      <td style="font-family:var(--mono);font-size:12px">${date}</td>
-      <td style="font-family:var(--mono);font-size:11px">
-        <div>${cpte}</div>
-        <div style="color:var(--muted);font-size:10px">${libelleCompte}</div>
-      </td>
-      <td style="font-size:12px">${cpt||''}</td>
-      <td style="font-size:12px">${lib}</td>
-      <td style="font-family:var(--mono);font-size:11px;color:var(--muted)">${piece||''}</td>
-      <td></td>
-      <td style="font-family:var(--mono);font-size:12px;color:var(--accent);text-align:right">${debit ? Number(debit).toLocaleString('fr-MA',{minimumFractionDigits:2,maximumFractionDigits:2}) : ''}</td>
-      <td style="font-family:var(--mono);font-size:12px;color:var(--success);text-align:right">${credit ? Number(credit).toLocaleString('fr-MA',{minimumFractionDigits:2,maximumFractionDigits:2}) : ''}</td>
-    </tr>`;
-  }).join('');
-}
-
-function exportECRIT() {
-  const data = getData();
-  if (!data || (!data.factures.length && !data.releves.length)) {
-    toast('Aucune donnée à exporter', 'info'); return;
-  }
-  const rows = buildECRITRows();
-  if (!rows.length) { toast('Aucune écriture à générer', 'info'); return; }
-
-  const wb = XLSX.utils.book_new();
-
-  // En-tête exactement comme le modèle original
-  const header = [['Code journal', 'Date écriture', 'n° de compte', 'Contrepartie', "Libéllé d'écriture", 'N° pièce', 'Lettrage ', 'Débit', 'Crédit']];
-
-  // Données : convertir null en chaîne vide pour Excel
-  const dataRows = rows.map(r => r.map(v => v === null ? '' : v));
-  const wsData = [...header, ...dataRows];
-
-  const ws = XLSX.utils.aoa_to_sheet(wsData);
-
-  // Largeurs colonnes
-  ws['!cols'] = [
-    {wch:12}, {wch:14}, {wch:14}, {wch:22},
-    {wch:42}, {wch:12}, {wch:10}, {wch:14}, {wch:14}
-  ];
-
-  XLSX.utils.book_append_sheet(wb, ws, 'ECRIT');
-
-  // Export format XLS (compatible Excel 5.0/95 — biff8)
-  XLSX.writeFile(wb, 'ECRIT.xls', { bookType: 'biff8' });
-
-  const company = db.companies.find(c => c.id === currentCompanyId);
-  const nbAchats  = data.factures.length;
-  const nbBanque  = data.releves.length;
-  toast(`ECRIT.xls généré — ${rows.length} lignes (${nbAchats} factures · ${nbBanque} transactions)`, 'success');
-  renderECRITPreview();
+  c.appendChild(el);setTimeout(()=>{el.style.opacity='0';el.style.transition='opacity .3s';setTimeout(()=>el.remove(),300);},4000);
 }
 
 // ===== INIT =====
-(function init(){
-  if(checkPortalURL()) return;
-  const sessionId=localStorage.getItem('compta_session');
-  if(sessionId){const user=db.users.find(u=>u.id===sessionId);if(user){currentUser=user;enterApp();return;}}
-  document.getElementById('auth-screen').style.display='flex';
-  // Restore company
-  const savedCompany=localStorage.getItem('compta_last_company');
-  if(savedCompany) currentCompanyId=savedCompany;
+(async function init(){
+  const params=new URLSearchParams(window.location.search);
+  const portalToken=params.get('portal');
+  if(portalToken){
+    // Portail public client
+    document.getElementById('auth-screen').style.display='none';
+    try{
+      const company=await fetch(`/api/companies/portal/${portalToken}`).then(r=>r.json());
+      document.getElementById('portal-company-name').textContent=company.name||'Dépôt de documents';
+      document.getElementById('portal-public').dataset.companyId=company.id;
+    }catch(e){}
+    document.getElementById('portal-public').classList.add('active');
+    return;
+  }
+  if(token){
+    try{
+      const data=await api('GET','/api/auth/me');
+      currentUser=data.user;
+      enterApp();
+    }catch(e){ localStorage.removeItem('compta_token'); token=''; }
+  }
 })();
 </script>
 </body>
