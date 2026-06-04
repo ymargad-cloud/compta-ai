@@ -772,7 +772,8 @@ Si FACTURE: {"type":"facture","numero":"","date_facture":"YYYY-MM-DD","fournisse
 Si RELEVÉ: {"type":"releve_bancaire","banque":"","periode_debut":"YYYY-MM-DD","periode_fin":"YYYY-MM-DD","solde_initial":0,"solde_final":0,"transactions":[{"date_operation":"YYYY-MM-DD","libelle":"","type_mouvement":"debit|credit","montant":0,"solde":0}]}
 Si autre: {"type":"autre"}`;
   const body={model:'claude-haiku-4-5-20251001',max_tokens:2000,messages:[{role:'user',content:[{type:isPdf?'document':'image',source:{type:'base64',media_type:mediaType,data:base64}},{type:'text',text:prompt}]}]};
-  const resp=await fetch('/api/messages',{method:'POST',headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','Authorization':`Bearer ${token}`},body:JSON.stringify(body)});
+  const clientKey = localStorage.getItem('compta_api_key') || '';
+  const resp=await fetch('/api/messages',{method:'POST',headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','Authorization':`Bearer ${token}`,'x-client-key':clientKey},body:JSON.stringify(body)});
   if(!resp.ok){const e=await resp.json().catch(()=>({}));throw new Error(e?.error?.message||'API '+resp.status);}
   const d=await resp.json();
   const text=d.content.map(c=>c.text||'').join('').replace(/```json|```/g,'').trim();

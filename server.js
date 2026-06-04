@@ -256,14 +256,16 @@ const server = http.createServer(async (req, res) => {
 
   // POST /api/messages (proxy Anthropic)
   if (req.method === 'POST' && url === '/api/messages') {
-    const user = await getUser(req);
-    if (!user) return send(res, 401, { error: 'Non authentifié' });
+    // Récupérer la clé : d'abord header, sinon Supabase, sinon localStorage via header custom
     let apiKey = req.headers['x-api-key'] || '';
-    // Si pas de clé dans le header, utiliser la clé centralisée
     if (!apiKey.startsWith('sk-ant-')) {
       const { data } = await supa('GET', 'settings', { filter: 'key=eq.anthropic_api_key' });
       const setting = Array.isArray(data) && data[0] ? data[0] : null;
       if (setting) apiKey = setting.value;
+    }
+    // Clé client en fallback
+    if (!apiKey.startsWith('sk-ant-')) {
+      apiKey = req.headers['x-client-key'] || '';
     }
     if (!apiKey || !apiKey.startsWith('sk-ant-')) {
       return send(res, 401, { error: 'Clé API Anthropic non configurée. Contactez votre administrateur.' });
