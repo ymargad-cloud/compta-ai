@@ -89,7 +89,7 @@ async function getUser(req) {
 const server = http.createServer(async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,x-api-key,anthropic-version');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,x-api-key,x-client-key,anthropic-version');
   if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
 
   const url = req.url.split('?')[0];
@@ -267,8 +267,10 @@ const server = http.createServer(async (req, res) => {
     if (!apiKey.startsWith('sk-ant-')) {
       apiKey = req.headers['x-client-key'] || '';
     }
+    // Log pour debug
+    console.log('apiKey found:', apiKey ? apiKey.slice(0,20)+'...' : 'VIDE');
     if (!apiKey || !apiKey.startsWith('sk-ant-')) {
-      return send(res, 401, { error: 'Clé API Anthropic non configurée. Contactez votre administrateur.' });
+      return send(res, 400, { error: { message: 'Clé API non configurée. Ajoutez-la dans Supabase settings.' } });
     }
     let body = '';
     req.on('data', c => body += c);
