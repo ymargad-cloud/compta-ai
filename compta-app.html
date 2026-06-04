@@ -309,13 +309,31 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 
       <!-- UPLOAD -->
       <div class="page" id="page-upload">
-        <div class="key-section">
+        <!-- Section clé API Admin -->
+        <div id="key-section-admin" class="key-section" style="display:none">
           <span style="font-size:20px">🔑</span>
           <div style="flex:1">
-            <input class="key-input" type="password" id="api-key" placeholder="Clé API Anthropic (sk-ant-...)"/>
-            <div style="font-size:11px;color:var(--muted);margin-top:4px;font-family:var(--mono)" id="key-status">⚠ Entrez votre clé API pour activer l'extraction IA</div>
+            <div style="font-size:12px;font-weight:500;color:#3B5EA6;margin-bottom:6px">Clé API Anthropic — Partagée avec tous les utilisateurs</div>
+            <input class="key-input" type="password" id="api-key" placeholder="sk-ant-api03-..."/>
+            <div style="font-size:11px;color:var(--muted);margin-top:4px;font-family:var(--mono)" id="key-status">⚠ Entrez la clé API pour activer l'extraction IA pour tous</div>
           </div>
-          <button class="btn btn-ghost" onclick="saveKey()">Sauvegarder</button>
+          <button class="btn btn-primary" onclick="saveKey()">Sauvegarder pour tous</button>
+        </div>
+        <!-- Section clé API Utilisateur -->
+        <div id="key-section-user" class="key-section" style="display:none;background:rgba(39,174,96,.06);border-color:rgba(39,174,96,.2)">
+          <span style="font-size:20px">✅</span>
+          <div style="flex:1">
+            <div style="font-size:12px;font-weight:500;color:var(--success)">Clé API configurée par l'administrateur</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:4px">L'extraction IA est active — vous pouvez uploader vos documents</div>
+          </div>
+        </div>
+        <!-- Section clé API manquante -->
+        <div id="key-section-missing" class="key-section" style="display:none;background:rgba(243,156,18,.06);border-color:rgba(243,156,18,.2)">
+          <span style="font-size:20px">⚠️</span>
+          <div style="flex:1">
+            <div style="font-size:12px;font-weight:500;color:var(--warn)">Clé API non configurée</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:4px">Contactez votre administrateur pour activer l'extraction IA</div>
+          </div>
         </div>
         <div id="upload-no-company" class="no-company" style="display:none">
           <div style="font-size:48px;opacity:.3">🏢</div>
@@ -671,24 +689,38 @@ function updateKeyStatus() {
 async function loadApiKeyStatus() {
   try {
     const data = await api('GET', '/api/settings');
-    const adminSection = document.getElementById('key-section-admin');
-    const userSection  = document.getElementById('key-section-user');
+    const adminSection   = document.getElementById('key-section-admin');
+    const userSection    = document.getElementById('key-section-user');
+    const missingSection = document.getElementById('key-section-missing');
+
+    // Cacher toutes les sections d'abord
+    [adminSection, userSection, missingSection].forEach(s => { if(s) s.style.display = 'none'; });
+
     if (currentUser && currentUser.role === 'admin') {
+      // Admin : montrer la section de configuration
       if (adminSection) adminSection.style.display = 'flex';
-      if (userSection)  userSection.style.display  = 'none';
-      if (data.has_key && data.key && adminSection) {
-        document.getElementById('api-key').value = data.key;
-        document.getElementById('key-status').textContent = '✓ Clé API configurée';
-        document.getElementById('key-status').style.color = '#27AE60';
+      if (data.has_key && data.key) {
+        const keyEl = document.getElementById('api-key');
+        const stEl  = document.getElementById('key-status');
+        if (keyEl) keyEl.value = data.key;
+        if (stEl)  { stEl.textContent = '✓ Clé API configurée et active'; stEl.style.color = '#27AE60'; }
       }
     } else {
-      if (adminSection) adminSection.style.display = 'none';
-      if (userSection)  userSection.style.display  = data.has_key ? 'flex' : 'none';
-      if (!data.has_key && userSection) {
-        userSection.innerHTML = '<span style="font-size:20px">⚠️</span><div style="flex:1"><div style="font-size:12px;font-weight:500;color:var(--warn)">Clé API non configurée</div><div style="font-size:11px;color:var(--muted);margin-top:4px">Contactez votre administrateur</div></div>';
+      // Utilisateur : montrer statut selon si clé configurée
+      if (data.has_key) {
+        if (userSection) userSection.style.display = 'flex';
+      } else {
+        if (missingSection) missingSection.style.display = 'flex';
       }
     }
-  } catch(e) { console.error('loadApiKeyStatus:', e); }
+  } catch(e) {
+    console.error('loadApiKeyStatus:', e);
+    // En cas d'erreur, montrer section admin si admin
+    const adminSection = document.getElementById('key-section-admin');
+    if (adminSection && currentUser && currentUser.role === 'admin') {
+      adminSection.style.display = 'flex';
+    }
+  }
 }
 
 // ===== UPLOAD =====
