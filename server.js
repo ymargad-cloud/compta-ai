@@ -355,6 +355,16 @@ const server = http.createServer(async (req, res) => {
     return send(res, 200, { ok: true });
   }
 
+  // PATCH /api/releves-dossier/:id
+  if (req.method === 'PATCH' && url.startsWith('/api/releves-dossier/')) {
+    const user = await getUser(req);
+    if (!user) return send(res, 401, { error: 'Non authentifié' });
+    const id = url.split('/').pop();
+    const body = await parseBody(req);
+    await supa('PATCH', `transactions?id=eq.${id}`, { body: { dossier_id: body.dossier_id } });
+    return send(res, 200, { ok: true });
+  }
+
   // PATCH /api/tva-dossier/:id
   if (req.method === 'PATCH' && url.startsWith('/api/tva-dossier/')) {
     const user = await getUser(req);

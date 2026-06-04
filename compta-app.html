@@ -1406,52 +1406,86 @@ function openDossier(id){
   const factsLibres = (allFactures||[]).filter(f => !f.dossier_id);
   const tvaLibres   = (allTVADeclarations||[]).filter(t => !t.dossier_id);
 
+  const releves     = (allTransactions||[]).filter(t => t.dossier_id === id);
+  const relevesLibres = (allTransactions||[]).filter(t => !t.dossier_id);
+  // Regrouper les transactions par relevé (banque + date)
+  const relevesUniques = [...new Map(releves.map(t=>[t.releve_info?.banque||t.fileName||'Relevé', t])).values()];
+  const relevesLibresUniques = [...new Map(relevesLibres.map(t=>[(t.releve_info?.banque||t.fileName||'Relevé')+'_'+t.id, t])).values()].slice(0,20);
+
   document.getElementById('modal-title').textContent = '📁 ' + dossier.nom;
   document.getElementById('modal-body').innerHTML = `
     <div style="margin-bottom:16px">
       <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Période: ${dossier.periode||'—'} · ${dossier.description||''}</div>
     </div>
-    <div class="divider"><h2>Factures dans ce dossier</h2><div class="divider-line"></div></div>
-    ${factures.length ? `<div style="margin-bottom:12px">${factures.map(f=>`<div style="padding:8px 12px;background:var(--bg2);border-radius:8px;margin-bottom:6px;display:flex;align-items:center;gap:8px;font-size:12px">
-      <span>🧾</span><span style="flex:1">${f.fournisseur||'—'} — ${fmtAmt(f.montant_ttc)}</span>
-      <button onclick="removeFromDossier('facture','${f.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer">✕</button>
-    </div>`).join('')}</div>` : '<div style="color:var(--muted);font-size:12px;margin-bottom:12px">Aucune facture</div>'}
+
+    <div class="divider"><h2>🧾 Factures</h2><div class="divider-line"></div></div>
+    ${factures.length ? `<div style="margin-bottom:8px">${factures.map(f=>`<div style="padding:8px 12px;background:var(--bg2);border-radius:8px;margin-bottom:6px;display:flex;align-items:center;gap:8px;font-size:12px">
+      <span>🧾</span><span style="flex:1"><strong>${f.fournisseur||'—'}</strong> · ${f.date_facture||''} · ${fmtAmt(f.montant_ttc)}</span>
+      <button onclick="removeFromDossier('facture','${f.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px" title="Retirer">✕</button>
+    </div>`).join('')}</div>` : '<div style="color:var(--muted);font-size:12px;margin-bottom:8px;padding:8px">Aucune facture dans ce dossier</div>'}
     ${factsLibres.length ? `<div class="form-group" style="margin-bottom:16px">
       <label>Ajouter une facture</label>
       <select class="form-input" id="add-facture-sel">
         <option value="">— Choisir une facture —</option>
         ${factsLibres.map(f=>`<option value="${f.id}">${f.fournisseur||'—'} · ${f.date_facture||''} · ${fmtAmt(f.montant_ttc)}</option>`).join('')}
       </select>
-      <button class="btn btn-ghost" style="margin-top:6px" onclick="addToDossier('${id}','facture')">+ Ajouter</button>
+      <button class="btn btn-ghost" style="margin-top:6px;width:100%" onclick="addToDossier('${id}','facture')">+ Ajouter la facture sélectionnée</button>
+    </div>` : '<div style="font-size:12px;color:var(--muted);margin-bottom:16px;padding:6px 0">Toutes les factures sont déjà dans un dossier</div>'}
+
+    <div class="divider"><h2>🏦 Relevés bancaires</h2><div class="divider-line"></div></div>
+    ${releves.length ? `<div style="margin-bottom:8px">${releves.slice(0,5).map(t=>`<div style="padding:8px 12px;background:var(--bg2);border-radius:8px;margin-bottom:6px;display:flex;align-items:center;gap:8px;font-size:12px">
+      <span>🏦</span><span style="flex:1"><strong>${t.libelle||'—'}</strong> · ${t.date_operation||''} · ${fmtAmt(t.montant)}</span>
+      <button onclick="removeFromDossier('releve','${t.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px" title="Retirer">✕</button>
+    </div>`).join('')}${releves.length>5?`<div style="font-size:11px;color:var(--muted);padding:6px 12px">... et ${releves.length-5} autres transactions</div>`:''}</div>` 
+    : '<div style="color:var(--muted);font-size:12px;margin-bottom:8px;padding:8px">Aucune transaction dans ce dossier</div>'}
+    ${relevesLibresUniques.length ? `<div class="form-group" style="margin-bottom:16px">
+      <label>Ajouter une transaction bancaire</label>
+      <select class="form-input" id="add-releve-sel">
+        <option value="">— Choisir une transaction —</option>
+        ${relevesLibresUniques.map(t=>`<option value="${t.id}">${t.date_operation||''} · ${t.libelle||'—'} · ${fmtAmt(t.montant)}</option>`).join('')}
+      </select>
+      <button class="btn btn-ghost" style="margin-top:6px;width:100%" onclick="addToDossier('${id}','releve')">+ Ajouter la transaction sélectionnée</button>
     </div>` : ''}
-    <div class="divider"><h2>Déclarations TVA</h2><div class="divider-line"></div></div>
-    ${tva.length ? tva.map(t=>`<div style="padding:8px 12px;background:var(--bg2);border-radius:8px;margin-bottom:6px;display:flex;align-items:center;gap:8px;font-size:12px">
-      <span>📋</span><span style="flex:1">TVA ${t.periode||'—'}</span>
-      <button onclick="removeFromDossier('tva','${t.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer">✕</button>
-    </div>`).join('') : '<div style="color:var(--muted);font-size:12px;margin-bottom:12px">Aucune déclaration TVA</div>'}
-    ${tvaLibres.length ? `<div class="form-group">
+
+    <div class="divider"><h2>📋 Déclarations TVA</h2><div class="divider-line"></div></div>
+    ${tva.length ? `<div style="margin-bottom:8px">${tva.map(t=>`<div style="padding:8px 12px;background:var(--bg2);border-radius:8px;margin-bottom:6px;display:flex;align-items:center;gap:8px;font-size:12px">
+      <span>📋</span><span style="flex:1"><strong>TVA ${t.periode||'—'}</strong> · ${t.raison_sociale||''} · Due: ${fmtAmt(t.ligne_200_tva_due)}</span>
+      <button onclick="removeFromDossier('tva','${t.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px" title="Retirer">✕</button>
+    </div>`).join('')}</div>`
+    : '<div style="color:var(--muted);font-size:12px;margin-bottom:8px;padding:8px">Aucune déclaration TVA dans ce dossier</div>'}
+    ${tvaLibres.length ? `<div class="form-group" style="margin-bottom:16px">
+      <label>Ajouter une déclaration TVA</label>
       <select class="form-input" id="add-tva-sel">
         <option value="">— Choisir une déclaration TVA —</option>
         ${tvaLibres.map(t=>`<option value="${t.id}">TVA ${t.periode||'—'} · ${t.raison_sociale||''}</option>`).join('')}
       </select>
-      <button class="btn btn-ghost" style="margin-top:6px" onclick="addToDossier('${id}','tva')">+ Ajouter</button>
+      <button class="btn btn-ghost" style="margin-top:6px;width:100%" onclick="addToDossier('${id}','tva')">+ Ajouter la déclaration sélectionnée</button>
     </div>` : ''}
-    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);display:flex;gap:10px">
+
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);display:flex;gap:10px;flex-wrap:wrap">
       <button class="btn btn-primary" onclick="exportDossierECRIT('${id}')">📒 Exporter ECRIT ce dossier</button>
+      <button class="btn btn-success" onclick="exportAll()">📊 Export Excel complet</button>
       <button class="btn btn-ghost" onclick="closeModal()">Fermer</button>
     </div>`;
   openModal();
 }
 
 async function addToDossier(dossierId, type){
-  const selId = type==='facture' ? document.getElementById('add-facture-sel')?.value : document.getElementById('add-tva-sel')?.value;
+  let selId;
+  if(type==='facture') selId = document.getElementById('add-facture-sel')?.value;
+  else if(type==='tva') selId = document.getElementById('add-tva-sel')?.value;
+  else if(type==='releve') selId = document.getElementById('add-releve-sel')?.value;
   if(!selId){ toast('Sélectionnez un élément','error'); return; }
   try{
-    const table = type==='facture' ? '/api/factures-dossier' : '/api/tva-dossier';
+    let table;
+    if(type==='facture') table = '/api/factures-dossier';
+    else if(type==='tva') table = '/api/tva-dossier';
+    else table = '/api/releves-dossier';
     await api('PATCH', `${table}/${selId}`, { dossier_id: dossierId });
     // Mettre à jour localement
     if(type==='facture'){ const f=allFactures.find(x=>x.id===selId); if(f) f.dossier_id=dossierId; }
-    else { const t=allTVADeclarations.find(x=>x.id===selId); if(t) t.dossier_id=dossierId; }
+    else if(type==='tva'){ const t=allTVADeclarations.find(x=>x.id===selId); if(t) t.dossier_id=dossierId; }
+    else { const t=allTransactions.find(x=>x.id===selId); if(t) t.dossier_id=dossierId; }
     closeModal();
     openDossier(dossierId);
     toast('Document ajouté au dossier ✓','success');
@@ -1460,13 +1494,21 @@ async function addToDossier(dossierId, type){
 
 async function removeFromDossier(type, itemId){
   try{
-    const table = type==='facture' ? '/api/factures-dossier' : '/api/tva-dossier';
+    let table;
+    if(type==='facture') table = '/api/factures-dossier';
+    else if(type==='tva') table = '/api/tva-dossier';
+    else table = '/api/releves-dossier';
+    const dossierId = type==='facture' ? allFactures.find(x=>x.id===itemId)?.dossier_id
+                    : type==='tva' ? allTVADeclarations.find(x=>x.id===itemId)?.dossier_id
+                    : allTransactions.find(x=>x.id===itemId)?.dossier_id;
     await api('PATCH', `${table}/${itemId}`, { dossier_id: null });
     if(type==='facture'){ const f=allFactures.find(x=>x.id===itemId); if(f) f.dossier_id=null; }
-    else { const t=allTVADeclarations.find(x=>x.id===itemId); if(t) t.dossier_id=null; }
+    else if(type==='tva'){ const t=allTVADeclarations.find(x=>x.id===itemId); if(t) t.dossier_id=null; }
+    else { const t=allTransactions.find(x=>x.id===itemId); if(t) t.dossier_id=null; }
     toast('Document retiré du dossier','info');
     renderDossiers();
-    closeModal();
+    if(dossierId) openDossier(dossierId);
+    else closeModal();
   } catch(e){ toast('Erreur: '+e.message,'error'); }
 }
 
