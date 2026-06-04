@@ -123,6 +123,7 @@ const server = http.createServer(async (req, res) => {
     const user = Array.isArray(data) && data[0] ? data[0] : null;
     if (!user) return send(res, 401, { error: 'Email ou mot de passe incorrect' });
     const ok = await bcrypt.compare(password, user.password);
+    console.log('bcrypt compare:', ok, 'hash prefix:', user.password.slice(0,7));
     if (!ok) return send(res, 401, { error: 'Email ou mot de passe incorrect' });
     const token = jwt.sign({ sub: user.id }, JWT_SECRET, { expiresIn: '30d' });
     return send(res, 200, { token, user: { id: user.id, email: user.email, nom: user.nom, prenom: user.prenom, role: user.role } });
