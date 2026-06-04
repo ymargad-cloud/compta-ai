@@ -258,7 +258,16 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && url === '/api/messages') {
     const user = await getUser(req);
     if (!user) return send(res, 401, { error: 'Non authentifié' });
-    const apiKey = req.headers['x-api-key'] || '';
+    let apiKey = req.headers['x-api-key'] || '';
+    // Si pas de clé dans le header, utiliser la clé centralisée
+    if (!apiKey.startsWith('sk-ant-')) {
+      const { data } = await supa('GET', 'settings', { filter: 'key=eq.anthropic_api_key' });
+      const setting = Array.isArray(data) && data[0] ? data[0] : null;
+      if (setting) apiKey = setting.value;
+    }
+    if (!apiKey || !apiKey.startsWith('sk-ant-')) {
+      return send(res, 401, { error: 'Clé API Anthropic non configurée. Contactez votre administrateur.' });
+    }
     let body = '';
     req.on('data', c => body += c);
     req.on('end', () => {
@@ -275,6 +284,39 @@ const server = http.createServer(async (req, res) => {
       pr.write(body); pr.end();
     });
     return;
+  }
+
+  // GET /api/settings
+  if (req.method === 'GET' && url === '/api/settings') {
+    const user = await getUser(req);
+    if (!user) return send(res, 401, { error: 'Non authentifié' });
+    const { data } = await supa('GET', 'settings', { filter: 'key=eq.anthropic_api_key' });
+    const setting = Array.isArray(data) && data[0] ? data[0] : null;
+    if (user.role !== 'admin') return send(res, 200, { has_key: !!setting });
+    return send(res, 200, { has_key: !!setting, key: setting ? setting.value : null });
+  }
+
+  // POST /api/settings (admin)
+  if (req.method === 'POST' && url === '/api/settings') {
+    const user = await getUser(req);
+    if (!user || user.role !== 'admin') return send(res, 403, { error: 'Admin requis' });
+    const body = await parseBody(req);
+    const { key, value } = body;
+    if (!key || !value) return send(res, 400, { error: 'Champs manquants' });
+    const existing = await supa('GET', 'settings', { filter: `key=eq.${key}` });
+    if (Array.isArray(existing.data) && existing.data.length) {
+      await supa('PATCH', `settings?key=eq.${key}`, { body: { value } });
+    } else {
+      await supa('POST', 'settings', { body: { key, value } });
+    }
+    return send(res, 200, { message: 'Paramètre sauvegardé' });
+  }
+
+  // Health
+  if (url === '/health') return send(res, 200, { ok: true, supabase: !!SUPA_URL });
+  if (url === '/test-supa') {
+    const result = await supa('GET', 'users', { select: 'id,email' });
+    return send(res, 200, { status: result.status, data: result.data });
   }
 
   send(res, 404, { error: 'Route inconnue: ' + url });

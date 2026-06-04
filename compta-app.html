@@ -645,20 +645,50 @@ function showPage(id) {
   if(id==='export') renderECRITPreview();
   if(id==='users') loadUsers();
   if(id==='profil') renderProfil();
+  if(id==='upload') loadApiKeyStatus();
 }
 
 // ===== API KEY =====
-function saveKey() {
+async function saveKey() {
   const key = document.getElementById('api-key').value.trim();
-  localStorage.setItem('compta_api_key', key);
-  updateKeyStatus();
-  toast('Clé API sauvegardée','success');
+  if (!key.startsWith('sk-ant-')) { toast('Format invalide — doit commencer par sk-ant-','error'); return; }
+  try {
+    await api('POST', '/api/settings', { key: 'anthropic_api_key', value: key });
+    toast('Clé API sauvegardée pour tous les utilisateurs ✓','success');
+    document.getElementById('key-status').textContent = '✓ Clé API sauvegardée';
+    document.getElementById('key-status').style.color = '#27AE60';
+  } catch(e) { toast('Erreur: '+e.message,'error'); }
 }
 function updateKeyStatus() {
-  const key = document.getElementById('api-key').value.trim();
+  const key = document.getElementById('api-key')?.value?.trim() || '';
   const st  = document.getElementById('key-status');
-  if(key.startsWith('sk-ant-')) { st.textContent='✓ Clé API configurée'; st.style.color='#2ECC71'; }
+  if (!st) return;
+  if(key.startsWith('sk-ant-')) { st.textContent='✓ Clé API configurée'; st.style.color='#27AE60'; }
   else { st.textContent='⚠ Format invalide — doit commencer par sk-ant-'; st.style.color='#F39C12'; }
+}
+
+// Charger la clé API centralisée au démarrage de l'upload
+async function loadApiKeyStatus() {
+  try {
+    const data = await api('GET', '/api/settings');
+    const adminSection = document.getElementById('key-section-admin');
+    const userSection  = document.getElementById('key-section-user');
+    if (currentUser && currentUser.role === 'admin') {
+      if (adminSection) adminSection.style.display = 'flex';
+      if (userSection)  userSection.style.display  = 'none';
+      if (data.has_key && data.key && adminSection) {
+        document.getElementById('api-key').value = data.key;
+        document.getElementById('key-status').textContent = '✓ Clé API configurée';
+        document.getElementById('key-status').style.color = '#27AE60';
+      }
+    } else {
+      if (adminSection) adminSection.style.display = 'none';
+      if (userSection)  userSection.style.display  = data.has_key ? 'flex' : 'none';
+      if (!data.has_key && userSection) {
+        userSection.innerHTML = '<span style="font-size:20px">⚠️</span><div style="flex:1"><div style="font-size:12px;font-weight:500;color:var(--warn)">Clé API non configurée</div><div style="font-size:11px;color:var(--muted);margin-top:4px">Contactez votre administrateur</div></div>';
+      }
+    }
+  } catch(e) { console.error('loadApiKeyStatus:', e); }
 }
 
 // ===== UPLOAD =====
@@ -734,8 +764,6 @@ async function processQueue(){
 }
 
 async function extractWithAI(item){
-  const key=localStorage.getItem('compta_api_key')||'';
-  if(!key.startsWith('sk-ant-')) return generateDemoData(item);
   const base64=await fileToBase64(item.file);
   const isPdf=item.type==='pdf';
   const mediaType=isPdf?'application/pdf':(item.file.type||'image/jpeg');
@@ -744,7 +772,7 @@ Si FACTURE: {"type":"facture","numero":"","date_facture":"YYYY-MM-DD","fournisse
 Si RELEVÉ: {"type":"releve_bancaire","banque":"","periode_debut":"YYYY-MM-DD","periode_fin":"YYYY-MM-DD","solde_initial":0,"solde_final":0,"transactions":[{"date_operation":"YYYY-MM-DD","libelle":"","type_mouvement":"debit|credit","montant":0,"solde":0}]}
 Si autre: {"type":"autre"}`;
   const body={model:'claude-haiku-4-5-20251001',max_tokens:2000,messages:[{role:'user',content:[{type:isPdf?'document':'image',source:{type:'base64',media_type:mediaType,data:base64}},{type:'text',text:prompt}]}]};
-  const resp=await fetch('/api/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','Authorization':`Bearer ${token}`},body:JSON.stringify(body)});
+  const resp=await fetch('/api/messages',{method:'POST',headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','Authorization':`Bearer ${token}`},body:JSON.stringify(body)});
   if(!resp.ok){const e=await resp.json().catch(()=>({}));throw new Error(e?.error?.message||'API '+resp.status);}
   const d=await resp.json();
   const text=d.content.map(c=>c.text||'').join('').replace(/```json|```/g,'').trim();
