@@ -251,6 +251,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
       <div class="nav-item" onclick="showPage('releves')">
         <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>Relevés bancaires
       </div>
+      <div class="nav-item" onclick="showPage('tva')">
+        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M9 14l2 2 4-4M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z"/></svg>Déclarations TVA
+      </div>
       <div class="nav-item" onclick="showPage('rapprochement')">
         <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Rapprochement
       </div>
@@ -369,6 +372,24 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
         <div class="card">
           <div class="table-header"><h3>Relevés bancaires</h3><input class="search-input" placeholder="Rechercher..." id="search-releves" oninput="filterTable('releves',this.value)"/><button class="btn btn-success" onclick="exportTable('releves')">CSV</button></div>
           <div style="overflow-x:auto"><table class="data-table"><thead><tr><th>Date</th><th>Libellé</th><th>Type</th><th>Débit</th><th>Crédit</th><th>Solde</th></tr></thead><tbody id="tbody-releves"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:40px">Aucune transaction</td></tr></tbody></table></div>
+        </div>
+      </div>
+
+      <!-- DÉCLARATIONS TVA -->
+      <div class="page" id="page-tva">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+          <div>
+            <div style="font-family:var(--display);font-size:16px;font-weight:700">Déclarations TVA</div>
+            <div style="color:var(--muted);font-size:13px;margin-top:4px">Uploadez vos déclarations TVA DGI — les écritures OD seront générées automatiquement dans ECRIT</div>
+          </div>
+          <button class="btn btn-primary" onclick="showPage('upload')">↑ Uploader une déclaration</button>
+        </div>
+        <div id="tva-list">
+          <div class="no-company" style="padding:40px">
+            <div style="font-size:48px;opacity:.3">📋</div>
+            <div style="font-size:14px;font-weight:500;color:var(--text)">Aucune déclaration TVA extraite</div>
+            <div style="font-size:13px;color:var(--muted)">Uploadez vos formulaires TVA DGI (PDF) dans Upload documents</div>
+          </div>
         </div>
       </div>
 
@@ -510,6 +531,7 @@ let currentUser = null;
 let currentCompanyId = null;
 let allFactures = [];
 let allTransactions = [];
+let allTVADeclarations = [];
 
 // ===== API HELPER =====
 async function api(method, path, body) {
@@ -649,7 +671,7 @@ async function createCompany() {
 }
 
 // ===== NAVIGATION =====
-const pageTitles={dashboard:'Tableau de bord',upload:'Upload & traitement',factures:'Factures',releves:'Relevés bancaires',rapprochement:'Rapprochement',export:'Export',users:'Utilisateurs',portail:'Portail clients',profil:'Mon profil'};
+const pageTitles={dashboard:'Tableau de bord',upload:'Upload & traitement',factures:'Factures',releves:'Relevés bancaires',tva:'Déclarations TVA',rapprochement:'Rapprochement',export:'Export',users:'Utilisateurs',portail:'Portail clients',profil:'Mon profil'};
 function showPage(id) {
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
@@ -664,6 +686,7 @@ function showPage(id) {
   if(id==='users') loadUsers();
   if(id==='profil') renderProfil();
   if(id==='upload') loadApiKeyStatus();
+  if(id==='tva') renderTVAList();
 }
 
 // ===== API KEY =====
@@ -801,7 +824,8 @@ async function extractWithAI(item){
   const mediaType=isPdf?'application/pdf':(item.file.type||'image/jpeg');
   const prompt=`Tu es expert en comptabilité marocaine. Analyse ce document. Réponds UNIQUEMENT en JSON valide sans markdown.
 Si FACTURE: {"type":"facture","numero":"","date_facture":"YYYY-MM-DD","fournisseur":"","fournisseur_ice":"","categorie":"Fournitures|Services|Transport|Loyer|Télécommunications|Autre","description":"","montant_ht":0,"taux_tva":20,"montant_tva":0,"montant_ttc":0,"devise":"MAD"}
-Si RELEVÉ: {"type":"releve_bancaire","banque":"","periode_debut":"YYYY-MM-DD","periode_fin":"YYYY-MM-DD","solde_initial":0,"solde_final":0,"transactions":[{"date_operation":"YYYY-MM-DD","libelle":"","type_mouvement":"debit|credit","montant":0,"solde":0}]}
+Si RELEVÉ BANCAIRE: {"type":"releve_bancaire","banque":"","periode_debut":"YYYY-MM-DD","periode_fin":"YYYY-MM-DD","solde_initial":0,"solde_final":0,"transactions":[{"date_operation":"YYYY-MM-DD","libelle":"","type_mouvement":"debit|credit","montant":0,"solde":0}]}
+Si DÉCLARATION TVA (formulaire DGI marocain): {"type":"declaration_tva","periode":"T1 2026 ou autre","raison_sociale":"","identifiant_fiscal":"","ligne_132_tva_exigible":0,"ligne_182_total_deductions":0,"ligne_170_credit_precedent":0,"ligne_200_tva_due":0,"ligne_201_credit":0,"montant_total":0,"devise":"MAD"}
 Si autre: {"type":"autre"}`;
   const body={model:'claude-haiku-4-5-20251001',max_tokens:2000,messages:[{role:'user',content:[{type:isPdf?'document':'image',source:{type:'base64',media_type:mediaType,data:base64}},{type:'text',text:prompt}]}]};
   const clientKey = localStorage.getItem('compta_api_key') || '';
@@ -851,6 +875,78 @@ function renderReleves(){
   const tbody=document.getElementById('tbody-releves');
   if(!allTransactions.length){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:40px">Aucune transaction</td></tr>';return;}
   tbody.innerHTML=allTransactions.map(t=>`<tr><td style="font-family:var(--mono);font-size:12px">${t.date_operation||'—'}</td><td>${t.libelle||'—'}</td><td><span class="status-badge ${t.type_mouvement==='credit'?'done':'pending'}">${t.type_mouvement==='credit'?'Crédit':'Débit'}</span></td><td class="amount neg">${t.type_mouvement==='debit'?fmtAmt(t.montant):'—'}</td><td class="amount pos">${t.type_mouvement==='credit'?fmtAmt(t.montant):'—'}</td><td class="amount" style="font-family:var(--mono)">${fmtAmt(t.solde)}</td></tr>`).join('');
+}
+
+function renderTVADeclarations(){
+  if(allTVADeclarations && allTVADeclarations.length){
+    console.log('Déclarations TVA extraites:', allTVADeclarations.length);
+  }
+}
+
+function renderTVAList(){
+  const el = document.getElementById('tva-list');
+  if(!el) return;
+  if(!allTVADeclarations || !allTVADeclarations.length){
+    el.innerHTML = `<div class="no-company" style="padding:40px">
+      <div style="font-size:48px;opacity:.3">📋</div>
+      <div style="font-size:14px;font-weight:500;color:var(--text)">Aucune déclaration TVA extraite</div>
+      <div style="font-size:13px;color:var(--muted)">Uploadez vos formulaires TVA DGI (PDF) dans Upload documents</div>
+    </div>`;
+    return;
+  }
+  el.innerHTML = allTVADeclarations.map(d => {
+    const l132 = +d.ligne_132_tva_exigible || 0;
+    const l182 = +d.ligne_182_total_deductions || 0;
+    const l170 = +d.ligne_170_credit_precedent || 0;
+    const l200 = +d.ligne_200_tva_due || 0;
+    const l201 = +d.ligne_201_credit || 0;
+    return `<div class="card" style="margin-bottom:14px">
+      <div class="card-head">
+        <div>
+          <div style="font-family:var(--display);font-size:14px;font-weight:700">📋 Déclaration TVA — ${d.periode||'—'}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">${d.raison_sociale||''} ${d.identifiant_fiscal ? '· IF: '+d.identifiant_fiscal : ''} · ${d.fileName||''}</div>
+        </div>
+        <span class="status-badge done">Extraite</span>
+      </div>
+      <div style="padding:16px;display:grid;grid-template-columns:repeat(5,1fr);gap:12px">
+        <div style="text-align:center;background:var(--bg3);border-radius:8px;padding:12px">
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;font-family:var(--mono);margin-bottom:4px">Ligne 132<br>TVA Exigible</div>
+          <div style="font-family:var(--mono);font-weight:600;color:var(--danger)">${fmtAmt(l132)}</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px">DÉBIT</div>
+        </div>
+        <div style="text-align:center;background:var(--bg3);border-radius:8px;padding:12px">
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;font-family:var(--mono);margin-bottom:4px">Ligne 182<br>Total Déductions</div>
+          <div style="font-family:var(--mono);font-weight:600;color:var(--success)">${fmtAmt(l182)}</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px">CRÉDIT</div>
+        </div>
+        <div style="text-align:center;background:var(--bg3);border-radius:8px;padding:12px;opacity:${l170>0?1:.4}">
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;font-family:var(--mono);margin-bottom:4px">Ligne 170<br>Crédit Précédent</div>
+          <div style="font-family:var(--mono);font-weight:600;color:var(--success)">${l170>0?fmtAmt(l170):'—'}</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px">${l170>0?'CRÉDIT':'Non applicable'}</div>
+        </div>
+        <div style="text-align:center;background:var(--bg3);border-radius:8px;padding:12px;opacity:${l200>0?1:.4}">
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;font-family:var(--mono);margin-bottom:4px">Ligne 200<br>TVA Due</div>
+          <div style="font-family:var(--mono);font-weight:600;color:var(--warn)">${l200>0?fmtAmt(l200):'—'}</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px">${l200>0?'CRÉDIT':'—'}</div>
+        </div>
+        <div style="text-align:center;background:var(--bg3);border-radius:8px;padding:12px;opacity:${l201>0?1:.4}">
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;font-family:var(--mono);margin-bottom:4px">Ligne 201<br>Crédit</div>
+          <div style="font-family:var(--mono);font-weight:600;color:var(--accent)">${l201>0?fmtAmt(l201):'—'}</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px">${l201>0?'DÉBIT':'—'}</div>
+        </div>
+      </div>
+      <div style="padding:0 16px 14px;display:flex;gap:10px">
+        <button class="btn btn-primary" onclick="exportECRIT()">📒 Générer ECRIT avec cette déclaration</button>
+        <button class="btn btn-ghost" onclick="removeTVA('${d.id}')">🗑 Supprimer</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function removeTVA(id){
+  allTVADeclarations = allTVADeclarations.filter(d => d.id !== id);
+  renderTVAList();
+  toast('Déclaration supprimée','info');
 }
 
 function fmtAmt(v){if(!v&&v!==0)return'—';return Number(v).toLocaleString('fr-MA',{minimumFractionDigits:2,maximumFractionDigits:2})+' MAD';}
@@ -924,12 +1020,48 @@ function buildECRITRows(){
     if(t.type_mouvement==='credit'){rows.push([JOURNAUX.BANQUE,date,'5141000000','',lib,'','',montant,null]);rows.push([JOURNAUX.BANQUE,date,'3421000000','',lib,'','',null,montant]);}
     else{rows.push([JOURNAUX.BANQUE,date,'4411000000','',lib,'','',montant,null]);rows.push([JOURNAUX.BANQUE,date,'5141000000','',lib,'','',null,montant]);}
   });
+
+  // ── Journal OD — DÉCLARATIONS TVA ────────────────────────────────────────
+  // Règle comptable :
+  //   Ligne 132 TVA exigible        → Débit  4455000000 (TVA facturée)
+  //   Ligne 182 Total déductions    → Crédit 3455000000 (TVA récupérable)
+  //   Ligne 170 Crédit précédent    → Crédit 3456000000 (Crédit TVA reporté) si non nul
+  //   Ligne 200 TVA due             → Crédit 4456000000 (TVA due à l'État) si non nul
+  //   Ligne 201 Crédit              → Débit  3456000000 (Crédit TVA à reporter) si non nul
+  (allTVADeclarations||[]).forEach(d=>{
+    const periode = (d.periode||'').toUpperCase();
+    const libBase = ('DECL TVA ' + periode).substring(0,40);
+    // Date : utiliser la date du jour si pas de date précise
+    const date = new Date().toLocaleDateString('fr-MA',{day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\//g,'/');
+
+    const l132 = +d.ligne_132_tva_exigible || 0;
+    const l182 = +d.ligne_182_total_deductions || 0;
+    const l170 = +d.ligne_170_credit_precedent || 0;
+    const l200 = +d.ligne_200_tva_due || 0;
+    const l201 = +d.ligne_201_credit || 0;
+
+    // Ligne 132 — TVA exigible → DEBIT 4455000000
+    if(l132 > 0) rows.push([JOURNAUX.OD, date, '4455000000', '', libBase + ' - TVA EXIGIBLE', '', '', l132, null]);
+
+    // Ligne 182 — Total déductions → CREDIT 3455000000
+    if(l182 > 0) rows.push([JOURNAUX.OD, date, '3455000000', '', libBase + ' - TVA DEDUCTIBLE', '', '', null, l182]);
+
+    // Ligne 170 — Crédit période précédente → CREDIT 3456000000
+    if(l170 > 0) rows.push([JOURNAUX.OD, date, '3456000000', '', libBase + ' - CREDIT TVA PRECEDENT', '', '', null, l170]);
+
+    // Ligne 200 — TVA due → CREDIT 4456000000
+    if(l200 > 0) rows.push([JOURNAUX.OD, date, '4456000000', '', libBase + ' - TVA DUE ETAT', '', '', null, l200]);
+
+    // Ligne 201 — Crédit → DEBIT 3456000000
+    if(l201 > 0) rows.push([JOURNAUX.OD, date, '3456000000', '', libBase + ' - CREDIT TVA A REPORTER', '', '', l201, null]);
+  });
+
   return rows;
 }
 function renderECRITPreview(){
   const rows=buildECRITRows();const tbody=document.getElementById('tbody-ecrit');if(!tbody)return;
   if(!rows.length){tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:30px">Importez des documents pour générer le lot comptable</td></tr>';return;}
-  const jrnColors={'A':'var(--accent)','V':'var(--success)','B':'var(--warn)','C':'#1ABC9C','OD':'var(--muted)'};
+  const jrnColors={'A':'var(--accent)','V':'var(--success)','B':'var(--warn)','C':'#1ABC9C','OD':'var(--accent2)','01':'var(--accent2)'};
   tbody.innerHTML=rows.map(r=>{const[cj,date,cpte,,lib,piece,,debit,credit]=r;const col=jrnColors[cj]||'var(--muted)';
     return`<tr><td><span style="background:rgba(79,142,247,.1);color:${col};padding:2px 8px;border-radius:6px;font-family:var(--mono);font-size:11px;font-weight:600">${cj}</span></td><td style="font-family:var(--mono);font-size:12px">${date}</td><td style="font-family:var(--mono);font-size:11px">${cpte}</td><td></td><td style="font-size:12px">${lib}</td><td style="font-family:var(--mono);font-size:11px;color:var(--muted)">${piece||''}</td><td></td><td style="font-family:var(--mono);font-size:12px;color:var(--accent);text-align:right">${debit?Number(debit).toLocaleString('fr-MA',{minimumFractionDigits:2,maximumFractionDigits:2}):''}</td><td style="font-family:var(--mono);font-size:12px;color:var(--success);text-align:right">${credit?Number(credit).toLocaleString('fr-MA',{minimumFractionDigits:2,maximumFractionDigits:2}):''}</td></tr>`;
   }).join('');
