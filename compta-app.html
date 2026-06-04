@@ -639,7 +639,7 @@ async function selectCompany(id) {
   document.getElementById('dashboard-content').style.display = noComp?'none':'block';
   document.getElementById('upload-no-company').style.display = noComp?'flex':'none';
   document.getElementById('upload-content').style.display = noComp?'none':'block';
-  if(id) { await loadFactures(); await loadTransactions(); updateDashboard(); }
+  if(id) { await loadFactures(); await loadTransactions(); await loadTVADeclarations(); updateDashboard(); }
 }
 
 function openNewCompanyModal() {
@@ -800,6 +800,36 @@ async function processQueue(){
           montant_ttc:result.montant_ttc,
           devise:result.devise||'MAD'
         });
+      } else if(result.type==='declaration_tva'){
+        // Sauvegarder dans Supabase
+        try {
+          await api('POST','/api/tva',{
+            company_id:currentCompanyId,
+            periode:result.periode,
+            raison_sociale:result.raison_sociale,
+            identifiant_fiscal:result.identifiant_fiscal,
+            ligne_132:result.ligne_132_tva_exigible||0,
+            ligne_182:result.ligne_182_total_deductions||0,
+            ligne_170:result.ligne_170_credit_precedent||0,
+            ligne_200:result.ligne_200_tva_due||0,
+            ligne_201:result.ligne_201_credit||0,
+            file_name:item.name
+          });
+          await loadTVADeclarations();
+        } catch(e){
+          allTVADeclarations.push({
+            id:genId(), fileName:item.name,
+            periode:result.periode,
+            raison_sociale:result.raison_sociale,
+            identifiant_fiscal:result.identifiant_fiscal,
+            ligne_132_tva_exigible:result.ligne_132_tva_exigible||0,
+            ligne_182_total_deductions:result.ligne_182_total_deductions||0,
+            ligne_170_credit_precedent:result.ligne_170_credit_precedent||0,
+            ligne_200_tva_due:result.ligne_200_tva_due||0,
+            ligne_201_credit:result.ligne_201_credit||0,
+          });
+        }
+        toast('✓ Déclaration TVA '+result.periode+' extraite','success');
       } else if(result.type==='releve_bancaire' && result.transactions){
         const rows=result.transactions.map(t=>({
           company_id:currentCompanyId,
@@ -862,6 +892,26 @@ async function loadTransactions(){
   if(!currentCompanyId)return;
   try{ allTransactions=await api('GET',`/api/transactions?company_id=${currentCompanyId}`); renderReleves(); }
   catch(e){ console.error(e); }
+}
+
+async function loadTVADeclarations(){
+  if(!currentCompanyId) return;
+  try{
+    const data = await api('GET',`/api/tva?company_id=${currentCompanyId}`);
+    allTVADeclarations = (data||[]).map(d=>({
+      id: d.id,
+      periode: d.periode,
+      raison_sociale: d.raison_sociale,
+      identifiant_fiscal: d.identifiant_fiscal,
+      ligne_132_tva_exigible: +d.ligne_132 || 0,
+      ligne_182_total_deductions: +d.ligne_182 || 0,
+      ligne_170_credit_precedent: +d.ligne_170 || 0,
+      ligne_200_tva_due: +d.ligne_200 || 0,
+      ligne_201_credit: +d.ligne_201 || 0,
+      fileName: d.file_name,
+    }));
+    renderTVAList();
+  } catch(e){ console.error('loadTVADeclarations:', e); }
 }
 
 // ===== TABLES =====

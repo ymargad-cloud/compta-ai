@@ -291,6 +291,25 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // GET /api/tva
+  if (req.method === 'GET' && url === '/api/tva') {
+    const user = await getUser(req);
+    if (!user) return send(res, 401, { error: 'Non authentifié' });
+    const p = new URLSearchParams(req.url.split('?')[1] || '');
+    const { data } = await supa('GET', 'declarations_tva', { filter: `company_id=eq.${p.get('company_id')}&order=created_at.desc` });
+    return send(res, 200, data || []);
+  }
+
+  // POST /api/tva
+  if (req.method === 'POST' && url === '/api/tva') {
+    const user = await getUser(req);
+    if (!user) return send(res, 401, { error: 'Non authentifié' });
+    const body = await parseBody(req);
+    const { data, status } = await supa('POST', 'declarations_tva', { body });
+    if (status >= 400) return send(res, 400, { error: 'Erreur sauvegarde TVA' });
+    return send(res, 201, Array.isArray(data) ? data[0] : data);
+  }
+
   // GET /api/settings
   if (req.method === 'GET' && url === '/api/settings') {
     const user = await getUser(req);
