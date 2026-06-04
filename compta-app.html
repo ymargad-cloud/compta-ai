@@ -245,6 +245,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
       <div class="nav-item" onclick="showPage('upload')">
         <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>Upload documents
       </div>
+      <div class="nav-item" onclick="showPage('dossiers')">
+        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>Dossiers
+      </div>
       <div class="nav-item" onclick="showPage('factures')">
         <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Factures
       </div>
@@ -355,6 +358,25 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
           <div class="queue-grid">
             <div class="card"><div class="card-head"><h3>⏳ En cours</h3></div><div class="queue-list" id="queue-pending"><div style="padding:20px;text-align:center;color:var(--muted);font-size:12px">Aucun document en attente</div></div></div>
             <div class="card"><div class="card-head"><h3>✅ Traités</h3></div><div class="queue-list" id="queue-done"><div style="padding:20px;text-align:center;color:var(--muted);font-size:12px">Aucun document traité</div></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DOSSIERS -->
+      <div class="page" id="page-dossiers">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+          <div>
+            <div style="font-family:var(--display);font-size:16px;font-weight:700">Dossiers comptables</div>
+            <div style="color:var(--muted);font-size:13px;margin-top:4px">Organisez vos documents extraits par dossier (ex: Comptabilité Janvier 2026)</div>
+          </div>
+          <button class="btn btn-primary" onclick="openNewDossierModal()">+ Nouveau dossier</button>
+        </div>
+        <div id="dossiers-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
+          <div class="no-company" style="grid-column:span 3;padding:40px">
+            <div style="font-size:48px;opacity:.3">📁</div>
+            <div style="font-size:14px;font-weight:500;color:var(--text)">Aucun dossier créé</div>
+            <div style="font-size:13px;color:var(--muted)">Créez un dossier pour organiser vos documents extraits</div>
+            <button class="btn btn-primary" onclick="openNewDossierModal()">+ Créer un dossier</button>
           </div>
         </div>
       </div>
@@ -532,6 +554,7 @@ let currentCompanyId = null;
 let allFactures = [];
 let allTransactions = [];
 let allTVADeclarations = [];
+let allDossiers = [];
 
 // ===== API HELPER =====
 async function api(method, path, body) {
@@ -639,7 +662,7 @@ async function selectCompany(id) {
   document.getElementById('dashboard-content').style.display = noComp?'none':'block';
   document.getElementById('upload-no-company').style.display = noComp?'flex':'none';
   document.getElementById('upload-content').style.display = noComp?'none':'block';
-  if(id) { await loadFactures(); await loadTransactions(); await loadTVADeclarations(); updateDashboard(); }
+  if(id) { await loadFactures(); await loadTransactions(); await loadTVADeclarations(); await loadDossiers(); updateDashboard(); }
 }
 
 function openNewCompanyModal() {
@@ -671,7 +694,7 @@ async function createCompany() {
 }
 
 // ===== NAVIGATION =====
-const pageTitles={dashboard:'Tableau de bord',upload:'Upload & traitement',factures:'Factures',releves:'Relevés bancaires',tva:'Déclarations TVA',rapprochement:'Rapprochement',export:'Export',users:'Utilisateurs',portail:'Portail clients',profil:'Mon profil'};
+const pageTitles={dashboard:'Tableau de bord',upload:'Upload & traitement',dossiers:'Dossiers',factures:'Factures',releves:'Relevés bancaires',tva:'Déclarations TVA',rapprochement:'Rapprochement',export:'Export',users:'Utilisateurs',portail:'Portail clients',profil:'Mon profil'};
 function showPage(id) {
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
@@ -687,6 +710,7 @@ function showPage(id) {
   if(id==='profil') renderProfil();
   if(id==='upload') loadApiKeyStatus();
   if(id==='tva') renderTVAList();
+  if(id==='dossiers') renderDossiers();
 }
 
 // ===== API KEY =====
@@ -1278,6 +1302,193 @@ async function changePassword() {
     errEl.textContent = e.message || 'Mot de passe actuel incorrect';
     errEl.style.display = 'block';
   }
+}
+
+// ===== DOSSIERS =====
+async function loadDossiers(){
+  if(!currentCompanyId) return;
+  try{
+    allDossiers = await api('GET',`/api/dossiers?company_id=${currentCompanyId}`);
+    renderDossiers();
+  } catch(e){ console.error('loadDossiers:', e); }
+}
+
+function renderDossiers(){
+  const grid = document.getElementById('dossiers-grid');
+  if(!grid) return;
+  if(!allDossiers || !allDossiers.length){
+    grid.innerHTML = `<div class="no-company" style="grid-column:span 3;padding:40px">
+      <div style="font-size:48px;opacity:.3">📁</div>
+      <div style="font-size:14px;font-weight:500;color:var(--text)">Aucun dossier créé</div>
+      <div style="font-size:13px;color:var(--muted)">Créez un dossier pour organiser vos documents extraits</div>
+      <button class="btn btn-primary" onclick="openNewDossierModal()">+ Créer un dossier</button>
+    </div>`;
+    return;
+  }
+  grid.innerHTML = allDossiers.map(d => {
+    const nbFactures  = (allFactures||[]).filter(f => f.dossier_id === d.id).length;
+    const nbReleves   = (allTransactions||[]).filter(t => t.dossier_id === d.id).length;
+    const nbTva       = (allTVADeclarations||[]).filter(t => t.dossier_id === d.id).length;
+    const nbTotal     = nbFactures + (nbReleves>0?1:0) + nbTva;
+    const dateCreated = d.created_at ? new Date(d.created_at).toLocaleDateString('fr-FR') : '';
+    return `<div class="card" style="cursor:pointer" onclick="openDossier('${d.id}')">
+      <div style="padding:20px">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px">
+          <div style="font-size:32px">📁</div>
+          <button onclick="event.stopPropagation();deleteDossier('${d.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:4px" title="Supprimer">🗑</button>
+        </div>
+        <div style="font-weight:600;font-size:14px;margin-bottom:4px">${d.nom}</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:12px">${d.description||''}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          ${nbFactures>0?`<span style="background:rgba(79,142,247,.1);color:var(--accent);padding:2px 8px;border-radius:10px;font-size:11px;font-family:var(--mono)">${nbFactures} facture${nbFactures>1?'s':''}</span>`:''}
+          ${nbReleves>0?`<span style="background:rgba(39,174,96,.1);color:var(--success);padding:2px 8px;border-radius:10px;font-size:11px;font-family:var(--mono)">${nbReleves} transaction${nbReleves>1?'s':''}</span>`:''}
+          ${nbTva>0?`<span style="background:rgba(123,92,240,.1);color:var(--accent2);padding:2px 8px;border-radius:10px;font-size:11px;font-family:var(--mono)">${nbTva} décl. TVA</span>`:''}
+          ${nbTotal===0?`<span style="color:var(--muted);font-size:11px">Vide — cliquez pour ajouter des documents</span>`:''}
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:10px;font-family:var(--mono)">Créé le ${dateCreated}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openNewDossierModal(){
+  document.getElementById('modal-title').textContent = '📁 Nouveau dossier';
+  document.getElementById('modal-body').innerHTML = `
+    <div class="auth-form">
+      <div class="form-group">
+        <label>Nom du dossier</label>
+        <input class="form-input" id="new-dos-nom" placeholder="Ex: Comptabilité Janvier 2026 - ADDVALEO" autofocus/>
+      </div>
+      <div class="form-group">
+        <label>Description (optionnel)</label>
+        <input class="form-input" id="new-dos-desc" placeholder="Ex: Factures et relevés du mois de janvier"/>
+      </div>
+      <div class="form-group">
+        <label>Période</label>
+        <input class="form-input" id="new-dos-periode" placeholder="Ex: Janvier 2026 / T1 2026 / Annuel 2025"/>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:8px">
+        <button class="btn btn-primary" style="flex:1" onclick="createDossier()">Créer le dossier</button>
+        <button class="btn btn-ghost" onclick="closeModal()">Annuler</button>
+      </div>
+    </div>`;
+  openModal();
+}
+
+async function createDossier(){
+  const nom     = document.getElementById('new-dos-nom').value.trim();
+  const desc    = document.getElementById('new-dos-desc').value.trim();
+  const periode = document.getElementById('new-dos-periode').value.trim();
+  if(!nom){ toast('Entrez un nom pour le dossier','error'); return; }
+  try{
+    await api('POST','/api/dossiers',{ company_id:currentCompanyId, nom, description:desc, periode });
+    closeModal();
+    await loadDossiers();
+    toast(`Dossier "${nom}" créé ✓`,'success');
+  } catch(e){ toast('Erreur: '+e.message,'error'); }
+}
+
+async function deleteDossier(id){
+  if(!confirm('Supprimer ce dossier ? Les documents associés ne seront pas supprimés.')) return;
+  try{
+    await api('DELETE',`/api/dossiers/${id}`, {});
+    await loadDossiers();
+    toast('Dossier supprimé','info');
+  } catch(e){ toast('Erreur: '+e.message,'error'); }
+}
+
+function openDossier(id){
+  const dossier = allDossiers.find(d => d.id === id);
+  if(!dossier) return;
+  const factures   = (allFactures||[]).filter(f => f.dossier_id === id);
+  const tva        = (allTVADeclarations||[]).filter(t => t.dossier_id === id);
+  // Factures disponibles à affecter
+  const factsLibres = (allFactures||[]).filter(f => !f.dossier_id);
+  const tvaLibres   = (allTVADeclarations||[]).filter(t => !t.dossier_id);
+
+  document.getElementById('modal-title').textContent = '📁 ' + dossier.nom;
+  document.getElementById('modal-body').innerHTML = `
+    <div style="margin-bottom:16px">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Période: ${dossier.periode||'—'} · ${dossier.description||''}</div>
+    </div>
+    <div class="divider"><h2>Factures dans ce dossier</h2><div class="divider-line"></div></div>
+    ${factures.length ? `<div style="margin-bottom:12px">${factures.map(f=>`<div style="padding:8px 12px;background:var(--bg2);border-radius:8px;margin-bottom:6px;display:flex;align-items:center;gap:8px;font-size:12px">
+      <span>🧾</span><span style="flex:1">${f.fournisseur||'—'} — ${fmtAmt(f.montant_ttc)}</span>
+      <button onclick="removeFromDossier('facture','${f.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer">✕</button>
+    </div>`).join('')}</div>` : '<div style="color:var(--muted);font-size:12px;margin-bottom:12px">Aucune facture</div>'}
+    ${factsLibres.length ? `<div class="form-group" style="margin-bottom:16px">
+      <label>Ajouter une facture</label>
+      <select class="form-input" id="add-facture-sel">
+        <option value="">— Choisir une facture —</option>
+        ${factsLibres.map(f=>`<option value="${f.id}">${f.fournisseur||'—'} · ${f.date_facture||''} · ${fmtAmt(f.montant_ttc)}</option>`).join('')}
+      </select>
+      <button class="btn btn-ghost" style="margin-top:6px" onclick="addToDossier('${id}','facture')">+ Ajouter</button>
+    </div>` : ''}
+    <div class="divider"><h2>Déclarations TVA</h2><div class="divider-line"></div></div>
+    ${tva.length ? tva.map(t=>`<div style="padding:8px 12px;background:var(--bg2);border-radius:8px;margin-bottom:6px;display:flex;align-items:center;gap:8px;font-size:12px">
+      <span>📋</span><span style="flex:1">TVA ${t.periode||'—'}</span>
+      <button onclick="removeFromDossier('tva','${t.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer">✕</button>
+    </div>`).join('') : '<div style="color:var(--muted);font-size:12px;margin-bottom:12px">Aucune déclaration TVA</div>'}
+    ${tvaLibres.length ? `<div class="form-group">
+      <select class="form-input" id="add-tva-sel">
+        <option value="">— Choisir une déclaration TVA —</option>
+        ${tvaLibres.map(t=>`<option value="${t.id}">TVA ${t.periode||'—'} · ${t.raison_sociale||''}</option>`).join('')}
+      </select>
+      <button class="btn btn-ghost" style="margin-top:6px" onclick="addToDossier('${id}','tva')">+ Ajouter</button>
+    </div>` : ''}
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);display:flex;gap:10px">
+      <button class="btn btn-primary" onclick="exportDossierECRIT('${id}')">📒 Exporter ECRIT ce dossier</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Fermer</button>
+    </div>`;
+  openModal();
+}
+
+async function addToDossier(dossierId, type){
+  const selId = type==='facture' ? document.getElementById('add-facture-sel')?.value : document.getElementById('add-tva-sel')?.value;
+  if(!selId){ toast('Sélectionnez un élément','error'); return; }
+  try{
+    const table = type==='facture' ? '/api/factures-dossier' : '/api/tva-dossier';
+    await api('PATCH', `${table}/${selId}`, { dossier_id: dossierId });
+    // Mettre à jour localement
+    if(type==='facture'){ const f=allFactures.find(x=>x.id===selId); if(f) f.dossier_id=dossierId; }
+    else { const t=allTVADeclarations.find(x=>x.id===selId); if(t) t.dossier_id=dossierId; }
+    closeModal();
+    openDossier(dossierId);
+    toast('Document ajouté au dossier ✓','success');
+  } catch(e){ toast('Erreur: '+e.message,'error'); }
+}
+
+async function removeFromDossier(type, itemId){
+  try{
+    const table = type==='facture' ? '/api/factures-dossier' : '/api/tva-dossier';
+    await api('PATCH', `${table}/${itemId}`, { dossier_id: null });
+    if(type==='facture'){ const f=allFactures.find(x=>x.id===itemId); if(f) f.dossier_id=null; }
+    else { const t=allTVADeclarations.find(x=>x.id===itemId); if(t) t.dossier_id=null; }
+    toast('Document retiré du dossier','info');
+    renderDossiers();
+    closeModal();
+  } catch(e){ toast('Erreur: '+e.message,'error'); }
+}
+
+function exportDossierECRIT(dossierId){
+  const dossier   = allDossiers.find(d=>d.id===dossierId);
+  const factures  = (allFactures||[]).filter(f=>f.dossier_id===dossierId);
+  const tva       = (allTVADeclarations||[]).filter(t=>t.dossier_id===dossierId);
+  if(!factures.length && !tva.length){ toast('Aucun document dans ce dossier','info'); return; }
+  // Générer ECRIT temporairement avec seulement les docs du dossier
+  const savedF = allFactures, savedT = allTVADeclarations;
+  allFactures = factures; allTVADeclarations = tva;
+  const rows = buildECRITRows();
+  allFactures = savedF; allTVADeclarations = savedT;
+  if(!rows.length){ toast('Aucune écriture à générer','info'); return; }
+  const wb = XLSX.utils.book_new();
+  const header = [['Code journal','Date écriture',"n° de compte",'Contrepartie',"Libéllé d'écriture",'N° pièce','Lettrage ','Débit','Crédit']];
+  const ws = XLSX.utils.aoa_to_sheet([...header,...rows.map(r=>r.map(v=>v===null?'':v))]);
+  ws['!cols']=[{wch:12},{wch:14},{wch:14},{wch:22},{wch:42},{wch:12},{wch:10},{wch:14},{wch:14}];
+  XLSX.utils.book_append_sheet(wb,ws,'ECRIT');
+  const nomFichier = 'ECRIT_' + (dossier?.nom||'dossier').replace(/[^a-zA-Z0-9]/g,'_') + '.xls';
+  XLSX.writeFile(wb, nomFichier, {bookType:'biff8'});
+  toast(`${nomFichier} généré — ${rows.length} lignes ✓`,'success');
 }
 
 // ===== INIT =====

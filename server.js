@@ -291,6 +291,80 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // GET /api/dossiers
+  if (req.method === 'GET' && url === '/api/dossiers') {
+    const user = await getUser(req);
+    if (!user) return send(res, 401, { error: 'Non authentifié' });
+    const p = new URLSearchParams(req.url.split('?')[1] || '');
+    const { data } = await supa('GET', 'dossiers', { filter: `company_id=eq.${p.get('company_id')}&order=created_at.desc` });
+    return send(res, 200, data || []);
+  }
+
+  // POST /api/dossiers
+  if (req.method === 'POST' && url === '/api/dossiers') {
+    const user = await getUser(req);
+    if (!user) return send(res, 401, { error: 'Non authentifié' });
+    const body = await parseBody(req);
+    const { data } = await supa('POST', 'dossiers', { body: { ...body, created_by: user.id } });
+    return send(res, 201, Array.isArray(data) ? data[0] : data);
+  }
+
+  // DELETE /api/dossiers/:id
+  if (req.method === 'DELETE' && url.startsWith('/api/dossiers/')) {
+    const user = await getUser(req);
+    if (!user) return send(res, 401, { error: 'Non authentifié' });
+    const id = url.split('/').pop();
+    await supa('DELETE', `dossiers?id=eq.${id}`, {});
+    return send(res, 200, { ok: true });
+  }
+
+  // PATCH /api/dossiers/:id (affecter documents)
+  if (req.method === 'PATCH' && url.startsWith('/api/dossiers/')) {
+    const user = await getUser(req);
+    if (!user) return send(res, 401, { error: 'Non authentifié' });
+    const id = url.split('/').pop();
+    const body = await parseBody(req);
+    await supa('PATCH', `dossiers?id=eq.${id}`, { body });
+    return send(res, 200, { ok: true });
+  }
+
+  // GET /api/dossiers/:id/items — factures+releves+tva d'un dossier
+  if (req.method === 'GET' && url.match(/\/api\/dossiers\/[^/]+\/items/)) {
+    const user = await getUser(req);
+    if (!user) return send(res, 401, { error: 'Non authentifié' });
+    const dossierId = url.split('/')[3];
+    const [factures, releves, tva] = await Promise.all([
+      supa('GET', 'factures', { filter: `dossier_id=eq.${dossierId}` }),
+      supa('GET', 'transactions', { filter: `dossier_id=eq.${dossierId}` }),
+      supa('GET', 'declarations_tva', { filter: `dossier_id=eq.${dossierId}` }),
+    ]);
+    return send(res, 200, {
+      factures: factures.data || [],
+      transactions: releves.data || [],
+      tva: tva.data || [],
+    });
+  }
+
+  // PATCH /api/factures-dossier/:id
+  if (req.method === 'PATCH' && url.startsWith('/api/factures-dossier/')) {
+    const user = await getUser(req);
+    if (!user) return send(res, 401, { error: 'Non authentifié' });
+    const id = url.split('/').pop();
+    const body = await parseBody(req);
+    await supa('PATCH', `factures?id=eq.${id}`, { body: { dossier_id: body.dossier_id } });
+    return send(res, 200, { ok: true });
+  }
+
+  // PATCH /api/tva-dossier/:id
+  if (req.method === 'PATCH' && url.startsWith('/api/tva-dossier/')) {
+    const user = await getUser(req);
+    if (!user) return send(res, 401, { error: 'Non authentifié' });
+    const id = url.split('/').pop();
+    const body = await parseBody(req);
+    await supa('PATCH', `declarations_tva?id=eq.${id}`, { body: { dossier_id: body.dossier_id } });
+    return send(res, 200, { ok: true });
+  }
+
   // GET /api/tva
   if (req.method === 'GET' && url === '/api/tva') {
     const user = await getUser(req);
