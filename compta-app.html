@@ -229,7 +229,17 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 <!-- APP -->
 <div class="app" id="app">
   <div class="sidebar">
-    <div class="logo"><div style="display:flex;align-items:center;gap:10px;margin-bottom:4px"><div style="display:flex;align-items:center;gap:3px"><div style="width:12px;height:20px;background:#3B5EA6;clip-path:polygon(0 0,100% 20%,100% 80%,0 100%)"></div><div style="width:8px;height:10px;background:#F2C12E;margin-left:-2px;margin-top:4px"></div><div style="width:10px;height:20px;background:#6B6B6B;clip-path:polygon(0 20%,100% 0,100% 100%,0 80%)"></div></div><h1 style="font-family:var(--display);font-size:16px;font-weight:800;color:#3B5EA6;-webkit-text-fill-color:#3B5EA6;background:none">NEOEXPERT</h1></div><span style="font-family:var(--sans);font-size:9px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase">consulting</span></div>
+    <div class="logo" style="text-align:center;padding:16px 12px">
+  <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:3px">
+    <div style="display:flex;align-items:center;gap:2px;flex-shrink:0">
+      <div style="width:10px;height:18px;background:#3B5EA6;clip-path:polygon(0 0,100% 20%,100% 80%,0 100%)"></div>
+      <div style="width:7px;height:9px;background:#F2C12E;margin-left:-1px;margin-top:3px"></div>
+      <div style="width:9px;height:18px;background:#6B6B6B;clip-path:polygon(0 20%,100% 0,100% 100%,0 80%)"></div>
+    </div>
+    <h1 style="font-family:var(--display);font-size:15px;font-weight:800;color:#3B5EA6;-webkit-text-fill-color:#3B5EA6;background:none;letter-spacing:1px;white-space:nowrap">NEOEXPERT</h1>
+  </div>
+  <span style="font-family:var(--sans);font-size:9px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;display:block">consulting</span>
+</div>
     <div class="company-section">
       <div class="company-label">Société active</div>
       <select class="company-select" id="company-select" onchange="selectCompany(this.value)">
