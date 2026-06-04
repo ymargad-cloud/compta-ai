@@ -282,7 +282,7 @@ const server = http.createServer(async (req, res) => {
       const pr = https.request(opts, pres => {
         let rb = '';
         pres.on('data', c => rb += c);
-        pres.on('end', () => { res.writeHead(pres.statusCode, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }); res.end(rb); });
+        pres.on('end', () => { console.log('Anthropic status:', pres.statusCode, rb.slice(0,200)); res.writeHead(pres.statusCode, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }); res.end(rb); });
       });
       pr.on('error', e => send(res, 502, { error: e.message }));
       pr.write(body); pr.end();
