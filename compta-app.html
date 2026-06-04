@@ -266,7 +266,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
       </div>
     </nav>
     <div class="sidebar-footer">
-      <div class="user-pill">
+      <div class="user-pill" onclick="showPage('profil')" style="cursor:pointer">
         <div class="avatar" id="sidebar-avatar">?</div>
         <div class="user-info">
           <div class="user-name" id="sidebar-username">—</div>
@@ -408,6 +408,66 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
           <div style="color:var(--muted);font-size:13px">Partagez un lien unique à vos clients pour qu'ils déposent leurs documents.</div>
         </div>
         <div id="portail-companies"></div>
+      </div>
+
+      <!-- PROFIL & MOT DE PASSE -->
+      <div class="page" id="page-profil">
+        <div style="max-width:500px;margin:0 auto">
+          <div class="card" style="margin-bottom:16px">
+            <div class="card-head"><h3>👤 Mon profil</h3></div>
+            <div style="padding:20px">
+              <div class="result-grid" style="margin-bottom:16px">
+                <div class="result-field">
+                  <label>Prénom</label>
+                  <div class="result-value" id="profil-prenom">—</div>
+                </div>
+                <div class="result-field">
+                  <label>Nom</label>
+                  <div class="result-value" id="profil-nom">—</div>
+                </div>
+                <div class="result-field" style="grid-column:span 2">
+                  <label>Email</label>
+                  <div class="result-value" id="profil-email">—</div>
+                </div>
+                <div class="result-field" style="grid-column:span 2">
+                  <label>Rôle</label>
+                  <div class="result-value" id="profil-role">—</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><h3>🔑 Changer mon mot de passe</h3></div>
+            <div style="padding:20px">
+              <div class="auth-form">
+                <div class="form-group">
+                  <label>Mot de passe actuel</label>
+                  <input class="form-input" type="password" id="pwd-actuel" placeholder="Votre mot de passe actuel"/>
+                </div>
+                <div class="form-group">
+                  <label>Nouveau mot de passe</label>
+                  <input class="form-input" type="password" id="pwd-nouveau" placeholder="Minimum 6 caractères"/>
+                </div>
+                <div class="form-group">
+                  <label>Confirmer le nouveau mot de passe</label>
+                  <input class="form-input" type="password" id="pwd-confirm" placeholder="Répétez le nouveau mot de passe"/>
+                </div>
+                <div id="pwd-error" style="display:none;background:rgba(231,76,60,.1);border:1px solid rgba(231,76,60,.3);border-radius:8px;padding:10px;font-size:12px;color:var(--danger)"></div>
+                <div id="pwd-success" style="display:none;background:rgba(39,174,96,.1);border:1px solid rgba(39,174,96,.3);border-radius:8px;padding:10px;font-size:12px;color:var(--success)">✓ Mot de passe modifié avec succès !</div>
+                <button class="btn btn-primary" style="width:100%;padding:12px;margin-top:8px" onclick="changePassword()">
+                  Changer le mot de passe
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-top:16px;text-align:center">
+            <button onclick="doLogout()" class="btn btn-ghost" style="color:var(--danger);border-color:rgba(192,57,43,.3)">
+              ⏻ Se déconnecter
+            </button>
+          </div>
+        </div>
       </div>
 
     </div>
@@ -571,7 +631,7 @@ async function createCompany() {
 }
 
 // ===== NAVIGATION =====
-const pageTitles={dashboard:'Tableau de bord',upload:'Upload & traitement',factures:'Factures',releves:'Relevés bancaires',rapprochement:'Rapprochement',export:'Export',users:'Utilisateurs',portail:'Portail clients'};
+const pageTitles={dashboard:'Tableau de bord',upload:'Upload & traitement',factures:'Factures',releves:'Relevés bancaires',rapprochement:'Rapprochement',export:'Export',users:'Utilisateurs',portail:'Portail clients',profil:'Mon profil'};
 function showPage(id) {
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
@@ -584,6 +644,7 @@ function showPage(id) {
   if(id==='rapprochement') renderRapprochement();
   if(id==='export') renderECRITPreview();
   if(id==='users') loadUsers();
+  if(id==='profil') renderProfil();
 }
 
 // ===== API KEY =====
@@ -925,6 +986,55 @@ function toast(msg,type='info'){
   const el=document.createElement('div');el.className=`toast ${type}`;
   el.innerHTML=`<span style="font-weight:600">${{success:'✓',error:'✗',info:'ℹ'}[type]||''}</span> ${msg}`;
   c.appendChild(el);setTimeout(()=>{el.style.opacity='0';el.style.transition='opacity .3s';setTimeout(()=>el.remove(),300);},4000);
+}
+
+// ===== PROFIL & MOT DE PASSE =====
+function renderProfil() {
+  if (!currentUser) return;
+  document.getElementById('profil-prenom').textContent = currentUser.prenom || '—';
+  document.getElementById('profil-nom').textContent     = currentUser.nom    || '—';
+  document.getElementById('profil-email').textContent   = currentUser.email  || '—';
+  document.getElementById('profil-role').textContent    = currentUser.role   || '—';
+  // Reset form
+  ['pwd-actuel','pwd-nouveau','pwd-confirm'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('pwd-error').style.display   = 'none';
+  document.getElementById('pwd-success').style.display = 'none';
+}
+
+async function changePassword() {
+  const actuel  = document.getElementById('pwd-actuel').value;
+  const nouveau = document.getElementById('pwd-nouveau').value;
+  const confirm = document.getElementById('pwd-confirm').value;
+  const errEl   = document.getElementById('pwd-error');
+  const okEl    = document.getElementById('pwd-success');
+  errEl.style.display = 'none';
+  okEl.style.display  = 'none';
+
+  if (!actuel || !nouveau || !confirm) {
+    errEl.textContent = 'Remplissez tous les champs'; errEl.style.display = 'block'; return;
+  }
+  if (nouveau.length < 6) {
+    errEl.textContent = 'Le nouveau mot de passe doit faire au moins 6 caractères'; errEl.style.display = 'block'; return;
+  }
+  if (nouveau !== confirm) {
+    errEl.textContent = 'Les mots de passe ne correspondent pas'; errEl.style.display = 'block'; return;
+  }
+
+  try {
+    const resp = await api('POST', '/api/auth/change-password', {
+      email:        currentUser.email,
+      old_password: actuel,
+      new_password: nouveau,
+    });
+    okEl.style.display = 'block';
+    document.getElementById('pwd-actuel').value  = '';
+    document.getElementById('pwd-nouveau').value = '';
+    document.getElementById('pwd-confirm').value = '';
+    toast('Mot de passe modifié ✓', 'success');
+  } catch(e) {
+    errEl.textContent = e.message || 'Mot de passe actuel incorrect';
+    errEl.style.display = 'block';
+  }
 }
 
 // ===== INIT =====

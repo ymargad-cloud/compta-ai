@@ -229,6 +229,23 @@ const server = http.createServer(async (req, res) => {
     return send(res, 200, data || []);
   }
 
+  // POST /api/auth/change-password
+  if (req.method === 'POST' && url === '/api/auth/change-password') {
+    const body = await parseBody(req);
+    const { email, old_password, new_password } = body;
+    if (!email || !old_password || !new_password) return send(res, 400, { error: 'Champs manquants' });
+    // Vérifier l'ancien mot de passe
+    const { data } = await supa('GET', 'users', { filter: `email=eq.${email.toLowerCase()}` });
+    const user = Array.isArray(data) && data[0] ? data[0] : null;
+    if (!user) return send(res, 401, { error: 'Utilisateur introuvable' });
+    const ok = await bcrypt.compare(old_password, user.password);
+    if (!ok) return send(res, 401, { error: 'Mot de passe actuel incorrect' });
+    // Hacher et sauvegarder le nouveau
+    const newHash = await bcrypt.hash(new_password, 10);
+    await supa('PATCH', `users?id=eq.${user.id}`, { body: { password: newHash } });
+    return send(res, 200, { message: 'Mot de passe modifié avec succès' });
+  }
+
   // POST /api/portal/upload
   if (req.method === 'POST' && url === '/api/portal/upload') {
     const body = await parseBody(req);
