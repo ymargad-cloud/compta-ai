@@ -166,13 +166,13 @@ const handler = async (req, res) => {
     return send(res, 200, { user: { id: user.id, email: user.email, nom: user.nom, prenom: user.prenom, role: user.role } });
   }
 
-  // ===== ROUTES DELETE (groupées en priorité pour éviter conflits de routing) =====
+  // ===== ROUTES DELETE =====
 
   // DELETE /api/companies/:id
-  if (req.method === 'DELETE' && /^\/api\/companies\/[^/]+$/.test(url)) {
+  if (req.method === 'DELETE' && url.startsWith('/api/companies/') && url.split('/').length === 4) {
     const user = await getUser(req);
     if (!user) return send(res, 401, { error: 'Non authentifié' });
-    const id = url.split('/').pop();
+    const id = url.split('/')[3];
     const { data: co } = await supa('GET', 'companies', { filter: `id=eq.${id}` });
     const company = Array.isArray(co) && co[0] ? co[0] : null;
     if (!company) return send(res, 404, { error: 'Société introuvable' });
@@ -187,37 +187,37 @@ const handler = async (req, res) => {
   }
 
   // DELETE /api/factures/:id
-  if (req.method === 'DELETE' && /^\/api\/factures\/[^/]+$/.test(url)) {
+  if (req.method === 'DELETE' && url.startsWith('/api/factures/') && url.split('/').length === 4) {
     const user = await getUser(req);
     if (!user) return send(res, 401, { error: 'Non authentifié' });
-    const id = url.split('/').pop();
+    const id = url.split('/')[3];
     await supa('DELETE', 'factures', { filter: `id=eq.${id}` });
     return send(res, 200, { ok: true });
   }
 
   // DELETE /api/transactions/:id
-  if (req.method === 'DELETE' && /^\/api\/transactions\/[^/]+$/.test(url)) {
+  if (req.method === 'DELETE' && url.startsWith('/api/transactions/') && url.split('/').length === 4) {
     const user = await getUser(req);
     if (!user) return send(res, 401, { error: 'Non authentifié' });
-    const id = url.split('/').pop();
+    const id = url.split('/')[3];
     await supa('DELETE', 'transactions', { filter: `id=eq.${id}` });
     return send(res, 200, { ok: true });
   }
 
   // DELETE /api/tva/:id
-  if (req.method === 'DELETE' && /^\/api\/tva\/[^/]+$/.test(url)) {
+  if (req.method === 'DELETE' && url.startsWith('/api/tva/') && url.split('/').length === 4) {
     const user = await getUser(req);
     if (!user) return send(res, 401, { error: 'Non authentifié' });
-    const id = url.split('/').pop();
+    const id = url.split('/')[3];
     await supa('DELETE', 'declarations_tva', { filter: `id=eq.${id}` });
     return send(res, 200, { ok: true });
   }
 
   // DELETE /api/dossiers/:id
-  if (req.method === 'DELETE' && /^\/api\/dossiers\/[^/]+$/.test(url)) {
+  if (req.method === 'DELETE' && url.startsWith('/api/dossiers/') && url.split('/').length === 4) {
     const user = await getUser(req);
     if (!user) return send(res, 401, { error: 'Non authentifié' });
-    const id = url.split('/').pop();
+    const id = url.split('/')[3];
     await supa('DELETE', 'dossiers', { filter: `id=eq.${id}` });
     return send(res, 200, { ok: true });
   }
@@ -501,6 +501,18 @@ const handler = async (req, res) => {
   if (url === '/test-supa') {
     const result = await supa('GET', 'users', { select: 'id,email' });
     return send(res, 200, { status: result.status, data: result.data });
+  }
+
+  // Debug routing (à supprimer après validation)
+  if (url === '/api/debug-delete') {
+    return send(res, 200, {
+      method: req.method,
+      raw_url: req.url,
+      parsed_url: url,
+      parts: url.split('/'),
+      parts_length: url.split('/').length,
+      test_facture: url.startsWith('/api/factures/') && url.split('/').length === 4,
+    });
   }
 
   send(res, 404, { error: 'Route inconnue: ' + url });
