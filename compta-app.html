@@ -763,18 +763,24 @@ async function loadApiKeyStatus() {
         const stEl  = document.getElementById('key-status');
         if (keyEl) keyEl.value = data.key;
         if (stEl)  { stEl.textContent = '✓ Clé API configurée et active'; stEl.style.color = '#27AE60'; }
+        // Stocker localement pour extractWithAI
+        localStorage.setItem('compta_api_key', data.key);
       }
     } else {
-      // Utilisateur : montrer statut selon si clé configurée
+      // Non-admin : le proxy utilise la clé Supabase directement — pas besoin de la stocker
+      // On supprime toute clé locale périmée pour forcer l'usage du proxy
+      localStorage.removeItem('compta_api_key');
       if (data.has_key) {
         if (userSection) userSection.style.display = 'flex';
+        // Marquer que la clé est dispo côté serveur
+        localStorage.setItem('compta_key_server', '1');
       } else {
+        localStorage.removeItem('compta_key_server');
         if (missingSection) missingSection.style.display = 'flex';
       }
     }
   } catch(e) {
     console.error('loadApiKeyStatus:', e);
-    // En cas d'erreur, montrer section admin si admin
     const adminSection = document.getElementById('key-section-admin');
     if (adminSection && currentUser && currentUser.role === 'admin') {
       adminSection.style.display = 'flex';
@@ -895,7 +901,14 @@ Si DÉCLARATION TVA (formulaire DGI marocain): {"type":"declaration_tva","period
 Si autre: {"type":"autre"}`;
   const body={model:'claude-haiku-4-5-20251001',max_tokens:2000,messages:[{role:'user',content:[{type:isPdf?'document':'image',source:{type:'base64',media_type:mediaType,data:base64}},{type:'text',text:prompt}]}]};
   const clientKey = localStorage.getItem('compta_api_key') || '';
-  const resp=await fetch('/api/messages',{method:'POST',headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','Authorization':`Bearer ${token}`,'x-client-key':clientKey},body:JSON.stringify(body)});
+  // Si pas de clé locale, le proxy utilise celle de Supabase (clé partagée par l'admin)
+  const headers = {
+    'Content-Type': 'application/json',
+    'anthropic-version': '2023-06-01',
+    'Authorization': `Bearer ${token}`,
+  };
+  if (clientKey) headers['x-client-key'] = clientKey;
+  const resp = await fetch('/api/messages', { method: 'POST', headers, body: JSON.stringify(body) });
   if(!resp.ok){const e=await resp.json().catch(()=>({}));throw new Error(e?.error?.message||'API '+resp.status);}
   const d=await resp.json();
   const text=d.content.map(c=>c.text||'').join('').replace(/```json|```/g,'').trim();
