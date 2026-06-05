@@ -7,7 +7,11 @@ const bcrypt = require('bcryptjs');
 
 const PORT       = process.env.PORT || 3000;
 const HTML_FILE  = path.join(__dirname, 'compta-app.html');
-const JWT_SECRET = process.env.JWT_SECRET || 'secret';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error('FATAL: JWT_SECRET manquant dans les variables d\'environnement');
+  process.exit(1);
+}
 const SUPA_URL   = (process.env.SUPABASE_URL || '').replace(/\/+$/, '');
 const SUPA_KEY   = process.env.SUPABASE_KEY || '';
 
@@ -130,12 +134,24 @@ const server = http.createServer(async (req, res) => {
   }
 
   // POST /api/auth/register
+  // Rôle autorisé : un admin connecté peut choisir n'importe quel rôle ;
+  // un visiteur non authentifié est limité à 'comptable'.
   if (req.method === 'POST' && url === '/api/auth/register') {
     const body = await parseBody(req);
     const { email, password, nom, prenom, role } = body;
     if (!email || !password || !nom || !prenom) return send(res, 400, { error: 'Champs manquants' });
+    if (password.length < 6) return send(res, 400, { error: 'Mot de passe trop court (6 caractères minimum)' });
+
+    // Déterminer le rôle effectif
+    const caller = await getUser(req);
+    const ROLES_ALLOWED = ['comptable', 'auditeur', 'admin'];
+    let effectiveRole = 'comptable'; // valeur par défaut sécurisée
+    if (caller && caller.role === 'admin' && ROLES_ALLOWED.includes(role)) {
+      effectiveRole = role;
+    }
+
     const hash = await bcrypt.hash(password, 10);
-    const { data, status } = await supa('POST', 'users', { body: { email: email.toLowerCase().trim(), password: hash, nom, prenom, role: role || 'comptable' } });
+    const { data, status } = await supa('POST', 'users', { body: { email: email.toLowerCase().trim(), password: hash, nom, prenom, role: effectiveRole } });
     if (status >= 400) return send(res, 409, { error: 'Email déjà utilisé ou erreur' });
     const user = Array.isArray(data) ? data[0] : data;
     const token = jwt.sign({ sub: user.id }, JWT_SECRET, { expiresIn: '30d' });
@@ -190,7 +206,11 @@ const server = http.createServer(async (req, res) => {
     const user = await getUser(req);
     if (!user) return send(res, 401, { error: 'Non authentifié' });
     const p = new URLSearchParams(req.url.split('?')[1] || '');
-    const { data } = await supa('GET', 'factures', { filter: `company_id=eq.${p.get('company_id')}&order=date_facture.desc` });
+    const limit  = Math.min(parseInt(p.get('limit')  || '500', 10), 1000);
+    const offset = parseInt(p.get('offset') || '0', 10);
+    const { data } = await supa('GET', 'factures', {
+      filter: `company_id=eq.${p.get('company_id')}&order=date_facture.desc&limit=${limit}&offset=${offset}`
+    });
     return send(res, 200, data || []);
   }
 
@@ -208,7 +228,11 @@ const server = http.createServer(async (req, res) => {
     const user = await getUser(req);
     if (!user) return send(res, 401, { error: 'Non authentifié' });
     const p = new URLSearchParams(req.url.split('?')[1] || '');
-    const { data } = await supa('GET', 'transactions', { filter: `company_id=eq.${p.get('company_id')}&order=date_operation.desc` });
+    const limit  = Math.min(parseInt(p.get('limit')  || '1000', 10), 5000);
+    const offset = parseInt(p.get('offset') || '0', 10);
+    const { data } = await supa('GET', 'transactions', {
+      filter: `company_id=eq.${p.get('company_id')}&order=date_operation.desc&limit=${limit}&offset=${offset}`
+    });
     return send(res, 200, data || []);
   }
 
@@ -232,16 +256,18 @@ const server = http.createServer(async (req, res) => {
 
   // POST /api/auth/change-password
   if (req.method === 'POST' && url === '/api/auth/change-password') {
+    const caller = await getUser(req);
+    if (!caller) return send(res, 401, { error: 'Non authentifié' });
     const body = await parseBody(req);
-    const { email, old_password, new_password } = body;
-    if (!email || !old_password || !new_password) return send(res, 400, { error: 'Champs manquants' });
-    // Vérifier l'ancien mot de passe
-    const { data } = await supa('GET', 'users', { filter: `email=eq.${email.toLowerCase()}` });
+    const { old_password, new_password } = body;
+    if (!old_password || !new_password) return send(res, 400, { error: 'Champs manquants' });
+    if (new_password.length < 6) return send(res, 400, { error: 'Nouveau mot de passe trop court (6 caractères minimum)' });
+    // Recharger l'utilisateur depuis la DB pour avoir le hash à jour
+    const { data } = await supa('GET', 'users', { filter: `id=eq.${caller.id}` });
     const user = Array.isArray(data) && data[0] ? data[0] : null;
     if (!user) return send(res, 401, { error: 'Utilisateur introuvable' });
     const ok = await bcrypt.compare(old_password, user.password);
     if (!ok) return send(res, 401, { error: 'Mot de passe actuel incorrect' });
-    // Hacher et sauvegarder le nouveau
     const newHash = await bcrypt.hash(new_password, 10);
     await supa('PATCH', `users?id=eq.${user.id}`, { body: { password: newHash } });
     return send(res, 200, { message: 'Mot de passe modifié avec succès' });
@@ -314,7 +340,7 @@ const server = http.createServer(async (req, res) => {
     const user = await getUser(req);
     if (!user) return send(res, 401, { error: 'Non authentifié' });
     const id = url.split('/').pop();
-    await supa('DELETE', `dossiers?id=eq.${id}`, {});
+    await supa('DELETE', 'dossiers', { filter: `id=eq.${id}` });
     return send(res, 200, { ok: true });
   }
 

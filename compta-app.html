@@ -216,11 +216,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
         </div>
         <div class="form-group"><label>Email</label><input class="form-input" type="email" id="reg-email" placeholder="votre@email.com"/></div>
         <div class="form-group"><label>Mot de passe</label><input class="form-input" type="password" id="reg-password" placeholder="Minimum 6 caractères"/></div>
-        <div class="form-group"><label>Rôle</label>
-          <select class="form-input" id="reg-role"><option value="comptable">Comptable</option><option value="auditeur">Auditeur</option><option value="admin">Admin</option></select>
-        </div>
         <div class="auth-error" id="reg-error"></div>
         <button class="btn-auth" id="btn-register" onclick="doRegister()">Créer mon compte</button>
+        <div style="font-size:11px;color:var(--muted);text-align:center;margin-top:6px">Les nouveaux comptes sont créés avec le rôle <span style="font-family:var(--mono);color:var(--accent)">comptable</span>. Un administrateur peut modifier le rôle.</div>
       </div>
     </div>
   </div>
@@ -607,11 +605,12 @@ async function doRegister() {
   const nom    = document.getElementById('reg-nom').value.trim();
   const email  = document.getElementById('reg-email').value.trim();
   const password = document.getElementById('reg-password').value;
-  const role   = document.getElementById('reg-role').value;
   const btn = document.getElementById('btn-register');
+  if (password.length < 6) { showAuthError('reg-error', 'Le mot de passe doit faire au moins 6 caractères'); return; }
   btn.disabled = true; btn.textContent = 'Création...';
   try {
-    const data = await api('POST', '/api/auth/register', { prenom, nom, email, password, role });
+    // Ne pas envoyer le rôle — le serveur force 'comptable' pour les inscriptions publiques
+    const data = await api('POST', '/api/auth/register', { prenom, nom, email, password });
     token = data.token;
     localStorage.setItem('compta_token', token);
     currentUser = data.user;
@@ -902,20 +901,6 @@ Si autre: {"type":"autre"}`;
 
 function fileToBase64(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(',')[1]);r.onerror=()=>rej(new Error('Lecture impossible'));r.readAsDataURL(file);});}
 
-function generateDemoData(item){
-  return new Promise(res=>setTimeout(()=>{
-    const isRel=item.name.toLowerCase().includes('relev')||item.name.toLowerCase().includes('bank');
-    if(isRel){res({type:'releve_bancaire',banque:'Attijariwafa Bank',periode_debut:'2026-05-01',periode_fin:'2026-05-31',solde_initial:45200,solde_final:38750,transactions:[
-      {date_operation:'2026-05-02',libelle:'VIREMENT CLIENT SAFI CORP',type_mouvement:'credit',montant:12500,solde:57700},
-      {date_operation:'2026-05-05',libelle:'LOYER MAI 2026',type_mouvement:'debit',montant:8000,solde:49700},
-      {date_operation:'2026-05-10',libelle:'FOURNITURES BUREAU',type_mouvement:'debit',montant:2340,solde:47360},
-    ]});}
-    else{const cats=[{f:'SARL Papeterie Atlas',c:'Fournitures',ht:2500},{f:'Orange Maroc Pro',c:'Télécommunications',ht:1800},{f:'Transporteur Express',c:'Transport',ht:950},{f:'Immobilière Casa',c:'Loyer',ht:12000}];
-    const p=cats[Math.floor(Math.random()*cats.length)];const tva=p.ht*.2;
-    res({type:'facture',numero:'F-2026-'+Math.floor(1000+Math.random()*9000),date_facture:'2026-05-'+String(Math.floor(1+Math.random()*28)).padStart(2,'0'),fournisseur:p.f,fournisseur_ice:'ICE '+Math.floor(100000+Math.random()*900000),categorie:p.c,description:'Facture '+p.c,montant_ht:p.ht,taux_tva:20,montant_tva:tva,montant_ttc:p.ht+tva,devise:'MAD'});}
-  },1200+Math.random()*1200));
-}
-
 // ===== CHARGEMENT DONNÉES =====
 async function loadFactures(){
   if(!currentCompanyId)return;
@@ -1089,20 +1074,41 @@ function dlFile(content,filename,type){const a=document.createElement('a');a.hre
 
 // ===== EXPORT ECRIT =====
 const JOURNAUX={ACHATS:'A',VENTES:'V',BANQUE:'B',CAISSE:'C',OD:'OD'};
-function getCompteCharge(cat){const map={'Fournitures':'6125000000','Services':'6126000000','Transport':'6143100000','Loyer':'6131000000','Télécommunications':'6125000000','Restauration':'6143600000','Honoraires':'6126000000','Energie':'6125000000'};return map[cat]||'6126000000';}
+// ===== PLAN DE COMPTES (personnalisable par le cabinet) =====
+const PLAN_COMPTES = {
+  charges: {
+    'Fournitures':       '6125000000',
+    'Services':          '6126000000',
+    'Transport':         '6143100000',
+    'Loyer':             '6131000000',
+    'Télécommunications':'6125000000',
+    'Restauration':      '6143600000',
+    'Honoraires':        '6126000000',
+    'Energie':           '6125000000',
+    'Autre':             '6126000000',
+  },
+  tva_recuperable:  '3455000000',
+  tva_credit:       '3456000000',
+  fournisseurs:     '4411000000',
+  tva_exigible:     '4455000000',
+  tva_due_etat:     '4456000000',
+  banque:           '5141000000',
+  clients:          '3421000000',
+};
+function getCompteCharge(cat){ return PLAN_COMPTES.charges[cat] || PLAN_COMPTES.charges['Autre']; }
 function excelDate(d){if(!d)return'';const dt=new Date(d);if(isNaN(dt))return d;return String(dt.getDate()).padStart(2,'0')+'/'+String(dt.getMonth()+1).padStart(2,'0')+'/'+dt.getFullYear();}
 function buildECRITRows(){
   const rows=[];
   allFactures.forEach(f=>{
     const date=excelDate(f.date_facture),lib=((f.description||f.categorie||'FACTURE')+' '+(f.fournisseur||'')).substring(0,40).toUpperCase(),piece=f.numero||'',ht=+f.montant_ht||0,tva=+f.montant_tva||0,ttc=+f.montant_ttc||0,cpte=getCompteCharge(f.categorie);
     rows.push([JOURNAUX.ACHATS,date,cpte,'',lib,piece,'',ht,null]);
-    if(tva>0)rows.push([JOURNAUX.ACHATS,date,'3455000000','','TVA / '+lib.substring(0,35),piece,'',tva,null]);
-    rows.push([JOURNAUX.ACHATS,date,'4411000000','',lib,piece,'',null,ttc]);
+    if(tva>0)rows.push([JOURNAUX.ACHATS,date,PLAN_COMPTES.tva_recuperable,'','TVA / '+lib.substring(0,35),piece,'',tva,null]);
+    rows.push([JOURNAUX.ACHATS,date,PLAN_COMPTES.fournisseurs,'',lib,piece,'',null,ttc]);
   });
   allTransactions.forEach(t=>{
     const date=excelDate(t.date_operation),lib=(t.libelle||'').substring(0,40).toUpperCase(),montant=+t.montant||0;
-    if(t.type_mouvement==='credit'){rows.push([JOURNAUX.BANQUE,date,'5141000000','',lib,'','',montant,null]);rows.push([JOURNAUX.BANQUE,date,'3421000000','',lib,'','',null,montant]);}
-    else{rows.push([JOURNAUX.BANQUE,date,'4411000000','',lib,'','',montant,null]);rows.push([JOURNAUX.BANQUE,date,'5141000000','',lib,'','',null,montant]);}
+    if(t.type_mouvement==='credit'){rows.push([JOURNAUX.BANQUE,date,PLAN_COMPTES.banque,'',lib,'','',montant,null]);rows.push([JOURNAUX.BANQUE,date,PLAN_COMPTES.clients,'',lib,'','',null,montant]);}
+    else{rows.push([JOURNAUX.BANQUE,date,PLAN_COMPTES.fournisseurs,'',lib,'','',montant,null]);rows.push([JOURNAUX.BANQUE,date,PLAN_COMPTES.banque,'',lib,'','',null,montant]);}
   });
 
   // ── Journal OD — DÉCLARATIONS TVA ────────────────────────────────────────
@@ -1125,19 +1131,19 @@ function buildECRITRows(){
     const l201 = +d.ligne_201_credit || 0;
 
     // Ligne 132 — TVA exigible → DEBIT 4455000000
-    if(l132 > 0) rows.push([JOURNAUX.OD, date, '4455000000', '', libBase + ' - TVA EXIGIBLE', '', '', l132, null]);
+    if(l132 > 0) rows.push([JOURNAUX.OD, date, PLAN_COMPTES.tva_exigible, '', libBase + ' - TVA EXIGIBLE', '', '', l132, null]);
 
-    // Ligne 182 — Total déductions → CREDIT 3455000000
-    if(l182 > 0) rows.push([JOURNAUX.OD, date, '3455000000', '', libBase + ' - TVA DEDUCTIBLE', '', '', null, l182]);
+    // Ligne 182 — Total déductions → CREDIT tva_recuperable
+    if(l182 > 0) rows.push([JOURNAUX.OD, date, PLAN_COMPTES.tva_recuperable, '', libBase + ' - TVA DEDUCTIBLE', '', '', null, l182]);
 
-    // Ligne 170 — Crédit période précédente → CREDIT 3456000000
-    if(l170 > 0) rows.push([JOURNAUX.OD, date, '3456000000', '', libBase + ' - CREDIT TVA PRECEDENT', '', '', null, l170]);
+    // Ligne 170 — Crédit période précédente → CREDIT tva_credit
+    if(l170 > 0) rows.push([JOURNAUX.OD, date, PLAN_COMPTES.tva_credit, '', libBase + ' - CREDIT TVA PRECEDENT', '', '', null, l170]);
 
-    // Ligne 200 — TVA due → CREDIT 4456000000
-    if(l200 > 0) rows.push([JOURNAUX.OD, date, '4456000000', '', libBase + ' - TVA DUE ETAT', '', '', null, l200]);
+    // Ligne 200 — TVA due → CREDIT tva_due_etat
+    if(l200 > 0) rows.push([JOURNAUX.OD, date, PLAN_COMPTES.tva_due_etat, '', libBase + ' - TVA DUE ETAT', '', '', null, l200]);
 
-    // Ligne 201 — Crédit → DEBIT 3456000000
-    if(l201 > 0) rows.push([JOURNAUX.OD, date, '3456000000', '', libBase + ' - CREDIT TVA A REPORTER', '', '', l201, null]);
+    // Ligne 201 — Crédit → DEBIT tva_credit
+    if(l201 > 0) rows.push([JOURNAUX.OD, date, PLAN_COMPTES.tva_credit, '', libBase + ' - CREDIT TVA A REPORTER', '', '', l201, null]);
   });
 
   return rows;
@@ -1298,8 +1304,7 @@ async function changePassword() {
   }
 
   try {
-    const resp = await api('POST', '/api/auth/change-password', {
-      email:        currentUser.email,
+    await api('POST', '/api/auth/change-password', {
       old_password: actuel,
       new_password: nouveau,
     });
@@ -1526,12 +1531,13 @@ function exportDossierECRIT(dossierId){
   const dossier   = allDossiers.find(d=>d.id===dossierId);
   const factures  = (allFactures||[]).filter(f=>f.dossier_id===dossierId);
   const tva       = (allTVADeclarations||[]).filter(t=>t.dossier_id===dossierId);
-  if(!factures.length && !tva.length){ toast('Aucun document dans ce dossier','info'); return; }
-  // Générer ECRIT temporairement avec seulement les docs du dossier
-  const savedF = allFactures, savedT = allTVADeclarations;
-  allFactures = factures; allTVADeclarations = tva;
+  const releves   = (allTransactions||[]).filter(t=>t.dossier_id===dossierId);
+  if(!factures.length && !tva.length && !releves.length){ toast('Aucun document dans ce dossier','info'); return; }
+  // Substituer temporairement les globals pour que buildECRITRows() travaille sur ce dossier uniquement
+  const savedF = allFactures, savedT = allTVADeclarations, savedR = allTransactions;
+  allFactures = factures; allTVADeclarations = tva; allTransactions = releves;
   const rows = buildECRITRows();
-  allFactures = savedF; allTVADeclarations = savedT;
+  allFactures = savedF; allTVADeclarations = savedT; allTransactions = savedR;
   if(!rows.length){ toast('Aucune écriture à générer','info'); return; }
   const wb = XLSX.utils.book_new();
   const header = [['Code journal','Date écriture',"n° de compte",'Contrepartie',"Libéllé d'écriture",'N° pièce','Lettrage ','Débit','Crédit']];
