@@ -90,7 +90,8 @@ async function getUser(req) {
   } catch(e) { console.log('Auth error:', e.message); return null; }
 }
 
-const server = http.createServer(async (req, res) => {
+// Handler unique — fonctionne en local (http.createServer) ET sur Vercel (module.exports)
+const handler = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,x-api-key,x-client-key,anthropic-version');
@@ -503,6 +504,13 @@ const server = http.createServer(async (req, res) => {
   }
 
   send(res, 404, { error: 'Route inconnue: ' + url });
-});
+};
 
-server.listen(PORT, '0.0.0.0', () => console.log(`Serveur démarré port ${PORT}`));
+// Export pour Vercel serverless
+module.exports = handler;
+
+// Démarrage local (ignoré par Vercel)
+if (require.main === module) {
+  const server = http.createServer(handler);
+  server.listen(PORT, '0.0.0.0', () => console.log(`Serveur démarré port ${PORT}`));
+}
