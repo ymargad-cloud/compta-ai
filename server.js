@@ -192,6 +192,26 @@ const server = http.createServer(async (req, res) => {
     return send(res, 201, company);
   }
 
+  // DELETE /api/companies/:id (admin ou owner)
+  if (req.method === 'DELETE' && url.startsWith('/api/companies/') && !url.includes('/portal/')) {
+    const user = await getUser(req);
+    if (!user) return send(res, 401, { error: 'Non authentifié' });
+    const id = url.split('/').pop();
+    // Vérifier que l'utilisateur est admin ou owner
+    const { data: co } = await supa('GET', 'companies', { filter: `id=eq.${id}` });
+    const company = Array.isArray(co) && co[0] ? co[0] : null;
+    if (!company) return send(res, 404, { error: 'Société introuvable' });
+    if (user.role !== 'admin' && company.owner_id !== user.id) return send(res, 403, { error: 'Non autorisé' });
+    // Supprimer les données liées en cascade
+    await supa('DELETE', 'factures',         { filter: `company_id=eq.${id}` });
+    await supa('DELETE', 'transactions',     { filter: `company_id=eq.${id}` });
+    await supa('DELETE', 'declarations_tva', { filter: `company_id=eq.${id}` });
+    await supa('DELETE', 'dossiers',         { filter: `company_id=eq.${id}` });
+    await supa('DELETE', 'user_companies',   { filter: `company_id=eq.${id}` });
+    await supa('DELETE', 'companies',        { filter: `id=eq.${id}` });
+    return send(res, 200, { ok: true });
+  }
+
   // GET /api/companies/portal/:token
   if (req.method === 'GET' && url.startsWith('/api/companies/portal/')) {
     const token = url.split('/').pop();
@@ -223,6 +243,15 @@ const server = http.createServer(async (req, res) => {
     return send(res, 201, Array.isArray(data) ? data[0] : data);
   }
 
+  // DELETE /api/factures/:id
+  if (req.method === 'DELETE' && url.startsWith('/api/factures/')) {
+    const user = await getUser(req);
+    if (!user) return send(res, 401, { error: 'Non authentifié' });
+    const id = url.split('/').pop();
+    await supa('DELETE', 'factures', { filter: `id=eq.${id}` });
+    return send(res, 200, { ok: true });
+  }
+
   // GET /api/transactions
   if (req.method === 'GET' && url === '/api/transactions') {
     const user = await getUser(req);
@@ -244,6 +273,15 @@ const server = http.createServer(async (req, res) => {
     const rows = Array.isArray(body) ? body : [body];
     const { data } = await supa('POST', 'transactions', { body: rows });
     return send(res, 201, data);
+  }
+
+  // DELETE /api/transactions/:id
+  if (req.method === 'DELETE' && url.startsWith('/api/transactions/')) {
+    const user = await getUser(req);
+    if (!user) return send(res, 401, { error: 'Non authentifié' });
+    const id = url.split('/').pop();
+    await supa('DELETE', 'transactions', { filter: `id=eq.${id}` });
+    return send(res, 200, { ok: true });
   }
 
   // GET /api/users
@@ -418,6 +456,15 @@ const server = http.createServer(async (req, res) => {
     const { data, status } = await supa('POST', 'declarations_tva', { body });
     if (status >= 400) return send(res, 400, { error: 'Erreur sauvegarde TVA' });
     return send(res, 201, Array.isArray(data) ? data[0] : data);
+  }
+
+  // DELETE /api/tva/:id
+  if (req.method === 'DELETE' && url.startsWith('/api/tva/')) {
+    const user = await getUser(req);
+    if (!user) return send(res, 401, { error: 'Non authentifié' });
+    const id = url.split('/').pop();
+    await supa('DELETE', 'declarations_tva', { filter: `id=eq.${id}` });
+    return send(res, 200, { ok: true });
   }
 
   // GET /api/settings

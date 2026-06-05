@@ -244,6 +244,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
         <option value="">— Choisir une société —</option>
       </select>
       <button class="btn-new-company" onclick="openNewCompanyModal()">+ Nouvelle société</button>
+      <button class="btn-new-company" id="btn-delete-company" onclick="deleteCurrentCompany()" style="display:none;background:rgba(192,57,43,.08);border-color:rgba(192,57,43,.25);color:#C0392B;margin-top:4px">🗑 Supprimer cette société</button>
     </div>
     <nav class="nav">
       <div class="nav-section-label">Navigation</div>
@@ -393,7 +394,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
       <div class="page" id="page-factures">
         <div class="card">
           <div class="table-header"><h3>Factures</h3><input class="search-input" placeholder="Rechercher..." id="search-factures" oninput="filterTable('factures',this.value)"/><button class="btn btn-success" onclick="exportTable('factures')">CSV</button></div>
-          <div style="overflow-x:auto"><table class="data-table"><thead><tr><th>Date</th><th>Fournisseur</th><th>N°</th><th>Catégorie</th><th>HT</th><th>TVA</th><th>TTC</th><th>Statut</th></tr></thead><tbody id="tbody-factures"><tr><td colspan="8" style="text-align:center;color:var(--muted);padding:40px">Aucune facture</td></tr></tbody></table></div>
+          <div style="overflow-x:auto"><table class="data-table"><thead><tr><th>Date</th><th>Fournisseur</th><th>N°</th><th>Catégorie</th><th>HT</th><th>TVA</th><th>TTC</th><th>Statut</th><th></th></tr></thead><tbody id="tbody-factures"><tr><td colspan="9" style="text-align:center;color:var(--muted);padding:40px">Aucune facture</td></tr></tbody></table></div>
         </div>
       </div>
 
@@ -401,7 +402,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
       <div class="page" id="page-releves">
         <div class="card">
           <div class="table-header"><h3>Relevés bancaires</h3><input class="search-input" placeholder="Rechercher..." id="search-releves" oninput="filterTable('releves',this.value)"/><button class="btn btn-success" onclick="exportTable('releves')">CSV</button></div>
-          <div style="overflow-x:auto"><table class="data-table"><thead><tr><th>Date</th><th>Libellé</th><th>Type</th><th>Débit</th><th>Crédit</th><th>Solde</th></tr></thead><tbody id="tbody-releves"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:40px">Aucune transaction</td></tr></tbody></table></div>
+          <div style="overflow-x:auto"><table class="data-table"><thead><tr><th>Date</th><th>Libellé</th><th>Type</th><th>Débit</th><th>Crédit</th><th>Solde</th><th></th></tr></thead><tbody id="tbody-releves"><tr><td colspan="7" style="text-align:center;color:var(--muted);padding:40px">Aucune transaction</td></tr></tbody></table></div>
         </div>
       </div>
 
@@ -666,6 +667,8 @@ async function selectCompany(id) {
   const opt = sel.options[sel.selectedIndex];
   const name = id ? opt.text : 'Aucune société';
   document.getElementById('topbar-company').textContent = name;
+  const btnDel = document.getElementById('btn-delete-company');
+  if(btnDel) btnDel.style.display = id ? 'block' : 'none';
   const noComp = !id;
   document.getElementById('dashboard-no-company').style.display = noComp?'flex':'none';
   document.getElementById('dashboard-content').style.display = noComp?'none':'block';
@@ -936,14 +939,32 @@ async function loadTVADeclarations(){
 // ===== TABLES =====
 function renderFactures(){
   const tbody=document.getElementById('tbody-factures');
-  if(!allFactures.length){tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:40px">Aucune facture</td></tr>';return;}
-  tbody.innerHTML=allFactures.map(f=>`<tr><td style="font-family:var(--mono);font-size:12px">${f.date_facture||'—'}</td><td><div style="font-weight:500">${f.fournisseur||'—'}</div><div style="font-size:11px;color:var(--muted)">${f.fournisseur_ice||''}</div></td><td style="font-family:var(--mono);font-size:11px">${f.numero||'—'}</td><td><span style="background:rgba(79,142,247,.1);color:var(--accent);padding:2px 8px;border-radius:6px;font-size:11px">${f.categorie||'—'}</span></td><td class="amount">${fmtAmt(f.montant_ht)}</td><td class="amount" style="color:var(--warn)">${fmtAmt(f.montant_tva)}</td><td class="amount pos">${fmtAmt(f.montant_ttc)}</td><td><span class="status-badge done">${f.statut||'a_valider'}</span></td></tr>`).join('');
+  if(!allFactures.length){tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:40px">Aucune facture</td></tr>';return;}
+  tbody.innerHTML=allFactures.map(f=>`<tr>
+    <td style="font-family:var(--mono);font-size:12px">${f.date_facture||'—'}</td>
+    <td><div style="font-weight:500">${f.fournisseur||'—'}</div><div style="font-size:11px;color:var(--muted)">${f.fournisseur_ice||''}</div></td>
+    <td style="font-family:var(--mono);font-size:11px">${f.numero||'—'}</td>
+    <td><span style="background:rgba(79,142,247,.1);color:var(--accent);padding:2px 8px;border-radius:6px;font-size:11px">${f.categorie||'—'}</span></td>
+    <td class="amount">${fmtAmt(f.montant_ht)}</td>
+    <td class="amount" style="color:var(--warn)">${fmtAmt(f.montant_tva)}</td>
+    <td class="amount pos">${fmtAmt(f.montant_ttc)}</td>
+    <td><span class="status-badge done">${f.statut||'a_valider'}</span></td>
+    <td><button onclick="deleteFacture('${f.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px;padding:2px 6px;border-radius:4px;transition:color .15s" title="Supprimer" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--muted)'">🗑</button></td>
+  </tr>`).join('');
 }
 
 function renderReleves(){
   const tbody=document.getElementById('tbody-releves');
-  if(!allTransactions.length){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:40px">Aucune transaction</td></tr>';return;}
-  tbody.innerHTML=allTransactions.map(t=>`<tr><td style="font-family:var(--mono);font-size:12px">${t.date_operation||'—'}</td><td>${t.libelle||'—'}</td><td><span class="status-badge ${t.type_mouvement==='credit'?'done':'pending'}">${t.type_mouvement==='credit'?'Crédit':'Débit'}</span></td><td class="amount neg">${t.type_mouvement==='debit'?fmtAmt(t.montant):'—'}</td><td class="amount pos">${t.type_mouvement==='credit'?fmtAmt(t.montant):'—'}</td><td class="amount" style="font-family:var(--mono)">${fmtAmt(t.solde)}</td></tr>`).join('');
+  if(!allTransactions.length){tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:40px">Aucune transaction</td></tr>';return;}
+  tbody.innerHTML=allTransactions.map(t=>`<tr>
+    <td style="font-family:var(--mono);font-size:12px">${t.date_operation||'—'}</td>
+    <td>${t.libelle||'—'}</td>
+    <td><span class="status-badge ${t.type_mouvement==='credit'?'done':'pending'}">${t.type_mouvement==='credit'?'Crédit':'Débit'}</span></td>
+    <td class="amount neg">${t.type_mouvement==='debit'?fmtAmt(t.montant):'—'}</td>
+    <td class="amount pos">${t.type_mouvement==='credit'?fmtAmt(t.montant):'—'}</td>
+    <td class="amount" style="font-family:var(--mono)">${fmtAmt(t.solde)}</td>
+    <td><button onclick="deleteTransaction('${t.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px;padding:2px 6px;border-radius:4px;transition:color .15s" title="Supprimer" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--muted)'">🗑</button></td>
+  </tr>`).join('');
 }
 
 function renderTVADeclarations(){
@@ -1012,10 +1033,57 @@ function renderTVAList(){
   }).join('');
 }
 
-function removeTVA(id){
-  allTVADeclarations = allTVADeclarations.filter(d => d.id !== id);
-  renderTVAList();
-  toast('Déclaration supprimée','info');
+// ===== SUPPRESSIONS =====
+async function deleteFacture(id){
+  if(!confirm('Supprimer cette facture ? Cette action est irréversible.')) return;
+  try {
+    await api('DELETE', `/api/factures/${id}`);
+    allFactures = allFactures.filter(f => f.id !== id);
+    renderFactures();
+    updateDashboard();
+    renderECRITPreview();
+    toast('Facture supprimée','info');
+  } catch(e){ toast('Erreur: '+e.message,'error'); }
+}
+
+async function deleteTransaction(id){
+  if(!confirm('Supprimer cette transaction ? Cette action est irréversible.')) return;
+  try {
+    await api('DELETE', `/api/transactions/${id}`);
+    allTransactions = allTransactions.filter(t => t.id !== id);
+    renderReleves();
+    updateDashboard();
+    renderECRITPreview();
+    toast('Transaction supprimée','info');
+  } catch(e){ toast('Erreur: '+e.message,'error'); }
+}
+
+async function deleteCurrentCompany(){
+  if(!currentCompanyId){ toast('Aucune société sélectionnée','error'); return; }
+  const sel = document.getElementById('company-select');
+  const name = sel.options[sel.selectedIndex]?.text || 'cette société';
+  if(!confirm(`Supprimer "${name}" et TOUTES ses données (factures, relevés, TVA, dossiers) ?\n\nCette action est irréversible.`)) return;
+  try {
+    await api('DELETE', `/api/companies/${currentCompanyId}`);
+    currentCompanyId = null;
+    allFactures = []; allTransactions = []; allTVADeclarations = []; allDossiers = [];
+    document.getElementById('topbar-company').textContent = 'Aucune société';
+    document.getElementById('btn-delete-company').style.display = 'none';
+    await loadCompanies();
+    updateDashboard();
+    toast(`Société "${name}" supprimée`,'info');
+  } catch(e){ toast('Erreur: '+e.message,'error'); }
+}
+
+async function removeTVA(id){
+  if(!confirm('Supprimer cette déclaration TVA ?')) return;
+  try {
+    await api('DELETE', `/api/tva/${id}`);
+    allTVADeclarations = allTVADeclarations.filter(d => d.id !== id);
+    renderTVAList();
+    updateDashboard();
+    toast('Déclaration TVA supprimée','info');
+  } catch(e){ toast('Erreur: '+e.message,'error'); }
 }
 
 function fmtAmt(v){if(!v&&v!==0)return'—';return Number(v).toLocaleString('fr-MA',{minimumFractionDigits:2,maximumFractionDigits:2})+' MAD';}
