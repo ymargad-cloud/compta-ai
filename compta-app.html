@@ -873,13 +873,18 @@ async function processQueue(){
         }
         toast('✓ Déclaration TVA '+result.periode+' extraite','success');
       } else if(result.type==='releve_bancaire' && result.transactions){
+        const sourceFile = item.name;
         const rows=result.transactions.map(t=>({
           company_id:currentCompanyId,
           date_operation:t.date_operation,
           libelle:t.libelle,
           type_mouvement:t.type_mouvement,
           montant:t.montant,
-          solde:t.solde
+          solde:t.solde,
+          source_file: sourceFile,
+          banque: result.banque||'',
+          periode_debut: result.periode_debut||'',
+          periode_fin: result.periode_fin||'',
         }));
         if(rows.length) await api('POST','/api/transactions',rows);
       }
@@ -1502,11 +1507,22 @@ function openDossier(id){
   const factsLibres = (allFactures||[]).filter(f => !f.dossier_id);
   const tvaLibres   = (allTVADeclarations||[]).filter(t => !t.dossier_id);
 
-  const releves     = (allTransactions||[]).filter(t => t.dossier_id === id);
+  const releves       = (allTransactions||[]).filter(t => t.dossier_id === id);
   const relevesLibres = (allTransactions||[]).filter(t => !t.dossier_id);
-  // Regrouper les transactions par relevé (banque + date)
-  const relevesUniques = [...new Map(releves.map(t=>[t.releve_info?.banque||t.fileName||'Relevé', t])).values()];
-  const relevesLibresUniques = [...new Map(relevesLibres.map(t=>[(t.releve_info?.banque||t.fileName||'Relevé')+'_'+t.id, t])).values()].slice(0,20);
+
+  // Regrouper les transactions par relevé (source_file ou banque+période)
+  const groupByReleve = (txs) => {
+    const map = new Map();
+    txs.forEach(t => {
+      const key = t.source_file || (t.banque||'Relevé') + '_' + (t.periode_debut||'');
+      if (!map.has(key)) map.set(key, { key, label: t.source_file || (t.banque||'Relevé') + (t.periode_debut ? ' · '+t.periode_debut : ''), banque: t.banque||'', periode_debut: t.periode_debut||'', periode_fin: t.periode_fin||'', txs: [] });
+      map.get(key).txs.push(t);
+    });
+    return [...map.values()];
+  };
+
+  const relevesGroupes      = groupByReleve(releves);
+  const relevesLibresGroupes = groupByReleve(relevesLibres);
 
   document.getElementById('modal-title').textContent = '📁 ' + dossier.nom;
   document.getElementById('modal-body').innerHTML = `
@@ -1529,19 +1545,26 @@ function openDossier(id){
     </div>` : '<div style="font-size:12px;color:var(--muted);margin-bottom:16px;padding:6px 0">Toutes les factures sont déjà dans un dossier</div>'}
 
     <div class="divider"><h2>🏦 Relevés bancaires</h2><div class="divider-line"></div></div>
-    ${releves.length ? `<div style="margin-bottom:8px">${releves.slice(0,5).map(t=>`<div style="padding:8px 12px;background:var(--bg2);border-radius:8px;margin-bottom:6px;display:flex;align-items:center;gap:8px;font-size:12px">
-      <span>🏦</span><span style="flex:1"><strong>${t.libelle||'—'}</strong> · ${t.date_operation||''} · ${fmtAmt(t.montant)}</span>
-      <button onclick="removeFromDossier('releve','${t.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px" title="Retirer">✕</button>
-    </div>`).join('')}${releves.length>5?`<div style="font-size:11px;color:var(--muted);padding:6px 12px">... et ${releves.length-5} autres transactions</div>`:''}</div>` 
-    : '<div style="color:var(--muted);font-size:12px;margin-bottom:8px;padding:8px">Aucune transaction dans ce dossier</div>'}
-    ${relevesLibresUniques.length ? `<div class="form-group" style="margin-bottom:16px">
-      <label>Ajouter une transaction bancaire</label>
+    ${relevesGroupes.length ? `<div style="margin-bottom:8px">${relevesGroupes.map(g=>`
+      <div style="padding:10px 12px;background:var(--bg2);border-radius:8px;margin-bottom:8px;font-size:12px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span>🏦</span>
+          <div style="flex:1">
+            <div style="font-weight:500">${g.label}</div>
+            <div style="color:var(--muted);font-size:11px;margin-top:2px">${g.txs.length} transaction${g.txs.length>1?'s':''} · ${g.banque} ${g.periode_debut?'· '+g.periode_debut+(g.periode_fin?' → '+g.periode_fin:''):''}</div>
+          </div>
+          <button onclick="removeReleveFromDossier('${id}','${g.key}')" style="background:none;border:1px solid var(--border);color:var(--muted);cursor:pointer;font-size:11px;padding:3px 8px;border-radius:5px" title="Retirer tout ce relevé">✕ Retirer</button>
+        </div>
+      </div>`).join('')}</div>`
+    : '<div style="color:var(--muted);font-size:12px;margin-bottom:8px;padding:8px">Aucun relevé dans ce dossier</div>'}
+    ${relevesLibresGroupes.length ? `<div class="form-group" style="margin-bottom:16px">
+      <label>Ajouter un relevé complet</label>
       <select class="form-input" id="add-releve-sel">
-        <option value="">— Choisir une transaction —</option>
-        ${relevesLibresUniques.map(t=>`<option value="${t.id}">${t.date_operation||''} · ${t.libelle||'—'} · ${fmtAmt(t.montant)}</option>`).join('')}
+        <option value="">— Choisir un relevé —</option>
+        ${relevesLibresGroupes.map(g=>`<option value="${g.key}">${g.label} (${g.txs.length} transactions)</option>`).join('')}
       </select>
-      <button class="btn btn-ghost" style="margin-top:6px;width:100%" onclick="addToDossier('${id}','releve')">+ Ajouter la transaction sélectionnée</button>
-    </div>` : ''}
+      <button class="btn btn-ghost" style="margin-top:6px;width:100%" onclick="addReleveToDossier('${id}')">+ Ajouter ce relevé au dossier</button>
+    </div>` : '<div style="font-size:12px;color:var(--muted);margin-bottom:16px;padding:6px 0">Tous les relevés sont déjà dans un dossier</div>'}
 
     <div class="divider"><h2>📋 Déclarations TVA</h2><div class="divider-line"></div></div>
     ${tva.length ? `<div style="margin-bottom:8px">${tva.map(t=>`<div style="padding:8px 12px;background:var(--bg2);border-radius:8px;margin-bottom:6px;display:flex;align-items:center;gap:8px;font-size:12px">
@@ -1564,6 +1587,41 @@ function openDossier(id){
       <button class="btn btn-ghost" onclick="closeModal()">Fermer</button>
     </div>`;
   openModal();
+}
+
+// Ajouter un relevé complet (toutes ses transactions) à un dossier
+async function addReleveToDossier(dossierId) {
+  const key = document.getElementById('add-releve-sel')?.value;
+  if (!key) { toast('Sélectionnez un relevé', 'error'); return; }
+  const txs = allTransactions.filter(t => {
+    const k = t.source_file || (t.banque||'Relevé') + '_' + (t.periode_debut||'');
+    return k === key && !t.dossier_id;
+  });
+  if (!txs.length) { toast('Aucune transaction disponible', 'error'); return; }
+  try {
+    await Promise.all(txs.map(t => api('PATCH', `/api/transactions-dossier/${t.id}`, { dossier_id: dossierId })));
+    txs.forEach(t => t.dossier_id = dossierId);
+    closeModal();
+    openDossier(dossierId);
+    toast(`${txs.length} transaction${txs.length>1?'s':''} ajoutée${txs.length>1?'s':''} au dossier ✓`, 'success');
+  } catch(e) { toast('Erreur: ' + e.message, 'error'); }
+}
+
+// Retirer un relevé complet (toutes ses transactions) d'un dossier
+async function removeReleveFromDossier(dossierId, key) {
+  const txs = allTransactions.filter(t => {
+    const k = t.source_file || (t.banque||'Relevé') + '_' + (t.periode_debut||'');
+    return k === key && t.dossier_id === dossierId;
+  });
+  if (!txs.length) return;
+  if (!confirm(`Retirer ce relevé (${txs.length} transaction${txs.length>1?'s':''}) du dossier ?`)) return;
+  try {
+    await Promise.all(txs.map(t => api('PATCH', `/api/transactions-dossier/${t.id}`, { dossier_id: null })));
+    txs.forEach(t => t.dossier_id = null);
+    closeModal();
+    openDossier(dossierId);
+    toast(`Relevé retiré du dossier`, 'info');
+  } catch(e) { toast('Erreur: ' + e.message, 'error'); }
 }
 
 async function addToDossier(dossierId, type){

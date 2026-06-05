@@ -431,8 +431,8 @@ const handler = async (req, res) => {
     return send(res, 200, { ok: true });
   }
 
-  // PATCH /api/releves-dossier/:id
-  if (req.method === 'PATCH' && url.startsWith('/api/releves-dossier/')) {
+  // PATCH /api/releves-dossier/:id  (alias: /api/transactions-dossier/:id)
+  if (req.method === 'PATCH' && (url.startsWith('/api/releves-dossier/') || url.startsWith('/api/transactions-dossier/'))) {
     const user = await getUser(req);
     if (!user) return send(res, 401, { error: 'Non authentifié' });
     const id = url.split('/').pop();
