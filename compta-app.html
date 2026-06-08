@@ -4,60 +4,60 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>NEOEXPERT consulting</title>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Syne:wght@700;800&family=Inter:wght@300;400;500&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root{--bg:#F4F6FA;--bg2:#FFFFFF;--bg3:#EDF0F7;--card:#FFFFFF;--border:#D8DEE9;--accent:#3B5EA6;--accent2:#2A4580;--gold:#F2C12E;--success:#27AE60;--warn:#E67E22;--danger:#C0392B;--text:#2C2C2C;--muted:#7A8299;--mono:'IBM Plex Mono',monospace;--sans:'Inter',sans-serif;--display:'Syne',sans-serif}
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;min-height:100vh}
 .auth-screen{position:fixed;inset:0;background:linear-gradient(135deg,#EDF2FB 0%,#F4F6FA 50%,#FEF9E7 100%);display:flex;align-items:center;justify-content:center;z-index:500;overflow:hidden}
-.auth-screen::before{content:'';position:absolute;top:-120px;right:-120px;width:400px;height:400px;border-radius:50%;background:radial-gradient(circle,rgba(242,193,46,.18) 0%,transparent 70%);pointer-events:none}
-.auth-screen::after{content:'';position:absolute;bottom:-100px;left:-100px;width:350px;height:350px;border-radius:50%;background:radial-gradient(circle,rgba(59,94,166,.12) 0%,transparent 70%);pointer-events:none}
-.auth-card{background:#FFFFFF;border:1px solid var(--border);border-radius:20px;padding:48px;width:420px;text-align:center;box-shadow:0 8px 32px rgba(59,94,166,.12);border-top:4px solid #F2C12E}
-.auth-logo{font-family:var(--display);font-size:28px;font-weight:800;background:linear-gradient(135deg,#3B5EA6,#2A4580);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:8px}
+.auth-screen::before{content:'';position:absolute;top:-120px;right:-120px;width:400px;height:400px;border-radius:50%;background:radial-gradient(circle,rgba(245,200,66,.18) 0%,transparent 70%);pointer-events:none}
+.auth-screen::after{content:'';position:absolute;bottom:-100px;left:-100px;width:350px;height:350px;border-radius:50%;background:radial-gradient(circle,rgba(79,142,247,.12) 0%,transparent 70%);pointer-events:none}
+.auth-card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:48px;width:420px;text-align:center;box-shadow:0 8px 32px rgba(79,142,247,.12);border-top:2px solid var(--gold)}
+.auth-logo{font-family:var(--display);font-size:28px;font-weight:800;background:linear-gradient(135deg,var(--accent2),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px}
 .auth-sub{color:var(--muted);font-size:13px;margin-bottom:32px}
-.auth-tabs{display:flex;background:#F4F6FA;border-radius:10px;padding:4px;margin-bottom:24px;gap:4px;border:1px solid var(--border)}
+.auth-tabs{display:flex;background:var(--bg);border-radius:10px;padding:4px;margin-bottom:24px;gap:4px;border:1px solid var(--border)}
 .auth-tab{flex:1;padding:8px;border-radius:8px;border:none;background:transparent;color:var(--muted);cursor:pointer;font-size:13px;font-family:var(--sans);transition:all .2s}
-.auth-tab.active{background:#3B5EA6;color:#FFFFFF;font-weight:500}
+.auth-tab.active{background:var(--accent2);color:#FFFFFF;font-weight:500}
 .auth-form{display:flex;flex-direction:column;gap:12px;text-align:left}
 .form-group label{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;font-family:var(--mono);margin-bottom:6px}
 .form-input{width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:13px;font-family:var(--sans);outline:none;transition:border .2s}
 .form-input:focus{border-color:var(--accent)}
 .form-input::placeholder{color:var(--muted)}
-.btn-auth{background:linear-gradient(135deg,#3B5EA6,#2A4580);border:none;border-radius:10px;padding:12px;color:#fff;font-size:14px;font-weight:500;cursor:pointer;width:100%;font-family:var(--sans);margin-top:8px;transition:opacity .2s}
+.btn-auth{background:linear-gradient(135deg,var(--accent2),var(--accent));border:none;border-radius:10px;padding:12px;color:#fff;font-size:14px;font-weight:500;cursor:pointer;width:100%;font-family:var(--sans);margin-top:8px;transition:opacity .2s}
 .btn-auth:hover{opacity:.9}
 .btn-auth:disabled{opacity:.5;cursor:not-allowed}
 .auth-error{background:rgba(231,76,60,.12);border:1px solid rgba(231,76,60,.3);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--danger);text-align:center;display:none;margin-top:8px}
 .app{display:none}
 .app.visible{display:flex}
-.sidebar{position:fixed;left:0;top:0;width:220px;height:100vh;background:#FFFFFF;border-right:2px solid #3B5EA6;display:flex;flex-direction:column;z-index:100;overflow-y:auto}
+.sidebar{position:fixed;left:0;top:0;width:220px;height:100vh;background:var(--card);border-right:2px solid #3B5EA6;display:flex;flex-direction:column;z-index:100;overflow-y:auto}
 .logo{padding:20px;border-bottom:1px solid var(--border)}
-.logo h1{font-family:var(--display);font-size:20px;font-weight:800;background:linear-gradient(135deg,#3B5EA6,#2A4580);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.logo h1{font-family:var(--display);font-size:20px;font-weight:800;background:linear-gradient(135deg,var(--accent2),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .logo span{font-family:var(--mono);font-size:10px;color:var(--muted)}
 .company-section{padding:12px;border-bottom:1px solid var(--border)}
 .company-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;font-family:var(--mono);margin-bottom:6px}
 .company-select{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-size:12px;font-family:var(--sans);outline:none;cursor:pointer}
-.btn-new-company{width:100%;background:rgba(242,193,46,.1);border:1px solid rgba(242,193,46,.3);border-radius:8px;padding:7px;color:#9A7700;font-size:12px;cursor:pointer;font-family:var(--sans);margin-top:6px;transition:all .2s}
-.btn-new-company:hover{background:rgba(242,193,46,.2)}
+.btn-new-company{width:100%;background:rgba(245,200,66,.1);border:1px solid rgba(245,200,66,.3);border-radius:8px;padding:7px;color:var(--gold2);font-size:12px;cursor:pointer;font-family:var(--sans);margin-top:6px;transition:all .2s}
+.btn-new-company:hover{background:rgba(245,200,66,.2)}
 .nav{flex:1;padding:12px 0}
 .nav-section-label{padding:6px 20px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;font-family:var(--mono)}
 .nav-item{display:flex;align-items:center;gap:10px;padding:9px 20px;cursor:pointer;color:var(--muted);transition:all .2s;font-size:13px;font-weight:500;position:relative}
 .nav-item:hover{color:var(--text);background:var(--bg3)}
-.nav-item.active{color:#3B5EA6;background:rgba(59,94,166,.08)}
-.nav-item.active::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:#3B5EA6;border-radius:0 2px 2px 0}
+.nav-item.active{color:var(--accent);background:rgba(79,142,247,.08)}
+.nav-item.active::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent2);border-radius:0 2px 2px 0}
 .nav-icon{width:17px;height:17px;flex-shrink:0}
 .sidebar-footer{padding:14px;border-top:1px solid var(--border)}
 .user-pill{display:flex;align-items:center;gap:10px}
-.avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#3B5EA6,#2A4580);display:flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:700;font-size:12px;color:#fff;flex-shrink:0}
+.avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--accent2),var(--accent));display:flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:700;font-size:12px;color:#fff;flex-shrink:0}
 .user-info{flex:1;min-width:0}
 .user-name{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .user-role{font-size:10px;color:var(--muted);font-family:var(--mono)}
 .main{margin-left:220px;min-height:100vh;display:flex;flex-direction:column}
-.topbar{background:#FFFFFF;border-bottom:2px solid #3B5EA6;padding:0 24px;height:54px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:50;box-shadow:0 2px 8px rgba(59,94,166,.08)}
+.topbar{background:var(--card);border-bottom:2px solid #3B5EA6;padding:0 24px;height:54px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:50;box-shadow:0 2px 8px rgba(79,142,247,.08)}
 .page-title{font-family:var(--display);font-size:17px;font-weight:700;flex:1}
-.company-badge{background:rgba(242,193,46,.15);border:1px solid rgba(242,193,46,.4);color:#B8860B;padding:4px 12px;border-radius:20px;font-size:12px;font-family:var(--mono)}
+.company-badge{background:rgba(245,200,66,.15);border:1px solid rgba(245,200,66,.4);color:var(--gold2);padding:4px 12px;border-radius:20px;font-size:12px;font-family:var(--mono)}
 .btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;transition:all .2s;border:none;font-family:var(--sans)}
-.btn-primary{background:#3B5EA6;color:#fff}
+.btn-primary{background:var(--accent2);color:#fff}
 .btn-primary:hover{background:#2A4580}
 .btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border)}
 .btn-ghost:hover{color:var(--text);border-color:var(--muted)}
@@ -69,7 +69,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 .stat-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-family:var(--mono);margin-bottom:6px}
 .stat-value{font-family:var(--display);font-size:26px;font-weight:700;margin-bottom:4px}
 .stat-sub{font-size:12px;color:var(--muted)}
-.stat-value.accent{color:#3B5EA6}.stat-value.success{color:var(--success)}.stat-value.warn{color:var(--warn)}
+.stat-value.accent{color:var(--accent)}.stat-value.success{color:var(--success)}.stat-value.warn{color:var(--warn)}
 .card{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px}
 .card-head{display:flex;align-items:center;padding:14px 18px;border-bottom:1px solid var(--border);gap:10px}
 .card-head h3{font-family:var(--display);font-size:14px;font-weight:700;flex:1}
@@ -107,7 +107,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 .data-table tr:hover td{background:var(--bg3)}
 .amount{font-family:var(--mono);font-weight:500}
 .amount.pos{color:var(--success)}.amount.neg{color:var(--danger)}
-.key-section{background:rgba(59,94,166,.04);border:1px solid rgba(59,94,166,.15);border-radius:10px;padding:14px;margin-bottom:18px;display:flex;gap:10px;align-items:center}
+.key-section{background:rgba(79,142,247,.04);border:1px solid rgba(79,142,247,.15);border-radius:10px;padding:14px;margin-bottom:18px;display:flex;gap:10px;align-items:center}
 .key-input{flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;font-family:var(--mono);outline:none}
 .key-input:focus{border-color:var(--accent)}
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:300;display:none;align-items:center;justify-content:center;padding:20px}
@@ -125,7 +125,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 .link-row{display:flex;align-items:center;gap:10px;margin-top:10px}
 .users-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px}
 .user-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;text-align:center}
-.user-avatar-lg{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#3B5EA6,#2A4580);display:flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:700;font-size:16px;color:#fff;margin:0 auto 12px}
+.user-avatar-lg{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--accent2),var(--accent));display:flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:700;font-size:16px;color:#fff;margin:0 auto 12px}
 .role-badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-family:var(--mono);margin-top:6px}
 .role-badge.admin{background:rgba(231,76,60,.12);color:var(--danger)}
 .role-badge.comptable{background:rgba(79,142,247,.12);color:var(--accent)}
@@ -139,7 +139,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 .toast.success{border-left:3px solid var(--success)}.toast.error{border-left:3px solid var(--danger)}.toast.info{border-left:3px solid var(--accent)}
 .portal-public{position:fixed;inset:0;background:linear-gradient(135deg,#EDF2FB 0%,#F4F6FA 50%,#FEF9E7 100%);display:none;align-items:center;justify-content:center}
 .portal-public.active{display:flex}
-.portal-box{background:#FFFFFF;border:1px solid var(--border);border-radius:20px;padding:40px;width:500px;text-align:center;box-shadow:0 8px 32px rgba(59,94,166,.12);border-top:4px solid #F2C12E}
+.portal-box{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:40px;width:500px;text-align:center;box-shadow:0 8px 32px rgba(79,142,247,.12);border-top:2px solid var(--gold)}
 .chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
 .chart-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px}
 .chart-card h4{font-family:var(--display);font-size:12px;font-weight:700;margin-bottom:14px;color:var(--muted)}
@@ -153,7 +153,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 .pie-label{flex:1;color:var(--muted)}.pie-pct{font-family:var(--mono);font-size:11px}
 .no-company{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;color:var(--muted);text-align:center;gap:12px}
 .loading{display:flex;align-items:center;justify-content:center;padding:40px;color:var(--muted);font-size:13px;gap:10px}
-.spinner{width:18px;height:18px;border:2px solid rgba(59,94,166,.2);border-top-color:#3B5EA6;border-radius:50%;animation:spin .7s linear infinite}
+.spinner{width:18px;height:18px;border:2px solid rgba(79,142,247,.2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
 </style>
@@ -163,8 +163,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 <!-- PORTAIL PUBLIC -->
 <div class="portal-public" id="portal-public">
   <div class="portal-box">
-    <div style="font-family:var(--display);font-size:22px;font-weight:800;color:#3B5EA6;letter-spacing:1px;margin-bottom:2px">NEOEXPERT</div>
-    <div style="font-size:11px;color:#9A7700;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px">consulting</div>
+    <div style="font-family:var(--display);font-size:26px;font-style:italic;color:var(--text);letter-spacing:.5px;margin-bottom:2px">Neo<span style='color:var(--gold)'>expert</span></div>
+    <div style="font-size:11px;color:var(--gold2);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px">consulting</div>
     <div style="color:var(--muted);font-size:13px;margin-bottom:6px" id="portal-company-name">Dépôt de documents</div>
     <div style="color:var(--muted);font-size:12px;margin-bottom:28px">Déposez vos factures et relevés bancaires</div>
     <div class="drop-zone" id="portal-drop" ondragover="handlePortalDrag(event)" ondragleave="handlePortalDragLeave(event)" ondrop="handlePortalDrop(event)" style="margin-bottom:16px">
@@ -184,10 +184,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 <!-- AUTH -->
 <div class="auth-screen" id="auth-screen">
   <div class="auth-card">
-    <div class="auth-logo">NEOEXPERT</div><div style="font-family:var(--sans);font-size:12px;color:var(--muted);margin-top:-6px;margin-bottom:4px;letter-spacing:2px;text-transform:uppercase">consulting</div>
+    <div class="auth-logo">Neo<span>expert</span></div><div style="font-family:var(--sans);font-size:12px;color:var(--muted);margin-top:-6px;margin-bottom:4px;letter-spacing:2px;text-transform:uppercase">consulting</div>
     <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:6px">
   <div style="height:2px;width:40px;background:linear-gradient(90deg,transparent,#F2C12E)"></div>
-  <div style="width:6px;height:6px;background:#F2C12E;transform:rotate(45deg)"></div>
+  <div style="width:6px;height:6px;background:var(--gold);transform:rotate(45deg)"></div>
   <div style="height:2px;width:40px;background:linear-gradient(90deg,#F2C12E,transparent)"></div>
 </div>
 <div class="auth-sub" style="color:var(--muted)">Gestion intelligente de documents comptables</div>
@@ -203,9 +203,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
         <button class="btn-auth" id="btn-login" onclick="doLogin()">Se connecter</button>
       </div>
       <div style="margin-top:20px;padding-top:16px;border-top:1px solid #F2C12E;display:flex;align-items:center;justify-content:center;gap:6px">
-        <div style="width:8px;height:8px;background:#F2C12E;border-radius:50%"></div>
+        <div style="width:8px;height:8px;background:var(--gold);border-radius:50%"></div>
         <div style="font-size:11px;color:var(--muted);letter-spacing:.5px">NEOEXPERT consulting © 2026</div>
-        <div style="width:8px;height:8px;background:#3B5EA6;border-radius:50%"></div>
+        <div style="width:8px;height:8px;background:var(--accent2);border-radius:50%"></div>
       </div>
       <div style="margin-top:14px;font-size:12px;color:var(--muted)">Compte admin par défaut :<br><span style="font-family:var(--mono);color:var(--accent)">admin@comptaai.com</span> / <span style="font-family:var(--mono);color:var(--accent)">Admin1234</span></div>
     </div>
@@ -228,16 +228,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 <!-- APP -->
 <div class="app" id="app">
   <div class="sidebar">
-    <div class="logo" style="text-align:center;padding:16px 12px">
-  <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:3px">
-    <div style="display:flex;align-items:center;gap:2px;flex-shrink:0">
-      <div style="width:10px;height:18px;background:#3B5EA6;clip-path:polygon(0 0,100% 20%,100% 80%,0 100%)"></div>
-      <div style="width:7px;height:9px;background:#F2C12E;margin-left:-1px;margin-top:3px"></div>
-      <div style="width:9px;height:18px;background:#6B6B6B;clip-path:polygon(0 20%,100% 0,100% 100%,0 80%)"></div>
-    </div>
-    <h1 style="font-family:var(--display);font-size:15px;font-weight:800;color:#3B5EA6;-webkit-text-fill-color:#3B5EA6;background:none;letter-spacing:1px;white-space:nowrap">NEOEXPERT</h1>
-  </div>
-  <span style="font-family:var(--sans);font-size:9px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;display:block">consulting</span>
+    <div class="logo">
+  <h1>Neo<span>expert</span></h1>
+  <span class="sub">consulting · AI</span>
 </div>
     <div class="company-section">
       <div class="company-label">Société active</div>
@@ -329,7 +322,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
         <div id="key-section-admin" class="key-section" style="display:none">
           <span style="font-size:20px">🔑</span>
           <div style="flex:1">
-            <div style="font-size:12px;font-weight:500;color:#3B5EA6;margin-bottom:6px">Clé API Anthropic — Partagée avec tous les utilisateurs</div>
+            <div style="font-size:12px;font-weight:500;color:var(--accent);margin-bottom:6px">Clé API Anthropic — Partagée avec tous les utilisateurs</div>
             <input class="key-input" type="password" id="api-key" placeholder="sk-ant-api03-..."/>
             <div style="font-size:11px;color:var(--muted);margin-top:4px;font-family:var(--mono)" id="key-status">⚠ Entrez la clé API pour activer l'extraction IA pour tous</div>
           </div>
@@ -358,12 +351,44 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
         </div>
         <div id="upload-content">
           <div class="divider"><h2>Zone d'upload</h2><div class="divider-line"></div></div>
-          <div class="drop-zone" style="margin-bottom:18px" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
-            <input type="file" id="file-input" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.tiff" onchange="handleFiles(this.files)"/>
-            <div class="drop-icon">📄</div>
-            <div style="font-size:15px;font-weight:500;margin-bottom:6px">Glissez vos documents ici</div>
-            <div style="color:var(--muted);font-size:13px;margin-bottom:4px">Factures, relevés bancaires — upload groupé (50 max)</div>
-            <div class="fmt-badges"><span class="fmt-badge">PDF</span><span class="fmt-badge">JPG</span><span class="fmt-badge">PNG</span><span class="fmt-badge">WEBP</span></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px">
+
+            <!-- Factures achats & charges -->
+            <div class="drop-zone" id="dz-achats" ondragover="handleDragOver(event,'achats')" ondragleave="handleDragLeave(event,'achats')" ondrop="handleDrop(event,'achats')" style="padding:24px;text-align:center;position:relative">
+              <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.tiff" onchange="handleFiles(this.files,'achats')"/>
+              <div style="font-size:28px;margin-bottom:8px">🧾</div>
+              <div style="font-size:13px;font-weight:600;margin-bottom:4px;color:var(--text)">Factures achats & charges</div>
+              <div style="color:var(--muted);font-size:11px">Fournisseurs, loyers, services...</div>
+              <div class="fmt-badges" style="margin-top:10px"><span class="fmt-badge">PDF</span><span class="fmt-badge">JPG</span><span class="fmt-badge">PNG</span></div>
+            </div>
+
+            <!-- Factures de ventes -->
+            <div class="drop-zone" id="dz-ventes" ondragover="handleDragOver(event,'ventes')" ondragleave="handleDragLeave(event,'ventes')" ondrop="handleDrop(event,'ventes')" style="padding:24px;text-align:center;position:relative;border-color:rgba(52,211,153,.3)">
+              <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.tiff" onchange="handleFiles(this.files,'ventes')"/>
+              <div style="font-size:28px;margin-bottom:8px">📤</div>
+              <div style="font-size:13px;font-weight:600;margin-bottom:4px;color:var(--text)">Factures de ventes</div>
+              <div style="color:var(--muted);font-size:11px">Biens vendus, prestations facturées...</div>
+              <div class="fmt-badges" style="margin-top:10px"><span class="fmt-badge">PDF</span><span class="fmt-badge">JPG</span><span class="fmt-badge">PNG</span></div>
+            </div>
+
+            <!-- Relevés bancaires -->
+            <div class="drop-zone" id="dz-releves" ondragover="handleDragOver(event,'releves')" ondragleave="handleDragLeave(event,'releves')" ondrop="handleDrop(event,'releves')" style="padding:24px;text-align:center;position:relative;border-color:rgba(79,142,247,.3)">
+              <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.tiff" onchange="handleFiles(this.files,'releves')"/>
+              <div style="font-size:28px;margin-bottom:8px">🏦</div>
+              <div style="font-size:13px;font-weight:600;margin-bottom:4px;color:var(--text)">Relevés bancaires</div>
+              <div style="color:var(--muted);font-size:11px">Extraits de compte, virements...</div>
+              <div class="fmt-badges" style="margin-top:10px"><span class="fmt-badge">PDF</span><span class="fmt-badge">JPG</span><span class="fmt-badge">PNG</span></div>
+            </div>
+
+            <!-- Tickets & bons de caisse -->
+            <div class="drop-zone" id="dz-caisse" ondragover="handleDragOver(event,'caisse')" ondragleave="handleDragLeave(event,'caisse')" ondrop="handleDrop(event,'caisse')" style="padding:24px;text-align:center;position:relative;border-color:rgba(251,191,36,.3)">
+              <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.tiff" onchange="handleFiles(this.files,'caisse')"/>
+              <div style="font-size:28px;margin-bottom:8px">🧮</div>
+              <div style="font-size:13px;font-weight:600;margin-bottom:4px;color:var(--text)">Tickets & bons de caisse</div>
+              <div style="color:var(--muted);font-size:11px">Reçus, tickets TPE, bons d'achat...</div>
+              <div class="fmt-badges" style="margin-top:10px"><span class="fmt-badge">PDF</span><span class="fmt-badge">JPG</span><span class="fmt-badge">PNG</span></div>
+            </div>
+
           </div>
           <div class="queue-grid">
             <div class="card"><div class="card-head"><h3>⏳ En cours</h3></div><div class="queue-list" id="queue-pending"><div style="padding:20px;text-align:center;color:var(--muted);font-size:12px">Aucun document en attente</div></div></div>
@@ -440,16 +465,16 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
       <!-- EXPORT -->
       <div class="page" id="page-export">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">
-          <div class="stat-card" style="border:2px solid rgba(242,193,46,.6);grid-column:span 2" onclick="exportECRIT()">
+          <div class="stat-card" style="border:2px solid rgba(245,200,66,.6);grid-column:span 2" onclick="exportECRIT()">
             <div style="display:flex;align-items:center;gap:20px">
               <div style="font-size:40px">📒</div>
               <div style="flex:1">
-                <div style="font-size:10px;color:#9A7700;text-transform:uppercase;letter-spacing:.8px;font-family:var(--mono);margin-bottom:4px">Lot comptable — Format Excel 5.0/95</div>
+                <div style="font-size:10px;color:var(--gold2);text-transform:uppercase;letter-spacing:.8px;font-family:var(--mono);margin-bottom:4px">Lot comptable — Format Excel 5.0/95</div>
                 <div style="font-size:15px;font-weight:600;margin-bottom:4px">Export ECRIT</div>
                 <div style="font-size:12px;color:var(--muted)">Code journal · N° compte · Libellé · Débit · Crédit</div>
               </div>
-              <div style="background:rgba(242,193,46,.12);border:1px solid rgba(242,193,46,.4);border-radius:10px;padding:12px 20px;text-align:center">
-                <div style="font-family:var(--mono);font-size:14px;color:#9A7700;font-weight:600">ECRIT.xls</div>
+              <div style="background:rgba(245,200,66,.12);border:1px solid rgba(245,200,66,.4);border-radius:10px;padding:12px 20px;text-align:center">
+                <div style="font-family:var(--mono);font-size:14px;color:var(--gold2);font-weight:600">ECRIT.xls</div>
                 <div style="font-size:11px;color:var(--muted);margin-top:3px">Cliquez pour générer</div>
               </div>
             </div>
@@ -663,7 +688,7 @@ async function loadCompanies() {
     const companies = await api('GET', '/api/companies');
     const sel = document.getElementById('company-select');
     sel.innerHTML = '<option value="">— Choisir une société —</option>' +
-      companies.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+      companies.map(c=>`<option value="${c.id}">${c.name}${c.exercice ? ' · '+c.exercice : ''}</option>`).join('');
     renderPortailCompanies(companies);
     if(companies.length === 1) { sel.value = companies[0].id; selectCompany(companies[0].id); }
   } catch(e) { toast('Erreur chargement sociétés','error'); }
@@ -690,12 +715,18 @@ async function selectCompany(id) {
 }
 
 function openNewCompanyModal() {
+  const currentYear = new Date().getFullYear();
   document.getElementById('modal-title').textContent = '+ Nouvelle société';
   document.getElementById('modal-body').innerHTML = `
     <div class="auth-form">
       <div class="form-group"><label>Nom de la société</label><input class="form-input" id="new-co-name" placeholder="Ex: SARL Atlas" autofocus/></div>
       <div class="form-group"><label>ICE (optionnel)</label><input class="form-input" id="new-co-ice" placeholder="Identifiant fiscal"/></div>
       <div class="form-group"><label>Ville</label><input class="form-input" id="new-co-ville" placeholder="Casablanca"/></div>
+      <div class="form-group"><label>Exercice comptable</label>
+        <select class="form-input" id="new-co-exercice">
+          ${[currentYear-1, currentYear, currentYear+1].map(y => `<option value="${y}" ${y===currentYear?'selected':''}>${y}</option>`).join('')}
+        </select>
+      </div>
       <div style="display:flex;gap:10px;margin-top:8px">
         <button class="btn btn-primary" style="flex:1" onclick="createCompany()">Créer</button>
         <button class="btn btn-ghost" onclick="closeModal()">Annuler</button>
@@ -705,15 +736,16 @@ function openNewCompanyModal() {
 }
 
 async function createCompany() {
-  const name  = document.getElementById('new-co-name').value.trim();
-  const ice   = document.getElementById('new-co-ice').value.trim();
-  const ville = document.getElementById('new-co-ville').value.trim();
+  const name     = document.getElementById('new-co-name').value.trim();
+  const ice      = document.getElementById('new-co-ice').value.trim();
+  const ville    = document.getElementById('new-co-ville').value.trim();
+  const exercice = document.getElementById('new-co-exercice').value;
   if(!name) { toast('Entrez le nom de la société','error'); return; }
   try {
-    await api('POST', '/api/companies', { name, ice, ville });
+    await api('POST', '/api/companies', { name, ice, ville, exercice });
     closeModal();
     await loadCompanies();
-    toast(`Société "${name}" créée ✓`,'success');
+    toast(`Société "${name}" — Exercice ${exercice} créée ✓`,'success');
   } catch(e) { toast(e.message,'error'); }
 }
 
@@ -803,14 +835,15 @@ async function loadApiKeyStatus() {
 
 // ===== UPLOAD =====
 let localQueue = [];
-function handleDragOver(e){e.preventDefault();e.currentTarget.classList.add('drag-over');}
-function handleDragLeave(e){e.currentTarget.classList.remove('drag-over');}
-function handleDrop(e){e.preventDefault();e.currentTarget.classList.remove('drag-over');handleFiles(e.dataTransfer.files);}
+function handleDragOver(e, cat){e.preventDefault();document.getElementById('dz-'+(cat||'achats'))?.classList.add('drag-over');}
+function handleDragLeave(e, cat){document.getElementById('dz-'+(cat||'achats'))?.classList.remove('drag-over');}
+function handleDrop(e, cat){e.preventDefault();document.getElementById('dz-'+(cat||'achats'))?.classList.remove('drag-over');handleFiles(e.dataTransfer.files, cat);}
 
-function handleFiles(files) {
+function handleFiles(files, uploadCategory) {
   if(!currentCompanyId){toast('Sélectionnez une société','error');return;}
+  const cat = uploadCategory || 'achats';
   for(const file of files){
-    const item={id:genId(),file,name:file.name,size:fmtSize(file.size),type:file.type.includes('pdf')?'pdf':'img',status:'pending',result:null};
+    const item={id:genId(),file,name:file.name,size:fmtSize(file.size),type:file.type.includes('pdf')?'pdf':'img',status:'pending',result:null,category:cat};
     localQueue.push(item);
   }
   renderQueue(); processQueue();
@@ -822,11 +855,13 @@ function fmtSize(b){return b>1048576?(b/1048576).toFixed(1)+' MB':(b/1024).toFix
 function renderQueue(){
   const pending=localQueue.filter(i=>i.status!=='done'&&i.status!=='error');
   const done=localQueue.filter(i=>i.status==='done'||i.status==='error');
+  const catLabels={achats:'Achats',ventes:'Ventes',releves:'Relevé',caisse:'Caisse'};
   const renderItem=item=>{
     const icon=item.type==='pdf'?'📄':'🖼️';
     const lbl={pending:'En attente',processing:'Traitement IA...',done:'Extrait',error:'Erreur'}[item.status];
     const prog=item.status==='processing'?'<div class="progress-bar"><div class="progress-fill" style="width:60%"></div></div>':'';
-    return `<div class="queue-item"><div class="file-icon ${item.type}">${icon}</div><div class="file-info"><div class="file-name">${item.name}</div><div class="file-meta">${item.size}${prog}</div></div><span class="status-badge ${item.status}">${lbl}</span></div>`;
+    const catBadge=item.category?`<span style="font-size:9px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:1px 6px;color:var(--muted);font-family:var(--mono)">${catLabels[item.category]||item.category}</span>`:'';
+    return `<div class="queue-item"><div class="file-icon ${item.type}">${icon}</div><div class="file-info"><div class="file-name">${item.name}</div><div class="file-meta">${item.size} ${catBadge}${prog}</div></div><span class="status-badge ${item.status}">${lbl}</span></div>`;
   };
   document.getElementById('queue-pending').innerHTML=pending.length?pending.map(renderItem).join(''):'<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px">Aucun document en attente</div>';
   document.getElementById('queue-done').innerHTML=done.length?done.map(renderItem).join(''):'<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px">Aucun document traité</div>';
@@ -853,7 +888,26 @@ async function processQueue(){
           taux_tva:result.taux_tva,
           montant_tva:result.montant_tva,
           montant_ttc:result.montant_ttc,
-          devise:result.devise||'MAD'
+          devise:result.devise||'MAD',
+          journal:result.journal||'A',
+          type_facture:'achat',
+        });
+      } else if(result.type==='facture_vente'){
+        await api('POST','/api/factures',{
+          company_id:currentCompanyId,
+          numero:result.numero,
+          date_facture:result.date_facture,
+          fournisseur:result.client,           // client dans le champ fournisseur
+          fournisseur_ice:result.client_ice,
+          categorie:'Vente',
+          description:result.description,
+          montant_ht:result.montant_ht,
+          taux_tva:result.taux_tva,
+          montant_tva:result.montant_tva,
+          montant_ttc:result.montant_ttc,
+          devise:result.devise||'MAD',
+          journal:'V',
+          type_facture:'vente',
         });
       } else if(result.type==='declaration_tva'){
         // Sauvegarder dans Supabase
@@ -912,27 +966,38 @@ async function extractWithAI(item){
   const base64=await fileToBase64(item.file);
   const isPdf=item.type==='pdf';
   const mediaType=isPdf?'application/pdf':(item.file.type||'image/jpeg');
-  const prompt=`Tu es expert en comptabilité marocaine. Analyse ce document. Réponds UNIQUEMENT en JSON valide sans markdown.
-Si FACTURE: {"type":"facture","numero":"","date_facture":"YYYY-MM-DD","fournisseur":"","fournisseur_ice":"","categorie":"Fournitures|Services|Transport|Loyer|Télécommunications|Autre","description":"","montant_ht":0,"taux_tva":20,"montant_tva":0,"montant_ttc":0,"devise":"MAD"}
+  const cat = item.category || 'achats';
+
+  let prompt;
+  if(cat === 'releves'){
+    prompt = `Tu es expert en comptabilité marocaine. Analyse ce relevé bancaire. Réponds UNIQUEMENT en JSON valide sans markdown.
+{"type":"releve_bancaire","banque":"","periode_debut":"YYYY-MM-DD","periode_fin":"YYYY-MM-DD","solde_initial":0,"solde_final":0,"transactions":[{"date_operation":"YYYY-MM-DD","libelle":"","type_mouvement":"debit|credit","montant":0,"solde":0}]}`;
+  } else if(cat === 'ventes'){
+    prompt = `Tu es expert en comptabilité marocaine. Analyse cette facture de VENTE (émise par notre société à un client). Réponds UNIQUEMENT en JSON valide sans markdown.
+{"type":"facture_vente","numero":"","date_facture":"YYYY-MM-DD","client":"","client_ice":"","description":"","montant_ht":0,"taux_tva":20,"montant_tva":0,"montant_ttc":0,"devise":"MAD"}`;
+  } else if(cat === 'caisse'){
+    prompt = `Tu es expert en comptabilité marocaine. Analyse ce ticket ou bon de caisse. Réponds UNIQUEMENT en JSON valide sans markdown.
+{"type":"facture","numero":"","date_facture":"YYYY-MM-DD","fournisseur":"","fournisseur_ice":"","categorie":"Fournitures|Services|Restauration|Transport|Autre","description":"","montant_ht":0,"taux_tva":20,"montant_tva":0,"montant_ttc":0,"devise":"MAD","journal":"C"}`;
+  } else {
+    prompt = `Tu es expert en comptabilité marocaine. Analyse ce document. Réponds UNIQUEMENT en JSON valide sans markdown.
+Si FACTURE ACHAT: {"type":"facture","numero":"","date_facture":"YYYY-MM-DD","fournisseur":"","fournisseur_ice":"","categorie":"Fournitures|Services|Transport|Loyer|Télécommunications|Restauration|Honoraires|Energie|Autre","description":"","montant_ht":0,"taux_tva":20,"montant_tva":0,"montant_ttc":0,"devise":"MAD"}
 Si RELEVÉ BANCAIRE: {"type":"releve_bancaire","banque":"","periode_debut":"YYYY-MM-DD","periode_fin":"YYYY-MM-DD","solde_initial":0,"solde_final":0,"transactions":[{"date_operation":"YYYY-MM-DD","libelle":"","type_mouvement":"debit|credit","montant":0,"solde":0}]}
-Si DÉCLARATION TVA (formulaire DGI marocain): {"type":"declaration_tva","periode":"T1 2026 ou autre","raison_sociale":"","identifiant_fiscal":"","ligne_132_tva_exigible":0,"ligne_182_total_deductions":0,"ligne_170_credit_precedent":0,"ligne_200_tva_due":0,"ligne_201_credit":0,"montant_total":0,"devise":"MAD"}
+Si DÉCLARATION TVA: {"type":"declaration_tva","periode":"T1 2026","raison_sociale":"","identifiant_fiscal":"","ligne_132_tva_exigible":0,"ligne_182_total_deductions":0,"ligne_170_credit_precedent":0,"ligne_200_tva_due":0,"ligne_201_credit":0,"montant_total":0,"devise":"MAD"}
 Si autre: {"type":"autre"}`;
+  }
+
   const body={model:'claude-haiku-4-5-20251001',max_tokens:2000,messages:[{role:'user',content:[{type:isPdf?'document':'image',source:{type:'base64',media_type:mediaType,data:base64}},{type:'text',text:prompt}]}]};
   const clientKey = localStorage.getItem('compta_api_key') || '';
-  // Si pas de clé locale, le proxy utilise celle de Supabase (clé partagée par l'admin)
-  const headers = {
-    'Content-Type': 'application/json',
-    'anthropic-version': '2023-06-01',
-    'Authorization': `Bearer ${token}`,
-  };
-  if (clientKey) headers['x-client-key'] = clientKey;
-  const resp = await fetch('/api/messages', { method: 'POST', headers, body: JSON.stringify(body) });
+  const headers = {'Content-Type':'application/json','anthropic-version':'2023-06-01','Authorization':`Bearer ${token}`};
+  if(clientKey) headers['x-client-key'] = clientKey;
+  const resp = await fetch('/api/messages', { method:'POST', headers, body:JSON.stringify(body) });
   if(!resp.ok){const e=await resp.json().catch(()=>({}));throw new Error(e?.error?.message||'API '+resp.status);}
   const d=await resp.json();
   const text=d.content.map(c=>c.text||'').join('').replace(/```json|```/g,'').trim();
-  return JSON.parse(text);
+  const result = JSON.parse(text);
+  result._uploadCategory = cat;
+  return result;
 }
-
 function fileToBase64(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(',')[1]);r.onerror=()=>rej(new Error('Lecture impossible'));r.readAsDataURL(file);});}
 
 // ===== CHARGEMENT DONNÉES =====
@@ -1196,18 +1261,56 @@ const PLAN_COMPTES = {
 };
 function getCompteCharge(cat){ return PLAN_COMPTES.charges[cat] || PLAN_COMPTES.charges['Autre']; }
 function excelDate(d){if(!d)return'';const dt=new Date(d);if(isNaN(dt))return d;return String(dt.getDate()).padStart(2,'0')+'/'+String(dt.getMonth()+1).padStart(2,'0')+'/'+dt.getFullYear();}
+// Détection des libellés bancaires spéciaux
+function getCompteBancaire(lib) {
+  const l = lib.toUpperCase();
+  if (/CNSS/.test(l))                                                             return { cpte: '4441000000', tva: 0 };
+  if (/\bDGI\b|DIRECTION GENERALE.*IMPOTS/.test(l))                              return { cpte: '4456000000', tva: 0 };
+  if (/OPERATION AU DEBIT REF|ARRETE DU COMPTE|COMMISSIONS|FRAIS/.test(l))      return { cpte: '6147000000', tva: 10 };
+  return null;
+}
+
 function buildECRITRows(){
   const rows=[];
-  allFactures.forEach(f=>{
+
+  // ── Journal ACHATS — factures achats & tickets caisse ─────────────────────
+  allFactures.filter(f => f.type_facture !== 'vente').forEach(f=>{
+    const journal = f.journal === 'C' ? JOURNAUX.CAISSE : JOURNAUX.ACHATS;
     const date=excelDate(f.date_facture),lib=((f.description||f.categorie||'FACTURE')+' '+(f.fournisseur||'')).substring(0,40).toUpperCase(),piece=f.numero||'',ht=+f.montant_ht||0,tva=+f.montant_tva||0,ttc=+f.montant_ttc||0,cpte=getCompteCharge(f.categorie);
-    rows.push([JOURNAUX.ACHATS,date,cpte,'',lib,piece,'',ht,null]);
-    if(tva>0)rows.push([JOURNAUX.ACHATS,date,PLAN_COMPTES.tva_recuperable,'','TVA / '+lib.substring(0,35),piece,'',tva,null]);
-    rows.push([JOURNAUX.ACHATS,date,PLAN_COMPTES.fournisseurs,'',lib,piece,'',null,ttc]);
+    rows.push([journal,date,cpte,'',lib,piece,'',ht,null]);
+    if(tva>0)rows.push([journal,date,PLAN_COMPTES.tva_recuperable,'','TVA / '+lib.substring(0,35),piece,'',tva,null]);
+    rows.push([journal,date,PLAN_COMPTES.fournisseurs,'',lib,piece,'',null,ttc]);
   });
+
+  // ── Journal VENTES — factures de ventes ───────────────────────────────────
+  allFactures.filter(f => f.type_facture === 'vente').forEach(f=>{
+    const date=excelDate(f.date_facture),lib=((f.description||'VENTE')+' '+(f.fournisseur||'')).substring(0,40).toUpperCase(),piece=f.numero||'',ht=+f.montant_ht||0,tva=+f.montant_tva||0,ttc=+f.montant_ttc||0;
+    // Client au débit
+    rows.push([JOURNAUX.VENTES,date,PLAN_COMPTES.clients,'',lib,piece,'',ttc,null]);
+    // Produit au crédit (7111 = ventes de marchandises)
+    rows.push([JOURNAUX.VENTES,date,'7111000000','',lib,piece,'',null,ht]);
+    // TVA facturée au crédit
+    if(tva>0) rows.push([JOURNAUX.VENTES,date,PLAN_COMPTES.tva_exigible,'','TVA / '+lib.substring(0,35),piece,'',null,tva]);
+  });
+
+  // ── Journal BANQUE — transactions relevés ─────────────────────────────────
   allTransactions.forEach(t=>{
     const date=excelDate(t.date_operation),lib=(t.libelle||'').substring(0,40).toUpperCase(),montant=+t.montant||0;
-    if(t.type_mouvement==='credit'){rows.push([JOURNAUX.BANQUE,date,PLAN_COMPTES.banque,'',lib,'','',montant,null]);rows.push([JOURNAUX.BANQUE,date,PLAN_COMPTES.clients,'',lib,'','',null,montant]);}
-    else{rows.push([JOURNAUX.BANQUE,date,PLAN_COMPTES.fournisseurs,'',lib,'','',montant,null]);rows.push([JOURNAUX.BANQUE,date,PLAN_COMPTES.banque,'',lib,'','',null,montant]);}
+    const special = getCompteBancaire(lib);
+    if(special){
+      // Opérations spéciales : CNSS, DGI, frais bancaires
+      const ht = special.tva > 0 ? Math.round(montant / (1 + special.tva/100) * 100)/100 : montant;
+      const tva = Math.round((montant - ht) * 100) / 100;
+      rows.push([JOURNAUX.BANQUE,date,special.cpte,'',lib,'','',ht,null]);
+      if(tva > 0) rows.push([JOURNAUX.BANQUE,date,PLAN_COMPTES.tva_recuperable,'','TVA / '+lib.substring(0,35),'','',tva,null]);
+      rows.push([JOURNAUX.BANQUE,date,PLAN_COMPTES.banque,'',lib,'','',null,montant]);
+    } else if(t.type_mouvement==='credit'){
+      rows.push([JOURNAUX.BANQUE,date,PLAN_COMPTES.banque,'',lib,'','',montant,null]);
+      rows.push([JOURNAUX.BANQUE,date,PLAN_COMPTES.clients,'',lib,'','',null,montant]);
+    } else {
+      rows.push([JOURNAUX.BANQUE,date,PLAN_COMPTES.fournisseurs,'',lib,'','',montant,null]);
+      rows.push([JOURNAUX.BANQUE,date,PLAN_COMPTES.banque,'',lib,'','',null,montant]);
+    }
   });
 
   // ── Journal OD — DÉCLARATIONS TVA ────────────────────────────────────────

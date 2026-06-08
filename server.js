@@ -278,7 +278,24 @@ const handler = async (req, res) => {
     const user = await getUser(req);
     if (!user) return send(res, 401, { error: 'Non authentifié' });
     const body = await parseBody(req);
-    const { data } = await supa('POST', 'factures', { body });
+    const payload = {
+      company_id:    body.company_id,
+      numero:        body.numero,
+      date_facture:  body.date_facture,
+      fournisseur:   body.fournisseur,
+      fournisseur_ice: body.fournisseur_ice,
+      categorie:     body.categorie,
+      description:   body.description,
+      montant_ht:    body.montant_ht,
+      taux_tva:      body.taux_tva,
+      montant_tva:   body.montant_tva,
+      montant_ttc:   body.montant_ttc,
+      devise:        body.devise || 'MAD',
+      journal:       body.journal || 'A',
+      type_facture:  body.type_facture || 'achat',
+      dossier_id:    body.dossier_id || null,
+    };
+    const { data } = await supa('POST', 'factures', { body: payload });
     return send(res, 201, Array.isArray(data) ? data[0] : data);
   }
 
