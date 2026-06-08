@@ -163,7 +163,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 <!-- PORTAIL PUBLIC -->
 <div class="portal-public" id="portal-public">
   <div class="portal-box">
-    <div style="font-family:var(--display);font-size:26px;font-style:italic;color:var(--text);letter-spacing:.5px;margin-bottom:2px">Neo<span style='color:var(--gold)'>expert</span></div>
+    <div style="font-family:var(--display);font-size:26px;font-style:italic;color:var(--text);letter-spacing:.5px;margin-bottom:2px">NEOEXPERT</div>
     <div style="font-size:11px;color:var(--gold2);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px">consulting</div>
     <div style="color:var(--muted);font-size:13px;margin-bottom:6px" id="portal-company-name">Dépôt de documents</div>
     <div style="color:var(--muted);font-size:12px;margin-bottom:28px">Déposez vos factures et relevés bancaires</div>
@@ -184,7 +184,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 <!-- AUTH -->
 <div class="auth-screen" id="auth-screen">
   <div class="auth-card">
-    <div class="auth-logo">Neo<span>expert</span></div><div style="font-family:var(--sans);font-size:12px;color:var(--muted);margin-top:-6px;margin-bottom:4px;letter-spacing:2px;text-transform:uppercase">consulting</div>
+    <div class="auth-logo">NEOEXPERT</div><div style="font-family:var(--sans);font-size:12px;color:var(--muted);margin-top:-6px;margin-bottom:4px;letter-spacing:2px;text-transform:uppercase">consulting</div>
     <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:6px">
   <div style="height:2px;width:40px;background:linear-gradient(90deg,transparent,#F2C12E)"></div>
   <div style="width:6px;height:6px;background:var(--gold);transform:rotate(45deg)"></div>
@@ -229,8 +229,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 <div class="app" id="app">
   <div class="sidebar">
     <div class="logo">
-  <h1>Neo<span>expert</span></h1>
-  <span class="sub">consulting · AI</span>
+  <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:3px"><div style="display:flex;align-items:center;gap:2px;flex-shrink:0"><div style="width:10px;height:18px;background:var(--accent2);clip-path:polygon(0 0,100% 20%,100% 80%,0 100%)"></div><div style="width:7px;height:9px;background:var(--gold);margin-left:-1px;margin-top:3px"></div><div style="width:9px;height:18px;background:#6B6B6B;clip-path:polygon(0 20%,100% 0,100% 100%,0 80%)"></div></div><h1 style="font-family:var(--display);font-size:15px;font-weight:800;color:var(--accent);-webkit-text-fill-color:var(--accent);background:none;letter-spacing:1px;white-space:nowrap">NEOEXPERT</h1></div>
+  <span style="font-family:var(--sans);font-size:9px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;display:block">consulting</span>
 </div>
     <div class="company-section">
       <div class="company-label">Société active</div>
@@ -724,7 +724,7 @@ function openNewCompanyModal() {
       <div class="form-group"><label>Ville</label><input class="form-input" id="new-co-ville" placeholder="Casablanca"/></div>
       <div class="form-group"><label>Exercice comptable</label>
         <select class="form-input" id="new-co-exercice">
-          ${[currentYear-1, currentYear, currentYear+1].map(y => `<option value="${y}" ${y===currentYear?'selected':''}>${y}</option>`).join('')}
+          ${Array.from({length:11},(_,i)=>2020+i).map(y => `<option value="${y}" ${y===currentYear?'selected':''}>${y}</option>`).join('')}
         </select>
       </div>
       <div style="display:flex;gap:10px;margin-top:8px">
