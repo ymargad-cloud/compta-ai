@@ -1337,11 +1337,21 @@ function copyLink(link){navigator.clipboard.writeText(link).then(()=>toast('Lien
 async function loadClientDocs() {
   if (!currentCompanyId) { toast('Sélectionnez une société','error'); return; }
   const el = document.getElementById('client-docs-list');
+  if (!el) { console.error('client-docs-list introuvable'); return; }
   el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px">Chargement...</div>';
   try {
-    const docs = await api('GET', `/api/documents?company_id=${currentCompanyId}`);
+    console.log('loadClientDocs: token=', token ? token.slice(0,20)+'...' : 'VIDE');
+    const r = await fetch(`/api/documents?company_id=${currentCompanyId}`, {
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
+    });
+    const docs = await r.json();
+    if (!r.ok) throw new Error(docs.error || 'Erreur ' + r.status);
+    console.log('loadClientDocs: reçu', docs?.length, 'docs');
     renderClientDocs(docs);
-  } catch(e) { el.innerHTML = `<div style="padding:20px;text-align:center;color:var(--danger)">${e.message}</div>`; }
+  } catch(e) {
+    console.error('loadClientDocs error:', e);
+    el.innerHTML = `<div style="padding:20px;text-align:center;color:var(--danger)">Erreur: ${e.message}</div>`;
+  }
 }
 
 function renderClientDocs(docs) {
