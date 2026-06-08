@@ -682,7 +682,11 @@ async function selectCompany(id) {
   document.getElementById('dashboard-content').style.display = noComp?'none':'block';
   document.getElementById('upload-no-company').style.display = noComp?'flex':'none';
   document.getElementById('upload-content').style.display = noComp?'none':'block';
-  if(id) { await loadFactures(); await loadTransactions(); await loadTVADeclarations(); await loadDossiers(); updateDashboard(); }
+  if(id) { await loadFactures(); await loadTransactions(); await loadTVADeclarations(); await loadDossiers(); updateDashboard();
+    // Recharger les docs clients si on est sur la page portail
+    const activePage = document.querySelector('.page.active');
+    if(activePage && activePage.id === 'page-portail') loadClientDocs();
+  }
 }
 
 function openNewCompanyModal() {
