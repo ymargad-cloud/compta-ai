@@ -1378,7 +1378,7 @@ function renderClientDocs(docs) {
       </div>
       <span class="status-badge ${d.status === 'pending' ? 'pending' : 'done'}">${d.status === 'pending' ? 'En attente' : 'Traité'}</span>
       <div style="display:flex;gap:6px;flex-shrink:0">
-        ${d.file_data !== undefined && d.status === 'pending' ? `
+        ${d.status === 'pending' ? `
           <button onclick="processClientDoc('${d.id}')" style="background:var(--accent);color:#fff;border:none;padding:4px 10px;border-radius:5px;font-size:11px;cursor:pointer;white-space:nowrap">⚡ Traiter</button>` : ''}
         <button onclick="downloadClientDoc('${d.id}','${d.original_name}')" style="background:var(--bg2);border:1px solid var(--border);padding:4px 10px;border-radius:5px;font-size:11px;cursor:pointer">↓</button>
         <button onclick="deleteClientDoc('${d.id}')" style="background:none;border:1px solid var(--border);padding:4px 8px;border-radius:5px;font-size:11px;cursor:pointer;color:var(--muted)">✕</button>
