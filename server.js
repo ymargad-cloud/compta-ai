@@ -354,12 +354,12 @@ const handler = async (req, res) => {
     const user = await getUser(req);
     if (!user) return send(res, 401, { error: 'Non authentifié' });
     const p = new URLSearchParams(req.url.split('?')[1] || '');
+    // Exclure file_data (base64 lourd) de la liste — récupéré uniquement via GET /api/documents/:id
     const { data } = await supa('GET', 'documents', {
-      filter: `company_id=eq.${p.get('company_id')}&order=created_at.desc`
+      filter: `company_id=eq.${p.get('company_id')}&order=created_at.desc`,
+      select: 'id,company_id,original_name,file_size,media_type,status,from_client,client_note,created_at'
     });
-    // Ne pas retourner le base64 dans la liste (trop lourd) — juste les métadonnées
-    const light = (data || []).map(({ file_data, ...rest }) => rest);
-    return send(res, 200, light);
+    return send(res, 200, data || []);
   }
 
   // GET /api/documents/:id  (télécharger un document spécifique avec son contenu)
