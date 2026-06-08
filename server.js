@@ -335,9 +335,61 @@ const handler = async (req, res) => {
   // POST /api/portal/upload
   if (req.method === 'POST' && url === '/api/portal/upload') {
     const body = await parseBody(req);
-    const docs = (body.files || []).map(f => ({ company_id: body.company_id, original_name: f.name, status: 'pending', from_client: true }));
+    const docs = (body.files || []).map(f => ({
+      company_id:    body.company_id,
+      original_name: f.name,
+      file_size:     f.size || null,
+      file_data:     f.data || null,   // base64 du fichier
+      media_type:    f.type || null,
+      status:        'pending',
+      from_client:   true,
+      client_note:   body.note || null,
+    }));
     await supa('POST', 'documents', { body: docs });
     return send(res, 201, { ok: true });
+  }
+
+  // GET /api/documents?company_id=xxx  (admin/comptable seulement)
+  if (req.method === 'GET' && url === '/api/documents') {
+    const user = await getUser(req);
+    if (!user) return send(res, 401, { error: 'Non authentifié' });
+    const p = new URLSearchParams(req.url.split('?')[1] || '');
+    const { data } = await supa('GET', 'documents', {
+      filter: `company_id=eq.${p.get('company_id')}&order=created_at.desc`
+    });
+    // Ne pas retourner le base64 dans la liste (trop lourd) — juste les métadonnées
+    const light = (data || []).map(({ file_data, ...rest }) => rest);
+    return send(res, 200, light);
+  }
+
+  // GET /api/documents/:id  (télécharger un document spécifique avec son contenu)
+  if (req.method === 'GET' && url.startsWith('/api/documents/') && url.split('/').length === 4) {
+    const user = await getUser(req);
+    if (!user) return send(res, 401, { error: 'Non authentifié' });
+    const id = url.split('/')[3];
+    const { data } = await supa('GET', 'documents', { filter: `id=eq.${id}` });
+    const doc = Array.isArray(data) && data[0] ? data[0] : null;
+    if (!doc) return send(res, 404, { error: 'Document introuvable' });
+    return send(res, 200, doc);
+  }
+
+  // PATCH /api/documents/:id  (changer le statut : pending → processing → done)
+  if (req.method === 'PATCH' && url.startsWith('/api/documents/') && url.split('/').length === 4) {
+    const user = await getUser(req);
+    if (!user) return send(res, 401, { error: 'Non authentifié' });
+    const id = url.split('/')[3];
+    const body = await parseBody(req);
+    await supa('PATCH', `documents?id=eq.${id}`, { body: { status: body.status } });
+    return send(res, 200, { ok: true });
+  }
+
+  // DELETE /api/documents/:id
+  if (req.method === 'DELETE' && url.startsWith('/api/documents/') && url.split('/').length === 4) {
+    const user = await getUser(req);
+    if (!user) return send(res, 401, { error: 'Non authentifié' });
+    const id = url.split('/')[3];
+    await supa('DELETE', 'documents', { filter: `id=eq.${id}` });
+    return send(res, 200, { ok: true });
   }
 
   // POST /api/messages (proxy Anthropic)

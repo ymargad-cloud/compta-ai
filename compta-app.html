@@ -174,7 +174,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
       <div style="color:var(--muted);font-size:12px">ou cliquez pour parcourir</div>
       <div class="fmt-badges"><span class="fmt-badge">PDF</span><span class="fmt-badge">JPG</span><span class="fmt-badge">PNG</span></div>
     </div>
-    <div id="portal-files-list" style="max-height:200px;overflow-y:auto;margin-bottom:16px"></div>
+    <div id="portal-files-list" style="max-height:200px;overflow-y:auto;margin-bottom:12px"></div>
+    <textarea id="portal-note" class="form-input" placeholder="Note optionnelle pour votre comptable..." style="width:100%;height:64px;resize:none;margin-bottom:12px;font-size:12px;display:block"></textarea>
     <div id="portal-success" style="display:none;background:rgba(46,204,113,.1);border:1px solid rgba(46,204,113,.3);border-radius:10px;padding:14px;color:var(--success);font-size:13px">✓ Documents déposés avec succès. Votre comptable les traitera prochainement.</div>
     <button class="btn-auth" id="portal-submit" onclick="submitPortalFiles()" style="display:none">Envoyer les documents</button>
   </div>
@@ -478,6 +479,13 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
           <div style="color:var(--muted);font-size:13px">Partagez un lien unique à vos clients pour qu'ils déposent leurs documents.</div>
         </div>
         <div id="portail-companies"></div>
+        <div class="card" style="margin-top:20px">
+          <div class="card-head">
+            <h3>📥 Documents reçus des clients</h3>
+            <button class="btn btn-ghost" onclick="loadClientDocs()" style="font-size:12px">🔄 Actualiser</button>
+          </div>
+          <div id="client-docs-list" style="padding:20px;color:var(--muted);font-size:12px;text-align:center">Sélectionnez une société pour voir les documents reçus</div>
+        </div>
       </div>
 
       <!-- PROFIL & MOT DE PASSE -->
@@ -723,6 +731,7 @@ function showPage(id) {
   if(id==='upload') loadApiKeyStatus();
   if(id==='tva') renderTVAList();
   if(id==='dossiers') renderDossiers();
+  if(id==='portail' && currentCompanyId) loadClientDocs();
 }
 
 // ===== API KEY =====
@@ -1324,6 +1333,96 @@ function renderPortailCompanies(companies){
 }
 function copyLink(link){navigator.clipboard.writeText(link).then(()=>toast('Lien copié ✓','success'));}
 
+// ===== DOCUMENTS CLIENTS REÇUS =====
+async function loadClientDocs() {
+  if (!currentCompanyId) { toast('Sélectionnez une société','error'); return; }
+  const el = document.getElementById('client-docs-list');
+  el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px">Chargement...</div>';
+  try {
+    const docs = await api('GET', `/api/documents?company_id=${currentCompanyId}`);
+    renderClientDocs(docs);
+  } catch(e) { el.innerHTML = `<div style="padding:20px;text-align:center;color:var(--danger)">${e.message}</div>`; }
+}
+
+function renderClientDocs(docs) {
+  const el = document.getElementById('client-docs-list');
+  if (!docs || !docs.length) {
+    el.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">Aucun document déposé par les clients</div>';
+    return;
+  }
+  const pending   = docs.filter(d => d.status === 'pending');
+  const processed = docs.filter(d => d.status !== 'pending');
+  const renderDoc = d => `
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border);font-size:12px">
+      <span style="font-size:18px">${d.media_type?.includes('pdf') ? '📄' : '🖼'}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${d.original_name}</div>
+        <div style="color:var(--muted);font-size:11px;margin-top:2px">
+          ${d.created_at ? new Date(d.created_at).toLocaleString('fr-MA') : ''}
+          ${d.client_note ? ' · 💬 ' + d.client_note : ''}
+        </div>
+      </div>
+      <span class="status-badge ${d.status === 'pending' ? 'pending' : 'done'}">${d.status === 'pending' ? 'En attente' : 'Traité'}</span>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        ${d.file_data !== undefined && d.status === 'pending' ? `
+          <button onclick="processClientDoc('${d.id}')" style="background:var(--accent);color:#fff;border:none;padding:4px 10px;border-radius:5px;font-size:11px;cursor:pointer;white-space:nowrap">⚡ Traiter</button>` : ''}
+        <button onclick="downloadClientDoc('${d.id}','${d.original_name}')" style="background:var(--bg2);border:1px solid var(--border);padding:4px 10px;border-radius:5px;font-size:11px;cursor:pointer">↓</button>
+        <button onclick="deleteClientDoc('${d.id}')" style="background:none;border:1px solid var(--border);padding:4px 8px;border-radius:5px;font-size:11px;cursor:pointer;color:var(--muted)">✕</button>
+      </div>
+    </div>`;
+  el.innerHTML = `
+    ${pending.length ? `
+      <div style="padding:10px 16px;background:rgba(243,156,18,.06);border-bottom:1px solid var(--border);font-size:12px;font-weight:500;color:var(--warn)">
+        ⏳ ${pending.length} document${pending.length>1?'s':''} en attente de traitement
+      </div>
+      ${pending.map(renderDoc).join('')}` : ''}
+    ${processed.length ? `
+      <div style="padding:10px 16px;background:var(--bg2);border-bottom:1px solid var(--border);font-size:12px;font-weight:500;color:var(--muted)">
+        ✓ ${processed.length} document${processed.length>1?'s':''} traité${processed.length>1?'s':''}
+      </div>
+      ${processed.map(renderDoc).join('')}` : ''}`;
+}
+
+async function processClientDoc(docId) {
+  try {
+    // Récupérer le document complet avec son base64
+    const doc = await api('GET', `/api/documents/${docId}`);
+    if (!doc.file_data) { toast('Fichier non disponible','error'); return; }
+    // Créer un File object et l'ajouter à la queue d'upload
+    const byteChars = atob(doc.file_data);
+    const byteArr = new Uint8Array(byteChars.length);
+    for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
+    const blob = new Blob([byteArr], { type: doc.media_type || 'application/pdf' });
+    const file = new File([blob], doc.original_name, { type: doc.media_type || 'application/pdf' });
+    // Passer sur la page upload et ajouter à la queue
+    showPage('upload');
+    handleFiles([file]);
+    // Marquer comme traité
+    await api('PATCH', `/api/documents/${docId}`, { status: 'processing' });
+    toast(`${doc.original_name} ajouté à la queue ✓`, 'success');
+  } catch(e) { toast('Erreur: ' + e.message, 'error'); }
+}
+
+async function downloadClientDoc(docId, name) {
+  try {
+    const doc = await api('GET', `/api/documents/${docId}`);
+    if (!doc.file_data) { toast('Fichier non disponible','error'); return; }
+    const a = document.createElement('a');
+    a.href = `data:${doc.media_type||'application/octet-stream'};base64,${doc.file_data}`;
+    a.download = name;
+    a.click();
+  } catch(e) { toast('Erreur: ' + e.message, 'error'); }
+}
+
+async function deleteClientDoc(docId) {
+  if (!confirm('Supprimer ce document client ?')) return;
+  try {
+    await api('DELETE', `/api/documents/${docId}`);
+    loadClientDocs();
+    toast('Document supprimé','info');
+  } catch(e) { toast('Erreur: ' + e.message, 'error'); }
+}
+
 // ===== PORTAIL PUBLIC =====
 let portalFiles=[];
 function handlePortalDrag(e){e.preventDefault();document.getElementById('portal-drop').classList.add('drag-over');}
@@ -1335,14 +1434,35 @@ function handlePortalFiles(files){
   document.getElementById('portal-submit').style.display=portalFiles.length?'block':'none';
 }
 async function submitPortalFiles(){
-  const companyId=document.getElementById('portal-public').dataset.companyId;
-  try{
-    await api('POST','/api/portal/upload',{company_id:companyId,files:portalFiles.map(f=>({name:f.name,size:f.size}))});
-    document.getElementById('portal-success').style.display='block';
-    document.getElementById('portal-submit').style.display='none';
-    document.getElementById('portal-files-list').innerHTML='';
-    setTimeout(()=>{document.getElementById('portal-public').classList.remove('active');document.getElementById('portal-success').style.display='none';portalFiles=[];},3000);
-  }catch(e){toast('Erreur dépôt: '+e.message,'error');}
+  const companyId = document.getElementById('portal-public').dataset.companyId;
+  const note      = document.getElementById('portal-note')?.value?.trim() || '';
+  const btn       = document.getElementById('portal-submit');
+  btn.disabled = true; btn.textContent = 'Envoi en cours...';
+  try {
+    // Convertir chaque fichier en base64
+    const filesData = await Promise.all(portalFiles.map(async f => {
+      const data = await new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload = () => res(r.result.split(',')[1]);
+        r.onerror = () => rej(new Error('Lecture impossible'));
+        r.readAsDataURL(f);
+      });
+      return { name: f.name, size: f.size, type: f.type, data };
+    }));
+    await api('POST', '/api/portal/upload', { company_id: companyId, files: filesData, note });
+    document.getElementById('portal-success').style.display = 'block';
+    document.getElementById('portal-submit').style.display  = 'none';
+    document.getElementById('portal-files-list').innerHTML  = '';
+    if (document.getElementById('portal-note')) document.getElementById('portal-note').value = '';
+    setTimeout(() => {
+      document.getElementById('portal-public').classList.remove('active');
+      document.getElementById('portal-success').style.display = 'none';
+      portalFiles = [];
+    }, 3000);
+  } catch(e) {
+    toast('Erreur dépôt: ' + e.message, 'error');
+    btn.disabled = false; btn.textContent = 'Envoyer les documents';
+  }
 }
 
 // ===== MODAL =====
