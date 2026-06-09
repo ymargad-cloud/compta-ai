@@ -266,6 +266,12 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
       <div class="nav-item" onclick="showPage('export')">
         <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Export
       </div>
+      <div class="nav-section-label" style="margin-top:8px">Reporting</div>
+      <div class="nav-item" id="nav-tva-deductions" onclick="showPage('tva-deductions')">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 2.5 2 2.5-2 3.5 2z"/></svg>
+        Déductions TVA
+      </div>
+
       <div class="nav-section-label" style="margin-top:8px">Administration</div>
       <div class="nav-item" id="nav-users" onclick="showPage('users')">
         <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>Utilisateurs
@@ -513,6 +519,87 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
         </div>
       </div>
 
+      <!-- TVA DÉDUCTIONS -->
+      <div class="page" id="page-tva-deductions">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+          <div>
+            <div style="font-family:var(--display);font-size:16px;font-weight:700">Tableau des déductions TVA</div>
+            <div style="color:var(--muted);font-size:12px;margin-top:4px">Relevé de déduction — Article 112 du CGI · Modèle ADC082F-15I</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-ghost" onclick="exportTVADeductionsXLS()">↓ XLS</button>
+            <button class="btn btn-primary" onclick="exportTVADeductionsXML()">↓ XML</button>
+          </div>
+        </div>
+
+        <!-- Filtres / En-tête -->
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-head"><h3>⚙ Paramètres du relevé</h3></div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding:16px">
+            <div class="form-group">
+              <label>Raison sociale</label>
+              <input class="form-input" id="tva-ded-raison" placeholder="ADDVALEO SARL"/>
+            </div>
+            <div class="form-group">
+              <label>Identifiant fiscal (IF)</label>
+              <input class="form-input" id="tva-ded-if" placeholder="54013184"/>
+            </div>
+            <div class="form-group">
+              <label>Année</label>
+              <select class="form-input" id="tva-ded-annee">
+                ${Array.from({length:8},(_,i)=>2023+i).map(y=>`<option value="${y}" ${y===new Date().getFullYear()?'selected':''}>${y}</option>`).join('')}
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Période (mois 1–12, ou 0 = annuel)</label>
+              <select class="form-input" id="tva-ded-periode">
+                <option value="0">Annuel</option>
+                ${['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'].map((m,i)=>`<option value="${i+1}">${i+1} – ${m}</option>`).join('')}
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Régime</label>
+              <select class="form-input" id="tva-ded-regime">
+                <option value="1">1 – Débit</option>
+                <option value="2" selected>2 – Encaissement</option>
+              </select>
+            </div>
+            <div style="display:flex;align-items:flex-end">
+              <button class="btn btn-primary" style="width:100%" onclick="buildTVADeductionsTable()">🔄 Générer le tableau</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tableau -->
+        <div class="card">
+          <div class="card-head">
+            <h3>📋 Lignes de déduction</h3>
+            <span id="tva-ded-count" style="font-size:11px;color:var(--muted);font-family:var(--mono)">—</span>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="data-table" id="tva-ded-table">
+              <thead>
+                <tr>
+                  <th>N°</th><th>N° Facture</th><th>Désignation</th>
+                  <th>Montant HT</th><th>TVA</th><th>Montant TTC</th>
+                  <th>IF Fournisseur</th><th>Fournisseur</th><th>ICE</th>
+                  <th>Taux TVA</th><th>Mode paiement</th>
+                  <th>Date paiement</th><th>Date facture</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-tva-ded">
+                <tr><td colspan="13" style="text-align:center;color:var(--muted);padding:40px">Cliquez sur "Générer le tableau" pour afficher les déductions</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:24px;font-family:var(--mono);font-size:12px">
+            <span>Total HT : <strong id="tva-ded-total-ht" style="color:var(--text)">—</strong></span>
+            <span>Total TVA : <strong id="tva-ded-total-tva" style="color:var(--warn)">—</strong></span>
+            <span>Total TTC : <strong id="tva-ded-total-ttc" style="color:var(--success)">—</strong></span>
+          </div>
+        </div>
+      </div>
+
       <!-- PROFIL & MOT DE PASSE -->
       <div class="page" id="page-profil">
         <div style="max-width:500px;margin:0 auto">
@@ -750,7 +837,7 @@ async function createCompany() {
 }
 
 // ===== NAVIGATION =====
-const pageTitles={dashboard:'Tableau de bord',upload:'Upload & traitement',dossiers:'Dossiers',factures:'Factures',releves:'Relevés bancaires',tva:'Déclarations TVA',rapprochement:'Rapprochement',export:'Export',users:'Utilisateurs',portail:'Portail clients',profil:'Mon profil'};
+const pageTitles={dashboard:'Tableau de bord',upload:'Upload & traitement',dossiers:'Dossiers',factures:'Factures',releves:'Relevés bancaires',tva:'Déclarations TVA',rapprochement:'Rapprochement',export:'Export','tva-deductions':'Déductions TVA',users:'Utilisateurs',portail:'Portail clients',profil:'Mon profil'};
 function showPage(id) {
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
@@ -768,6 +855,7 @@ function showPage(id) {
   if(id==='tva') renderTVAList();
   if(id==='dossiers') renderDossiers();
   if(id==='portail' && currentCompanyId) loadClientDocs();
+  if(id==='tva-deductions' && currentCompanyId) buildTVADeductionsTable();
 }
 
 // ===== API KEY =====
@@ -1214,6 +1302,256 @@ function runRapprochement(){
   const pct=allFactures.length?Math.round(matched/allFactures.length*100):0;
   document.getElementById('rappr-status').textContent=`${matched}/${allFactures.length} rapprochements réussis`;
   toast(`Rapprochement: ${pct}% de matching`,pct>60?'success':'info');
+}
+
+// ===== TVA DÉDUCTIONS =====
+
+// Codes mode de paiement (référence EDI DGI)
+const MODE_PAIE = { 1:'Espèces', 2:'Chèque', 3:'Prélèvement', 4:'Virement', 5:'Effet', 6:'Compensation', 7:'Autres' };
+
+// Déterminer le mode de paiement d'une facture à partir du rapprochement
+function getModeEtDatePaiement(facture) {
+  // Chercher une transaction rapprochée (même dossier_id et même date approximative)
+  // Pour les tickets/bons de caisse (journal C) non rapprochés → espèces
+  if (facture.journal === 'C') {
+    // Vérifier si rapproché (dossier_id présent)
+    if (!facture.dossier_id) return { mode: 1, date: facture.date_facture }; // Espèces
+  }
+  // Chercher une transaction bancaire dans le même dossier
+  if (facture.dossier_id) {
+    const txs = (allTransactions || []).filter(t => t.dossier_id === facture.dossier_id && t.type_mouvement === 'debit');
+    if (txs.length > 0) {
+      const tx = txs[0];
+      // Déterminer le mode selon le libellé
+      const lib = (tx.libelle || '').toUpperCase();
+      let mode = 4; // Virement par défaut
+      if (/CHEQUE|CHQ/.test(lib)) mode = 2;
+      else if (/PRELEVEMENT|PRÉLÈVEMENT/.test(lib)) mode = 3;
+      else if (/EFFET/.test(lib)) mode = 5;
+      return { mode, date: tx.date_operation };
+    }
+    // Dossier présent mais pas de transaction trouvée → virement
+    return { mode: 4, date: facture.date_facture };
+  }
+  return null; // Non payée → exclure du tableau
+}
+
+function buildTVADeductionsTable() {
+  const annee   = parseInt(document.getElementById('tva-ded-annee').value);
+  const periode = parseInt(document.getElementById('tva-ded-periode').value);
+
+  // Pré-remplir raison sociale et IF depuis la société active si vides
+  const selOpt = document.getElementById('company-select')?.selectedOptions[0];
+  if (selOpt && !document.getElementById('tva-ded-raison').value) {
+    document.getElementById('tva-ded-raison').value = selOpt.text.split(' · ')[0];
+  }
+
+  // Filtrer : factures achats + tickets caisse avec TVA > 0
+  const factures = (allFactures || []).filter(f => {
+    if (f.type_facture === 'vente') return false;
+    if (!f.montant_tva || +f.montant_tva === 0) return false;
+    if (!f.date_facture) return false;
+    const d = new Date(f.date_facture);
+    if (d.getFullYear() !== annee) return false;
+    if (periode > 0 && (d.getMonth() + 1) !== periode) return false;
+    // Doit être payée (rapprochée) OU être un ticket caisse (espèces)
+    const paiement = getModeEtDatePaiement(f);
+    return paiement !== null;
+  });
+
+  const tbody = document.getElementById('tbody-tva-ded');
+  if (!factures.length) {
+    tbody.innerHTML = `<tr><td colspan="13" style="text-align:center;color:var(--muted);padding:30px">Aucune facture avec TVA trouvée pour cette période.<br><small>Vérifiez que les factures sont rapprochées avec les relevés bancaires (dans les dossiers).</small></td></tr>`;
+    document.getElementById('tva-ded-count').textContent = '0 ligne';
+    ['ht','tva','ttc'].forEach(k => document.getElementById(`tva-ded-total-${k}`).textContent = '—');
+    return;
+  }
+
+  let totalHT = 0, totalTVA = 0, totalTTC = 0;
+  const rows = factures.map((f, i) => {
+    const p = getModeEtDatePaiement(f);
+    const ht = +f.montant_ht || 0, tva = +f.montant_tva || 0, ttc = +f.montant_ttc || 0;
+    const taux = +f.taux_tva || 0;
+    totalHT += ht; totalTVA += tva; totalTTC += ttc;
+    const modeLabel = MODE_PAIE[p.mode] || 'Autres';
+    return { ordre: i+1, f, ht, tva, ttc, taux, mode: p.mode, modeLabel, datePaie: p.date };
+  });
+
+  tbody.innerHTML = rows.map(r => `<tr>
+    <td style="font-family:var(--mono);font-size:11px">${r.ordre}</td>
+    <td style="font-family:var(--mono);font-size:11px">${r.f.numero || '—'}</td>
+    <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.f.description || r.f.categorie || ''}">${(r.f.description || r.f.categorie || '—').substring(0, 40).toUpperCase()}</td>
+    <td class="amount">${fmtAmt(r.ht)}</td>
+    <td class="amount" style="color:var(--warn)">${fmtAmt(r.tva)}</td>
+    <td class="amount pos">${fmtAmt(r.ttc)}</td>
+    <td style="font-family:var(--mono);font-size:11px">${r.f.fournisseur_ice ? r.f.fournisseur_ice.replace(/\D/g,'').substring(0,8) : '—'}</td>
+    <td style="font-weight:500">${r.f.fournisseur || '—'}</td>
+    <td style="font-family:var(--mono);font-size:10px">${r.f.fournisseur_ice || '—'}</td>
+    <td class="amount">${(r.taux * 100).toFixed(0)}%</td>
+    <td><span class="status-badge ${r.mode===1?'pending':r.mode===4?'done':'processing'}">${r.modeLabel}</span></td>
+    <td style="font-family:var(--mono);font-size:11px">${r.datePaie ? new Date(r.datePaie).toLocaleDateString('fr-MA') : '—'}</td>
+    <td style="font-family:var(--mono);font-size:11px">${r.f.date_facture ? new Date(r.f.date_facture).toLocaleDateString('fr-MA') : '—'}</td>
+  </tr>`).join('');
+
+  document.getElementById('tva-ded-count').textContent = `${rows.length} ligne${rows.length > 1 ? 's' : ''}`;
+  document.getElementById('tva-ded-total-ht').textContent  = fmtAmt(totalHT);
+  document.getElementById('tva-ded-total-tva').textContent = fmtAmt(totalTVA);
+  document.getElementById('tva-ded-total-ttc').textContent = fmtAmt(totalTTC);
+}
+
+function getTVADeductionData() {
+  const annee   = document.getElementById('tva-ded-annee')?.value || new Date().getFullYear();
+  const periode = document.getElementById('tva-ded-periode')?.value || 0;
+  const regime  = document.getElementById('tva-ded-regime')?.value || 2;
+  const raison  = document.getElementById('tva-ded-raison')?.value || '';
+  const idFisc  = document.getElementById('tva-ded-if')?.value || '';
+
+  const factures = (allFactures || []).filter(f => {
+    if (f.type_facture === 'vente') return false;
+    if (!f.montant_tva || +f.montant_tva === 0) return false;
+    if (!f.date_facture) return false;
+    const d = new Date(f.date_facture);
+    if (d.getFullYear() !== parseInt(annee)) return false;
+    if (parseInt(periode) > 0 && (d.getMonth() + 1) !== parseInt(periode)) return false;
+    return getModeEtDatePaiement(f) !== null;
+  });
+
+  return { annee, periode, regime, raison, idFisc, factures };
+}
+
+function exportTVADeductionsXLS() {
+  const { annee, periode, regime, raison, idFisc, factures } = getTVADeductionData();
+  if (!factures.length) { toast('Aucune donnée à exporter','error'); return; }
+
+  const wb = XLSX.utils.book_new();
+  const data = [];
+
+  // En-tête
+  data.push(['RAISON SOCIAL', null, raison]);
+  data.push(['ID_FISCAL',     null, idFisc]);
+  data.push(['ANNEE',         null, parseInt(annee)]);
+  data.push(['PERIODE(Mois)', null, parseInt(periode), null, null, 'Relevé de déduction']);
+  data.push(['REGIME(Encais-1)', null, parseInt(regime), null, null, '(Article 112 du Code Général des Impôts)']);
+  data.push([]);
+  data.push(['ORDRE','FACT_NUM','DESIGNATION','M_HT','TVA','M_TTC','IF','LIB_FRSS','_FRS','TAUX','ID_PAIE','DATE_PAIE','DATE_FAC']);
+
+  factures.forEach((f, i) => {
+    const p = getModeEtDatePaiement(f);
+    const ht = +f.montant_ht || 0, tva = +f.montant_tva || 0, ttc = +f.montant_ttc || 0;
+    data.push([
+      i === 0 ? 1 : `=+A${8+i}+1`,
+      f.numero || '',
+      (f.description || f.categorie || '').substring(0, 40).toUpperCase(),
+      ht, tva, ttc,
+      f.fournisseur_ice ? f.fournisseur_ice.replace(/\D/g,'').substring(0,8) : '',
+      (f.fournisseur || '').toUpperCase(),
+      f.fournisseur_ice || '',
+      +f.taux_tva || 0,
+      p ? p.mode : 4,
+      p?.date ? new Date(p.date) : null,
+      f.date_facture ? new Date(f.date_facture) : null,
+    ]);
+  });
+
+  // Ligne totaux
+  const dataStart = 8, dataEnd = 8 + factures.length - 1;
+  data.push([
+    'Total', null, null,
+    `=SUBTOTAL(109,D${dataStart}:D${dataEnd})`,
+    `=SUBTOTAL(109,E${dataStart}:E${dataEnd})`,
+    `=SUBTOTAL(109,F${dataStart}:F${dataEnd})`,
+    null, null, null, null, null, null,
+    `=SUBTOTAL(103,M${dataStart}:M${dataEnd})`,
+  ]);
+
+  const ws = XLSX.utils.aoa_to_sheet(data);
+
+  // Formats des colonnes dates
+  const dateStyle = { numFmt: 'DD/MM/YYYY' };
+  for (let r = dataStart; r <= dataEnd; r++) {
+    const cellL = XLSX.utils.encode_cell({ r: r, c: 11 }); // DATE_PAIE
+    const cellM = XLSX.utils.encode_cell({ r: r, c: 12 }); // DATE_FAC
+    if (ws[cellL]) ws[cellL].t = 'd';
+    if (ws[cellM]) ws[cellM].t = 'd';
+  }
+
+  ws['!cols'] = [{wch:8},{wch:16},{wch:35},{wch:12},{wch:10},{wch:12},{wch:10},{wch:25},{wch:18},{wch:6},{wch:6},{wch:12},{wch:12}];
+
+  XLSX.utils.book_append_sheet(wb, ws, 'EDI');
+
+  // Feuille REF
+  const wsRef = XLSX.utils.aoa_to_sheet([
+    [],
+    ['REGIME(Encais-1)', '1: Débit / 2: Encaissement'],
+    ['ID_PAIE', '1 espèce, 2 : chèque, 3 : Prélèvement, 4 : virement ; 5 : Effet, 6 : compensation, 7 : autres'],
+    [],
+    ["Pour générer le fichier XML, il suffit d'aller sur l'onglet développeur et cliquer sur exporter"],
+  ]);
+  XLSX.utils.book_append_sheet(wb, wsRef, 'REF');
+
+  const nomFichier = `TVA_Deductions_${raison.replace(/\s/g,'_')}_${annee}${periode>0?'_M'+periode:''}.xls`;
+  XLSX.writeFile(wb, nomFichier, { bookType: 'biff8' });
+  toast(`${nomFichier} généré ✓`, 'success');
+}
+
+function exportTVADeductionsXML() {
+  const { annee, periode, regime, raison, idFisc, factures } = getTVADeductionData();
+  if (!factures.length) { toast('Aucune donnée à exporter','error'); return; }
+
+  const fmt = v => v !== null && v !== undefined ? String(v) : '';
+  const fmtDate = d => { if (!d) return ''; const dt = new Date(d); return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`; };
+  const fmtNum = v => isNaN(+v) ? '0' : (+v).toFixed(2);
+
+  const lignes = factures.map((f, i) => {
+    const p = getModeEtDatePaiement(f);
+    return `    <LIGNE>
+      <ORDRE>${i+1}</ORDRE>
+      <FACT_NUM>${fmt(f.numero)}</FACT_NUM>
+      <DESIGNATION>${(f.description || f.categorie || '').substring(0,40).toUpperCase()}</DESIGNATION>
+      <M_HT>${fmtNum(f.montant_ht)}</M_HT>
+      <TVA>${fmtNum(f.montant_tva)}</TVA>
+      <M_TTC>${fmtNum(f.montant_ttc)}</M_TTC>
+      <IF>${f.fournisseur_ice ? f.fournisseur_ice.replace(/\D/g,'').substring(0,8) : ''}</IF>
+      <LIB_FRSS>${fmt(f.fournisseur).toUpperCase()}</LIB_FRSS>
+      <ICE>${fmt(f.fournisseur_ice)}</ICE>
+      <TAUX>${fmtNum((+f.taux_tva||0)*100)}</TAUX>
+      <ID_PAIE>${p ? p.mode : 4}</ID_PAIE>
+      <DATE_PAIE>${fmtDate(p?.date)}</DATE_PAIE>
+      <DATE_FAC>${fmtDate(f.date_facture)}</DATE_FAC>
+    </LIGNE>`;
+  }).join('\n');
+
+  const totalHT  = factures.reduce((s,f)=>s+(+f.montant_ht||0),0);
+  const totalTVA = factures.reduce((s,f)=>s+(+f.montant_tva||0),0);
+  const totalTTC = factures.reduce((s,f)=>s+(+f.montant_ttc||0),0);
+
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<RELEVE_DEDUCTION modele="ADC082F-15I">
+  <ENTETE>
+    <RAISON_SOCIAL>${raison}</RAISON_SOCIAL>
+    <ID_FISCAL>${idFisc}</ID_FISCAL>
+    <ANNEE>${annee}</ANNEE>
+    <PERIODE>${periode}</PERIODE>
+    <REGIME>${regime}</REGIME>
+  </ENTETE>
+  <LIGNES>
+${lignes}
+  </LIGNES>
+  <TOTAUX>
+    <TOTAL_HT>${fmtNum(totalHT)}</TOTAL_HT>
+    <TOTAL_TVA>${fmtNum(totalTVA)}</TOTAL_TVA>
+    <TOTAL_TTC>${fmtNum(totalTTC)}</TOTAL_TTC>
+    <NB_LIGNES>${factures.length}</NB_LIGNES>
+  </TOTAUX>
+</RELEVE_DEDUCTION>`;
+
+  const blob = new Blob([xml], { type: 'application/xml;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `TVA_Deductions_${raison.replace(/\s/g,'_')}_${annee}${periode>0?'_M'+periode:''}.xml`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('Fichier XML généré ✓', 'success');
 }
 
 // ===== EXPORT =====
