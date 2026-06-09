@@ -1371,7 +1371,9 @@ async function refreshUnprocessed() {
   } catch(e) {
     el.innerHTML = `<div style="padding:16px;color:var(--danger);font-size:12px">Erreur : ${e.message}</div>`;
   }
-}if(!v&&v!==0)return'—';return Number(v).toLocaleString('fr-MA',{minimumFractionDigits:2,maximumFractionDigits:2})+' MAD';}
+}
+
+function fmtAmt(v){if(!v&&v!==0)return'—';return Number(v).toLocaleString('fr-MA',{minimumFractionDigits:2,maximumFractionDigits:2})+' MAD';}
 function filterTable(type,q){document.querySelectorAll(`#tbody-${type==='factures'?'factures':'releves'} tr`).forEach(r=>{r.style.display=r.textContent.toLowerCase().includes(q.toLowerCase())?'':'none';});}
 
 // ===== DASHBOARD =====
