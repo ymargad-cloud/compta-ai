@@ -571,18 +571,26 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
               <label>Période (mois 1–12, ou 0 = annuel)</label>
               <select class="form-input" id="tva-ded-periode">
                 <option value="0">Annuel</option>
-                <option value="1">1 – Janvier</option>
-                <option value="2">2 – Février</option>
-                <option value="3">3 – Mars</option>
-                <option value="4">4 – Avril</option>
-                <option value="5">5 – Mai</option>
-                <option value="6">6 – Juin</option>
-                <option value="7">7 – Juillet</option>
-                <option value="8">8 – Août</option>
-                <option value="9">9 – Septembre</option>
-                <option value="10">10 – Octobre</option>
-                <option value="11">11 – Novembre</option>
-                <option value="12">12 – Décembre</option>
+                <optgroup label="── Mensuel ──">
+                  <option value="M1">Janvier</option>
+                  <option value="M2">Février</option>
+                  <option value="M3">Mars</option>
+                  <option value="M4">Avril</option>
+                  <option value="M5">Mai</option>
+                  <option value="M6">Juin</option>
+                  <option value="M7">Juillet</option>
+                  <option value="M8">Août</option>
+                  <option value="M9">Septembre</option>
+                  <option value="M10">Octobre</option>
+                  <option value="M11">Novembre</option>
+                  <option value="M12">Décembre</option>
+                </optgroup>
+                <optgroup label="── Trimestriel ──">
+                  <option value="T1">T1 — Janvier / Février / Mars</option>
+                  <option value="T2">T2 — Avril / Mai / Juin</option>
+                  <option value="T3">T3 — Juillet / Août / Septembre</option>
+                  <option value="T4">T4 — Octobre / Novembre / Décembre</option>
+                </optgroup>
               </select>
             </div>
             <div class="form-group">
@@ -1468,9 +1476,35 @@ function getModeEtDatePaiement(facture) {
   return null; // Non payée → exclure du tableau
 }
 
+// Retourne les mois couverts par une valeur de période (ex: 'T1' → [1,2,3], 'M4' → [4], '0' → null=tous)
+function periodeMois(val) {
+  if (!val || val === '0') return null; // annuel = tous les mois
+  if (val.startsWith('M')) return [parseInt(val.slice(1))];
+  if (val === 'T1') return [1,2,3];
+  if (val === 'T2') return [4,5,6];
+  if (val === 'T3') return [7,8,9];
+  if (val === 'T4') return [10,11,12];
+  // Ancien format numérique (rétrocompat)
+  const n = parseInt(val);
+  if (n > 0) return [n];
+  return null;
+}
+
+// Label lisible pour l'export
+function periodeLabel(val) {
+  if (!val || val === '0') return 'Annuel';
+  if (val.startsWith('M')) {
+    const mois = ['','Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+    return mois[parseInt(val.slice(1))] || val;
+  }
+  const tLabels = {T1:'T1 (Jan-Mar)',T2:'T2 (Avr-Jun)',T3:'T3 (Jul-Sep)',T4:'T4 (Oct-Déc)'};
+  return tLabels[val] || val;
+}
+
 function buildTVADeductionsTable() {
   const annee   = parseInt(document.getElementById('tva-ded-annee').value);
-  const periode = parseInt(document.getElementById('tva-ded-periode').value);
+  const periodeVal = document.getElementById('tva-ded-periode').value;
+  const moisFiltres = periodeMois(periodeVal);
 
   // Pré-remplir raison sociale et IF depuis la société active si vides
   const selOpt = document.getElementById('company-select')?.selectedOptions[0];
@@ -1485,7 +1519,7 @@ function buildTVADeductionsTable() {
     if (!f.date_facture) return false;
     const d = new Date(f.date_facture);
     if (d.getFullYear() !== annee) return false;
-    if (periode > 0 && (d.getMonth() + 1) !== periode) return false;
+    if (moisFiltres && !moisFiltres.includes(d.getMonth() + 1)) return false;
     // Doit être payée (rapprochée) OU être un ticket caisse (espèces)
     const paiement = getModeEtDatePaiement(f);
     return paiement !== null;
@@ -1533,7 +1567,9 @@ function buildTVADeductionsTable() {
 
 function getTVADeductionData() {
   const annee   = document.getElementById('tva-ded-annee')?.value || new Date().getFullYear();
-  const periode = document.getElementById('tva-ded-periode')?.value || 0;
+  const periodeRaw = document.getElementById('tva-ded-periode')?.value || '0';
+  const periode = periodeRaw; // garde la valeur brute pour l'export
+  const moisFiltresExp = periodeMois(periodeRaw);
   const regime  = document.getElementById('tva-ded-regime')?.value || 2;
   const raison  = document.getElementById('tva-ded-raison')?.value || '';
   const idFisc  = document.getElementById('tva-ded-if')?.value || '';
@@ -1544,7 +1580,7 @@ function getTVADeductionData() {
     if (!f.date_facture) return false;
     const d = new Date(f.date_facture);
     if (d.getFullYear() !== parseInt(annee)) return false;
-    if (parseInt(periode) > 0 && (d.getMonth() + 1) !== parseInt(periode)) return false;
+    if (moisFiltresExp && !moisFiltresExp.includes(d.getMonth() + 1)) return false;
     return getModeEtDatePaiement(f) !== null;
   });
 
@@ -1663,7 +1699,7 @@ function exportTVADeductionsXML() {
     <RAISON_SOCIAL>${raison}</RAISON_SOCIAL>
     <ID_FISCAL>${idFisc}</ID_FISCAL>
     <ANNEE>${annee}</ANNEE>
-    <PERIODE>${periode}</PERIODE>
+    <PERIODE>${periodeLabel(periode)}</PERIODE>
     <REGIME>${regime}</REGIME>
   </ENTETE>
   <LIGNES>
