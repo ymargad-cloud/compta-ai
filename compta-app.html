@@ -557,14 +557,32 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
             <div class="form-group">
               <label>Année</label>
               <select class="form-input" id="tva-ded-annee">
-                ${Array.from({length:8},(_,i)=>2023+i).map(y=>`<option value="${y}" ${y===new Date().getFullYear()?'selected':''}>${y}</option>`).join('')}
+                <option value="2023">2023</option>
+                <option value="2024">2024</option>
+                <option value="2025">2025</option>
+                <option value="2026" selected>2026</option>
+                <option value="2027">2027</option>
+                <option value="2028">2028</option>
+                <option value="2029">2029</option>
+                <option value="2030">2030</option>
               </select>
             </div>
             <div class="form-group">
               <label>Période (mois 1–12, ou 0 = annuel)</label>
               <select class="form-input" id="tva-ded-periode">
                 <option value="0">Annuel</option>
-                ${['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'].map((m,i)=>`<option value="${i+1}">${i+1} – ${m}</option>`).join('')}
+                <option value="1">1 – Janvier</option>
+                <option value="2">2 – Février</option>
+                <option value="3">3 – Mars</option>
+                <option value="4">4 – Avril</option>
+                <option value="5">5 – Mai</option>
+                <option value="6">6 – Juin</option>
+                <option value="7">7 – Juillet</option>
+                <option value="8">8 – Août</option>
+                <option value="9">9 – Septembre</option>
+                <option value="10">10 – Octobre</option>
+                <option value="11">11 – Novembre</option>
+                <option value="12">12 – Décembre</option>
               </select>
             </div>
             <div class="form-group">
@@ -866,7 +884,18 @@ function showPage(id) {
   if(id==='tva') renderTVAList();
   if(id==='dossiers') renderDossiers();
   if(id==='portail' && currentCompanyId) loadClientDocs();
-  if(id==='tva-deductions' && currentCompanyId) buildTVADeductionsTable();
+  if(id==='tva-deductions' && currentCompanyId) {
+    // Pré-remplir l'année courante
+    const sel = document.getElementById('tva-ded-annee');
+    if(sel) sel.value = new Date().getFullYear();
+    // Pré-remplir la raison sociale depuis la société active
+    const coOpt = document.getElementById('company-select')?.selectedOptions[0];
+    const raisonEl = document.getElementById('tva-ded-raison');
+    if(coOpt && raisonEl && !raisonEl.value) {
+      raisonEl.value = coOpt.text.split(' · ')[0];
+    }
+    buildTVADeductionsTable();
+  }
 }
 
 // ===== API KEY =====
