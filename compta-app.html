@@ -271,6 +271,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 2.5 2 2.5-2 3.5 2z"/></svg>
         Déductions TVA
       </div>
+      <div class="nav-item" id="nav-revue-comptes" onclick="showPage('revue-comptes')">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        Revue des comptes
+      </div>
 
       <div class="nav-section-label" style="margin-top:8px">Administration</div>
       <div class="nav-item" id="nav-users" onclick="showPage('users')">
@@ -636,6 +640,95 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
         </div>
       </div>
 
+      <!-- REVUE DES COMPTES -->
+      <div class="page" id="page-revue-comptes">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+          <div>
+            <div style="font-family:var(--display);font-size:16px;font-weight:700">Revue des comptes</div>
+            <div style="color:var(--muted);font-size:12px;margin-top:4px">Générez une présentation de synthèse à partir de votre grand livre comptable</div>
+          </div>
+          <div style="display:flex;gap:8px" id="revue-export-btns" style="display:none">
+            <button class="btn btn-ghost" onclick="exportRevueXLS()">↓ Synthèse XLS</button>
+            <button class="btn btn-primary" onclick="exportRevuePPTX()">↓ Présentation PPTX</button>
+          </div>
+        </div>
+
+        <!-- Upload grand livre -->
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-head"><h3>📂 Import Grand Livre</h3></div>
+          <div style="padding:16px">
+            <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:14px;margin-bottom:16px">
+              <div class="form-group">
+                <label>Raison sociale</label>
+                <input class="form-input" id="revue-raison" placeholder="ADDVALEO SARL"/>
+              </div>
+              <div class="form-group">
+                <label>Exercice</label>
+                <select class="form-input" id="revue-exercice">
+                  <option value="2023">2023</option><option value="2024">2024</option>
+                  <option value="2025">2025</option><option value="2026" selected>2026</option>
+                  <option value="2027">2027</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Date de clôture</label>
+                <input class="form-input" type="date" id="revue-cloture" value="2025-12-31"/>
+              </div>
+              <div class="form-group">
+                <label>Préparé par</label>
+                <input class="form-input" id="revue-cabinet" placeholder="Cabinet NEOEXPERT"/>
+              </div>
+            </div>
+            <div class="drop-zone" id="dz-grandlivre" style="padding:28px;text-align:center;position:relative" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="handleGLDrop(event)">
+              <input type="file" accept=".xls,.xlsx,.csv" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%" onchange="handleGLFile(this.files[0])"/>
+              <div style="font-size:28px;margin-bottom:8px">📊</div>
+              <div style="font-weight:500;margin-bottom:4px">Glissez votre Grand Livre ici</div>
+              <div style="color:var(--muted);font-size:12px">Format attendu : colonnes dateop · ejourn · compt2 · lib · debit · credit · solded · soldec</div>
+              <div class="fmt-badges" style="margin-top:10px"><span class="fmt-badge">XLS</span><span class="fmt-badge">XLSX</span><span class="fmt-badge">CSV</span></div>
+            </div>
+            <div id="gl-status" style="display:none;margin-top:12px;padding:10px 14px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.2);border-radius:8px;font-size:12px;color:var(--success)"></div>
+          </div>
+        </div>
+
+        <!-- Chiffres clés calculés -->
+        <div id="revue-kpis" style="display:none">
+          <div class="divider"><h2>Chiffres clés</h2><div class="divider-line"></div></div>
+          <div class="stats-grid" style="margin-bottom:16px">
+            <div class="stat-card"><div class="stat-label">Chiffre d'affaires</div><div class="stat-value accent" id="kpi-ca">—</div><div class="stat-sub" id="kpi-ca-sub">Comptes 7xxx</div></div>
+            <div class="stat-card"><div class="stat-label">Résultat net</div><div class="stat-value" id="kpi-resultat">—</div><div class="stat-sub">Produits – Charges</div></div>
+            <div class="stat-card"><div class="stat-label">Trésorerie</div><div class="stat-value success" id="kpi-tresos">—</div><div class="stat-sub">Banques + Caisse</div></div>
+            <div class="stat-card"><div class="stat-label">Capitaux propres</div><div class="stat-value" id="kpi-cp">—</div><div class="stat-sub">Comptes 1xxx</div></div>
+          </div>
+
+          <!-- Bilan simplifié -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+            <div class="card">
+              <div class="card-head"><h3>📋 Actif</h3><span id="total-actif-badge" class="status-badge done"></span></div>
+              <div id="bilan-actif" style="padding:8px"></div>
+            </div>
+            <div class="card">
+              <div class="card-head"><h3>📋 Passif</h3><span id="total-passif-badge" class="status-badge done"></span></div>
+              <div id="bilan-passif" style="padding:8px"></div>
+            </div>
+          </div>
+
+          <!-- IS et tableau fiscal -->
+          <div class="card" style="margin-bottom:16px">
+            <div class="card-head"><h3>🏛 Impôt sur les Sociétés</h3></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0" id="is-table"></div>
+          </div>
+
+          <!-- Points d'attention IA -->
+          <div class="card" style="margin-bottom:16px">
+            <div class="card-head">
+              <h3>⚠️ Points d'attention</h3>
+              <button class="btn btn-primary" id="btn-gen-ia" onclick="genererPointsIA()" style="font-size:11px">✨ Analyser avec l'IA</button>
+            </div>
+            <div id="points-attention" style="padding:16px;color:var(--muted);font-size:12px">Cliquez sur "Analyser avec l'IA" pour générer des points d'attention automatiques</div>
+          </div>
+        </div>
+      </div>
+
       <!-- PROFIL & MOT DE PASSE -->
       <div class="page" id="page-profil">
         <div style="max-width:500px;margin:0 auto">
@@ -720,6 +813,7 @@ let allFactures = [];
 let allTransactions = [];
 let allTVADeclarations = [];
 let allDossiers = [];
+let allCompanies = [];
 
 // ===== API HELPER =====
 async function api(method, path, body) {
@@ -809,6 +903,7 @@ function enterApp() {
 async function loadCompanies() {
   try {
     const companies = await api('GET', '/api/companies');
+    allCompanies = companies;
     const sel = document.getElementById('company-select');
     sel.innerHTML = '<option value="">— Choisir une société —</option>' +
       companies.map(c=>`<option value="${c.id}">${c.name}${c.exercice ? ' · '+c.exercice : ''}</option>`).join('');
@@ -825,6 +920,15 @@ async function selectCompany(id) {
   document.getElementById('topbar-company').textContent = name;
   const btnDel = document.getElementById('btn-delete-company');
   if(btnDel) btnDel.style.display = id ? 'block' : 'none';
+
+  // Synchroniser les champs Déductions TVA avec la société active
+  const co = allCompanies.find(c => c.id === id);
+  if(co) {
+    const raisonEl = document.getElementById('tva-ded-raison');
+    const ifEl     = document.getElementById('tva-ded-if');
+    if(raisonEl) raisonEl.value = co.name || '';
+    if(ifEl)     ifEl.value     = co.ice  || co.if_fiscal || '';
+  }
   const noComp = !id;
   document.getElementById('dashboard-no-company').style.display = noComp?'flex':'none';
   document.getElementById('dashboard-content').style.display = noComp?'none':'block';
@@ -844,7 +948,8 @@ function openNewCompanyModal() {
   document.getElementById('modal-body').innerHTML = `
     <div class="auth-form">
       <div class="form-group"><label>Nom de la société</label><input class="form-input" id="new-co-name" placeholder="Ex: SARL Atlas" autofocus/></div>
-      <div class="form-group"><label>ICE (optionnel)</label><input class="form-input" id="new-co-ice" placeholder="Identifiant fiscal"/></div>
+      <div class="form-group"><label>Identifiant Fiscal (IF)</label><input class="form-input" id="new-co-if" placeholder="Ex: 54013184"/></div>
+      <div class="form-group"><label>ICE</label><input class="form-input" id="new-co-ice" placeholder="Ex: 002121456000089"/></div>
       <div class="form-group"><label>Ville</label><input class="form-input" id="new-co-ville" placeholder="Casablanca"/></div>
       <div class="form-group"><label>Exercice comptable</label>
         <select class="form-input" id="new-co-exercice">
@@ -860,13 +965,14 @@ function openNewCompanyModal() {
 }
 
 async function createCompany() {
-  const name     = document.getElementById('new-co-name').value.trim();
-  const ice      = document.getElementById('new-co-ice').value.trim();
-  const ville    = document.getElementById('new-co-ville').value.trim();
-  const exercice = document.getElementById('new-co-exercice').value;
+  const name      = document.getElementById('new-co-name').value.trim();
+  const if_fiscal = document.getElementById('new-co-if').value.trim();
+  const ice       = document.getElementById('new-co-ice').value.trim();
+  const ville     = document.getElementById('new-co-ville').value.trim();
+  const exercice  = document.getElementById('new-co-exercice').value;
   if(!name) { toast('Entrez le nom de la société','error'); return; }
   try {
-    await api('POST', '/api/companies', { name, ice, ville, exercice });
+    await api('POST', '/api/companies', { name, if_fiscal, ice, ville, exercice });
     closeModal();
     await loadCompanies();
     toast(`Société "${name}" — Exercice ${exercice} créée ✓`,'success');
@@ -874,7 +980,7 @@ async function createCompany() {
 }
 
 // ===== NAVIGATION =====
-const pageTitles={dashboard:'Tableau de bord',upload:'Upload & traitement',dossiers:'Dossiers',factures:'Factures',releves:'Relevés bancaires',tva:'Déclarations TVA',rapprochement:'Rapprochement',export:'Export','tva-deductions':'Déductions TVA',users:'Utilisateurs',portail:'Portail clients',profil:'Mon profil'};
+const pageTitles={dashboard:'Tableau de bord',upload:'Upload & traitement',dossiers:'Dossiers',factures:'Factures',releves:'Relevés bancaires',tva:'Déclarations TVA',rapprochement:'Rapprochement',export:'Export','tva-deductions':'Déductions TVA','revue-comptes':'Revue des comptes',users:'Utilisateurs',portail:'Portail clients',profil:'Mon profil'};
 function showPage(id) {
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
@@ -1506,11 +1612,6 @@ function buildTVADeductionsTable() {
   const periodeVal = document.getElementById('tva-ded-periode').value;
   const moisFiltres = periodeMois(periodeVal);
 
-  // Pré-remplir raison sociale et IF depuis la société active si vides
-  const selOpt = document.getElementById('company-select')?.selectedOptions[0];
-  if (selOpt && !document.getElementById('tva-ded-raison').value) {
-    document.getElementById('tva-ded-raison').value = selOpt.text.split(' · ')[0];
-  }
 
   // Filtrer : factures achats + tickets caisse avec TVA > 0
   const factures = (allFactures || []).filter(f => {
@@ -1571,8 +1672,9 @@ function getTVADeductionData() {
   const periode = periodeRaw; // garde la valeur brute pour l'export
   const moisFiltresExp = periodeMois(periodeRaw);
   const regime  = document.getElementById('tva-ded-regime')?.value || 2;
-  const raison  = document.getElementById('tva-ded-raison')?.value || '';
-  const idFisc  = document.getElementById('tva-ded-if')?.value || '';
+  const co      = allCompanies.find(c => c.id === currentCompanyId);
+  const raison  = document.getElementById('tva-ded-raison')?.value || co?.name || '';
+  const idFisc  = document.getElementById('tva-ded-if')?.value || co?.if_fiscal || co?.ice || '';
 
   const factures = (allFactures || []).filter(f => {
     if (f.type_facture === 'vente') return false;
@@ -1720,6 +1822,458 @@ ${lignes}
   a.click();
   URL.revokeObjectURL(a.href);
   toast('Fichier XML généré ✓', 'success');
+}
+
+// ===== REVUE DES COMPTES =====
+let glData = []; // Lignes du grand livre parsé
+
+function handleGLDrop(e) {
+  e.preventDefault();
+  document.getElementById('dz-grandlivre').classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if(file) handleGLFile(file);
+}
+
+function handleGLFile(file) {
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(e.target.result, { type:'array', cellDates:true });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { defval:null });
+      glData = rows;
+      const status = document.getElementById('gl-status');
+      status.style.display = 'block';
+      status.textContent = `✓ ${rows.length} lignes chargées depuis "${file.name}"`;
+
+      // Pré-remplir raison sociale depuis société active
+      const co = allCompanies.find(c => c.id === currentCompanyId);
+      if(co) {
+        if(!document.getElementById('revue-raison').value) document.getElementById('revue-raison').value = co.name;
+      }
+      calculerKPIs();
+    } catch(err) {
+      toast('Erreur lecture fichier: ' + err.message, 'error');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// Normaliser le nom de colonne
+function glCol(row, ...names) {
+  for(const n of names) {
+    const found = Object.keys(row).find(k => k.toLowerCase().trim() === n.toLowerCase());
+    if(found !== undefined && row[found] !== null) return row[found];
+  }
+  return null;
+}
+
+// Obtenir le solde final d'un compte (dernière ligne Total ou dernier solde)
+function getSoldeCompte(prefixe) {
+  const lignes = glData.filter(r => {
+    const c = glCol(r,'compt2','compte');
+    const lib = glCol(r,'lib','libelle') || '';
+    // Ligne de total du compte
+    if(c === null && lib.toLowerCase().includes('total ' + prefixe.slice(0,4))) {
+      const totalMatch = lib.match(/total\s+(\d{4,10})/i);
+      return totalMatch && totalMatch[1].startsWith(prefixe.slice(0,4));
+    }
+    return false;
+  });
+  if(lignes.length > 0) {
+    const l = lignes[lignes.length-1];
+    const sd = parseFloat(glCol(l,'solded')) || 0;
+    const sc = parseFloat(glCol(l,'soldec')) || 0;
+    return sd - sc;
+  }
+  return null;
+}
+
+// Agréger soldes par préfixe de compte
+function agregeSoldes(prefixes) {
+  const totaux = {};
+  let totalDebit = 0, totalCredit = 0;
+
+  glData.forEach(r => {
+    const lib = String(glCol(r,'lib','libelle') || '');
+    const m = lib.match(/^total\s+(\d{4,10})/i);
+    if(!m) return;
+    const cpte = m[1];
+    const sd = parseFloat(glCol(r,'solded')) || 0;
+    const sc = parseFloat(glCol(r,'soldec')) || 0;
+    const solde = sd - sc;
+
+    for(const pref of prefixes) {
+      if(cpte.startsWith(pref)) {
+        if(!totaux[cpte]) totaux[cpte] = { lib: '', solde: 0 };
+        totaux[cpte].solde += solde;
+      }
+    }
+  });
+
+  // Récupérer libellés des en-têtes de compte
+  glData.forEach(r => {
+    const c = glCol(r,'compt2','compte');
+    const lib = String(glCol(r,'lib','libelle') || '');
+    if(c && lib && !lib.toLowerCase().startsWith('total')) {
+      if(totaux[c]) totaux[c].lib = lib;
+    }
+  });
+
+  return Object.entries(totaux).map(([cpte, v]) => ({ cpte, lib: v.lib, solde: v.solde }));
+}
+
+function calculerKPIs() {
+  // ── Produits (7xxx) ──
+  const produits = agregeSoldes(['7']);
+  const totalProduits = produits.reduce((s,p) => s + (p.solde < 0 ? -p.solde : 0), 0) +
+                        produits.reduce((s,p) => s + (p.solde > 0 ? 0 : Math.abs(p.solde)), 0);
+  // CA = comptes 71xx (ventes)
+  const ca = agregeSoldes(['71','72']).reduce((s,p) => s + Math.abs(p.solde), 0);
+
+  // ── Charges (6xxx) ──
+  const charges = agregeSoldes(['6']);
+  const totalCharges = charges.reduce((s,p) => s + (p.solde > 0 ? p.solde : 0), 0);
+
+  // ── Résultat ──
+  const resultat = ca - totalCharges;
+
+  // ── Trésorerie (51xx + 57xx) ──
+  const banques = agregeSoldes(['514','516','51']).reduce((s,p) => s + (p.solde > 0 ? p.solde : 0), 0);
+  const caisse  = agregeSoldes(['57']).reduce((s,p) => s + (p.solde > 0 ? p.solde : 0), 0);
+  const tresos  = banques + caisse;
+
+  // ── Capitaux propres (1xxx) ──
+  const capPropres = agregeSoldes(['11','12','13','14','15']).reduce((s,p) => s + Math.abs(p.solde), 0);
+
+  // ── Actif ──
+  const actifImmo    = agregeSoldes(['21','22','23','24','28']);
+  const actifCirc    = agregeSoldes(['31','32','33','34','35','37','38','39','41','42','43','44','45','46','47','48','51','52','53','54','55','56','57']);
+  const totalActif   = [...actifImmo,...actifCirc].reduce((s,p) => s + (p.solde > 0 ? p.solde : 0), 0);
+
+  // ── Passif ──
+  const passif       = agregeSoldes(['11','12','13','14','15','16','17','44','45','46','47','48']);
+  const totalPassif  = passif.reduce((s,p) => s + Math.abs(p.solde < 0 ? p.solde : 0), 0);
+
+  // Afficher KPIs
+  document.getElementById('kpi-ca').textContent        = fmtAmt(ca);
+  document.getElementById('kpi-resultat').textContent  = fmtAmt(resultat);
+  document.getElementById('kpi-resultat').style.color  = resultat >= 0 ? 'var(--success)' : 'var(--danger)';
+  document.getElementById('kpi-tresos').textContent    = fmtAmt(tresos);
+  document.getElementById('kpi-cp').textContent        = fmtAmt(capPropres);
+
+  // Bilan actif
+  const bilanActifEl = document.getElementById('bilan-actif');
+  const bilanItems = [
+    ...actifImmo.filter(p=>Math.abs(p.solde)>0).map(p=>({lib:p.lib||p.cpte, val:p.solde, cpte:p.cpte})),
+    ...actifCirc.filter(p=>p.solde>0).map(p=>({lib:p.lib||p.cpte, val:p.solde, cpte:p.cpte})),
+  ].sort((a,b)=>a.cpte.localeCompare(b.cpte)).slice(0,12);
+  bilanActifEl.innerHTML = bilanItems.map(i=>`
+    <div style="display:flex;justify-content:space-between;padding:7px 8px;border-bottom:1px solid var(--border);font-size:12px">
+      <span style="color:var(--text2);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${i.lib}">${i.lib || i.cpte}</span>
+      <span class="amount ${i.val>=0?'pos':'neg'}">${fmtAmt(Math.abs(i.val))}</span>
+    </div>`).join('') +
+    `<div style="display:flex;justify-content:space-between;padding:8px;font-weight:600;font-size:12px">
+      <span>TOTAL ACTIF</span><span class="amount pos">${fmtAmt(totalActif)}</span>
+    </div>`;
+  document.getElementById('total-actif-badge').textContent = fmtAmt(totalActif);
+
+  // Bilan passif
+  const bilanPassifEl = document.getElementById('bilan-passif');
+  const passifItems = passif.filter(p=>p.solde!==0).sort((a,b)=>a.cpte.localeCompare(b.cpte)).slice(0,12);
+  bilanPassifEl.innerHTML = passifItems.map(i=>`
+    <div style="display:flex;justify-content:space-between;padding:7px 8px;border-bottom:1px solid var(--border);font-size:12px">
+      <span style="color:var(--text2);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${i.lib || i.cpte}</span>
+      <span class="amount">${fmtAmt(Math.abs(i.solde))}</span>
+    </div>`).join('') +
+    `<div style="display:flex;justify-content:space-between;padding:8px;font-weight:600;font-size:12px">
+      <span>TOTAL PASSIF</span><span class="amount">${fmtAmt(totalPassif)}</span>
+    </div>`;
+  document.getElementById('total-passif-badge').textContent = fmtAmt(totalPassif);
+
+  // IS
+  const tauxIS = resultat <= 300000 ? 0.175 : resultat <= 1000000 ? 0.2 : 0.2375;
+  const isCalc = Math.max(resultat * tauxIS, 0);
+  const cm = Math.max(ca * 0.005, 3000);
+  const isAVerser = Math.max(isCalc, cm);
+  document.getElementById('is-table').innerHTML = `
+    <div style="padding:14px 16px;border-bottom:1px solid var(--border);border-right:1px solid var(--border)">
+      <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-family:var(--mono);margin-bottom:6px">Résultat comptable</div>
+      <div style="font-family:var(--display);font-size:22px;color:var(--text)">${fmtAmt(resultat)}</div>
+    </div>
+    <div style="padding:14px 16px;border-bottom:1px solid var(--border)">
+      <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-family:var(--mono);margin-bottom:6px">Taux IS appliqué</div>
+      <div style="font-family:var(--display);font-size:22px;color:var(--accent)">${(tauxIS*100).toFixed(2)}%</div>
+    </div>
+    <div style="padding:14px 16px;border-right:1px solid var(--border)">
+      <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-family:var(--mono);margin-bottom:6px">Cotisation Minimale</div>
+      <div style="font-family:var(--display);font-size:22px;color:var(--warn)">${fmtAmt(cm)}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px">0,5% CA — plancher 3 000 MAD</div>
+    </div>
+    <div style="padding:14px 16px;background:rgba(79,142,247,.04)">
+      <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-family:var(--mono);margin-bottom:6px">IS à verser</div>
+      <div style="font-family:var(--display);font-size:22px;color:var(--danger)">${fmtAmt(isAVerser)}</div>
+    </div>`;
+
+  // Stocker pour l'export
+  window._revueData = { ca, resultat, tresos, banques, caisse, capPropres, totalActif, totalPassif, isAVerser, isCalc, cm, tauxIS, bilanItems, passifItems };
+
+  document.getElementById('revue-kpis').style.display = 'block';
+  document.getElementById('revue-export-btns').style.display = 'flex';
+}
+
+async function genererPointsIA() {
+  const btn = document.getElementById('btn-gen-ia');
+  const el  = document.getElementById('points-attention');
+  if(!window._revueData) { toast('Importez d\'abord un grand livre','error'); return; }
+  btn.disabled = true; btn.textContent = '⏳ Analyse en cours...';
+  el.innerHTML = '<div class="loading"><div class="spinner"></div> Analyse IA en cours...</div>';
+  try {
+    const d = window._revueData;
+    const raison   = document.getElementById('revue-raison').value || 'Société';
+    const exercice = document.getElementById('revue-exercice').value;
+    const prompt = `Tu es expert-comptable marocain. Analyse ces données financières pour ${raison} — exercice ${exercice} et génère 3 à 5 points d'attention concrets et actionnables.
+
+Données:
+- CA: ${d.ca.toFixed(2)} MAD
+- Résultat: ${d.resultat.toFixed(2)} MAD
+- Trésorerie (banques): ${d.banques.toFixed(2)} MAD
+- Trésorerie (caisse): ${d.caisse.toFixed(2)} MAD
+- IS à verser: ${d.isAVerser.toFixed(2)} MAD
+- Total actif: ${d.totalActif.toFixed(2)} MAD
+- Capitaux propres: ${d.capPropres.toFixed(2)} MAD
+
+Réponds en JSON uniquement, sans markdown:
+[{"ordre":1,"titre":"...","description":"...","priorite":"haute|moyenne|basse","action":"..."}]`;
+
+    const clientKey = localStorage.getItem('compta_api_key') || '';
+    const headers = {'Content-Type':'application/json','anthropic-version':'2023-06-01','Authorization':`Bearer ${token}`};
+    if(clientKey) headers['x-client-key'] = clientKey;
+    const resp = await fetch('/api/messages', {method:'POST', headers, body:JSON.stringify({
+      model:'claude-haiku-4-5-20251001', max_tokens:1500,
+      messages:[{role:'user',content:[{type:'text',text:prompt}]}]
+    })});
+    const data = await resp.json();
+    const text = data.content.map(c=>c.text||'').join('').replace(/```json|```/g,'').trim();
+    const points = JSON.parse(text);
+    window._revueData.points = points;
+
+    const colorMap = { haute:'var(--danger)', moyenne:'var(--warn)', basse:'var(--success)' };
+    el.innerHTML = points.map((p,i) => `
+      <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;gap:12px">
+        <div style="width:28px;height:28px;border-radius:50%;background:${colorMap[p.priorite]||'var(--accent)'};opacity:.15;flex-shrink:0;display:flex;align-items:center;justify-content:center;position:relative">
+          <span style="position:absolute;font-weight:600;font-size:13px;color:${colorMap[p.priorite]||'var(--accent)'};opacity:1">${p.ordre||i+1}</span>
+        </div>
+        <div style="flex:1">
+          <div style="font-weight:600;font-size:13px;margin-bottom:4px">${p.titre}</div>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:6px">${p.description}</div>
+          <div style="font-size:11px;color:var(--accent);background:rgba(79,142,247,.06);padding:4px 10px;border-radius:6px;display:inline-block">→ ${p.action}</div>
+        </div>
+        <span class="status-badge ${p.priorite==='haute'?'error':p.priorite==='moyenne'?'pending':'done'}">${p.priorite}</span>
+      </div>`).join('');
+    toast('Analyse terminée ✓','success');
+  } catch(e) {
+    el.innerHTML = `<div style="padding:16px;color:var(--danger)">Erreur: ${e.message}</div>`;
+    toast('Erreur analyse IA','error');
+  } finally { btn.disabled=false; btn.textContent='✨ Analyser avec l\'IA'; }
+}
+
+function exportRevueXLS() {
+  if(!window._revueData) { toast('Importez d\'abord un grand livre','error'); return; }
+  const d = window._revueData;
+  const raison   = document.getElementById('revue-raison').value || 'Société';
+  const exercice = document.getElementById('revue-exercice').value;
+  const wb = XLSX.utils.book_new();
+
+  // Feuille synthèse
+  const synth = [
+    ['REVUE DES COMPTES — ' + raison.toUpperCase()],
+    ['Exercice ' + exercice],
+    [],
+    ['CHIFFRES CLÉS',''],
+    ['Chiffre d\'affaires', d.ca],
+    ['Résultat net', d.resultat],
+    ['Trésorerie — Banques', d.banques],
+    ['Trésorerie — Caisse', d.caisse],
+    ['Capitaux propres', d.capPropres],
+    [],
+    ['IMPÔT SUR LES SOCIÉTÉS',''],
+    ['IS calculé', d.isCalc],
+    ['Cotisation minimale', d.cm],
+    ['IS à verser', d.isAVerser],
+    [],
+    ['BILAN SIMPLIFIÉ',''],
+    ['Total Actif', d.totalActif],
+    ['Total Passif', d.totalPassif],
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(synth);
+  ws['!cols'] = [{wch:35},{wch:18}];
+  XLSX.utils.book_append_sheet(wb, ws, 'Synthèse');
+
+  // Feuille grand livre
+  if(glData.length) {
+    const wsGL = XLSX.utils.json_to_sheet(glData);
+    XLSX.utils.book_append_sheet(wb, wsGL, 'Grand Livre');
+  }
+
+  XLSX.writeFile(wb, `Revue_Comptes_${raison.replace(/\s/g,'_')}_${exercice}.xlsx`);
+  toast('Synthèse XLS générée ✓','success');
+}
+
+async function exportRevuePPTX() {
+  if(!window._revueData) { toast('Importez d\'abord un grand livre','error'); return; }
+  const btn = document.querySelector('[onclick="exportRevuePPTX()"]');
+  btn.disabled = true; btn.textContent = '⏳ Génération PPTX...';
+  try {
+    const d = window._revueData;
+    const raison    = document.getElementById('revue-raison').value || 'Société';
+    const exercice  = document.getElementById('revue-exercice').value;
+    const cloture   = document.getElementById('revue-cloture').value || '31/12/' + exercice;
+    const cabinet   = document.getElementById('revue-cabinet').value || 'Cabinet NEOEXPERT';
+    const points    = d.points || [];
+
+    // Charger pptxgenjs
+    if(typeof PptxGenJS === 'undefined') {
+      await new Promise((res,rej) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pptxgenjs/3.12.0/pptxgen.bundled.js';
+        s.onload = res; s.onerror = rej;
+        document.head.appendChild(s);
+      });
+    }
+
+    const pptx = new PptxGenJS();
+    pptx.layout = 'LAYOUT_WIDE';
+
+    // Couleurs thème
+    const C = { navy:'1E2761', gold:'F5C842', white:'FFFFFF', light:'EEF2FF',
+                green:'27AE60', red:'C0392B', blue:'2563EB', muted:'6B7A99', dark:'0D0F14' };
+
+    const fmtN = v => Number(v).toLocaleString('fr-MA',{minimumFractionDigits:2,maximumFractionDigits:2});
+
+    // ── Slide 1 : Couverture ─────────────────────────────
+    const s1 = pptx.addSlide();
+    s1.background = { color: C.navy };
+    s1.addShape(pptx.ShapeType.rect, { x:0, y:4.5, w:13.33, h:3.17, fill:{ color:C.gold } });
+    s1.addText(raison.toUpperCase(), { x:.5, y:.6, w:12, h:1, fontSize:32, bold:true, color:C.white, fontFace:'Cambria' });
+    s1.addText('Revue des', { x:.5, y:1.8, w:6, h:.7, fontSize:28, color:C.gold, fontFace:'Cambria', italic:true });
+    s1.addText('comptes', { x:.5, y:2.5, w:6, h:.7, fontSize:28, color:C.gold, fontFace:'Cambria', italic:true });
+    s1.addText(String(exercice), { x:7, y:1.5, w:5.5, h:2, fontSize:96, bold:true, color:C.white, fontFace:'Arial', align:'right', transparency:80 });
+    s1.addText(`Clôture ${cloture} — Référentiel CGNC`, { x:.5, y:4.7, w:9, h:.5, fontSize:12, color:C.dark, fontFace:'Calibri' });
+    s1.addText(`Document préparé par ${cabinet}`, { x:.5, y:5.2, w:9, h:.5, fontSize:11, color:C.dark, fontFace:'Calibri' });
+
+    // ── Slide 2 : Chiffres clés ──────────────────────────
+    const s2 = pptx.addSlide();
+    s2.background = { color:'F8FAFF' };
+    s2.addText(`ACTIVITÉ ${exercice} — CHIFFRES CLÉS`, { x:.5, y:.3, w:12, h:.6, fontSize:20, bold:true, color:C.navy, fontFace:'Calibri' });
+
+    const kpis = [
+      { label:'Chiffre d\'affaires total', val:fmtN(d.ca)+' MAD', sub:'Comptes 71xx–72xx', col:C.blue },
+      { label:'Résultat net', val:fmtN(d.resultat)+' MAD', sub:d.resultat>=0?'Exercice bénéficiaire':'Exercice déficitaire', col:d.resultat>=0?C.green:C.red },
+      { label:'Trésorerie nette', val:fmtN(d.tresos)+' MAD', sub:`Banques ${fmtN(d.banques)} + Caisse ${fmtN(d.caisse)}`, col:C.green },
+      { label:'Capitaux propres', val:fmtN(d.capPropres)+' MAD', sub:'Fonds propres cumulés', col:C.navy },
+    ];
+    kpis.forEach((k,i) => {
+      const x = .4 + (i%2)*6.3, y = i<2 ? 1.1 : 3.4;
+      s2.addShape(pptx.ShapeType.rect, { x, y, w:5.9, h:1.9, fill:{ color:C.white }, line:{ color:'D0D8FF', width:1 }, shadow:{ type:'outer', blur:4, offset:2, angle:45, color:'CCCCCC', opacity:.3 } });
+      s2.addText(k.val, { x:x+.2, y:y+.15, w:5.5, h:.8, fontSize:26, bold:true, color:k.col, fontFace:'Cambria' });
+      s2.addText(k.label, { x:x+.2, y:y+.9, w:5.5, h:.4, fontSize:12, bold:true, color:C.navy, fontFace:'Calibri' });
+      s2.addText(k.sub,   { x:x+.2, y:y+1.3, w:5.5, h:.4, fontSize:10, color:C.muted, fontFace:'Calibri' });
+    });
+    s2.addText(`Exercice ${exercice} — Clôture ${cloture} — Référentiel CGNC`, { x:.5, y:6.8, w:12, h:.3, fontSize:9, color:C.muted, fontFace:'Calibri', align:'center' });
+
+    // ── Slide 3 : Bilan ──────────────────────────────────
+    const s3 = pptx.addSlide();
+    s3.background = { color:'F8FAFF' };
+    s3.addText(`SITUATION COMPTABLE AU ${cloture}`, { x:.5, y:.3, w:12, h:.6, fontSize:20, bold:true, color:C.navy, fontFace:'Calibri' });
+
+    // Actif
+    s3.addShape(pptx.ShapeType.rect, { x:.4, y:1, w:5.9, h:.45, fill:{ color:C.navy } });
+    s3.addText('ACTIF', { x:.4, y:1, w:5.9, h:.45, fontSize:13, bold:true, color:C.white, fontFace:'Calibri', align:'center' });
+    d.bilanItems.slice(0,8).forEach((item,i) => {
+      const y = 1.55 + i*.42;
+      s3.addText(String(item.lib||item.cpte).substring(0,30), { x:.5, y, w:3.8, h:.38, fontSize:10, color:C.dark, fontFace:'Calibri' });
+      s3.addText(fmtN(Math.abs(item.val)), { x:4.3, y, w:1.9, h:.38, fontSize:10, color:C.dark, fontFace:'Calibri', align:'right', bold:true });
+    });
+    s3.addShape(pptx.ShapeType.rect, { x:.4, y:5, w:5.9, h:.45, fill:{ color:C.gold } });
+    s3.addText(`TOTAL ACTIF   ${fmtN(d.totalActif)} MAD`, { x:.4, y:5, w:5.9, h:.45, fontSize:12, bold:true, color:C.dark, fontFace:'Calibri', align:'center' });
+
+    // Passif
+    s3.addShape(pptx.ShapeType.rect, { x:7, y:1, w:5.9, h:.45, fill:{ color:C.navy } });
+    s3.addText('PASSIF', { x:7, y:1, w:5.9, h:.45, fontSize:13, bold:true, color:C.white, fontFace:'Calibri', align:'center' });
+    d.passifItems.slice(0,8).forEach((item,i) => {
+      const y = 1.55 + i*.42;
+      s3.addText(String(item.lib||item.cpte).substring(0,30), { x:7.1, y, w:3.8, h:.38, fontSize:10, color:C.dark, fontFace:'Calibri' });
+      s3.addText(fmtN(Math.abs(item.solde)), { x:10.9, y, w:1.9, h:.38, fontSize:10, color:C.dark, fontFace:'Calibri', align:'right', bold:true });
+    });
+    s3.addShape(pptx.ShapeType.rect, { x:7, y:5, w:5.9, h:.45, fill:{ color:C.gold } });
+    s3.addText(`TOTAL PASSIF   ${fmtN(d.totalPassif)} MAD`, { x:7, y:5, w:5.9, h:.45, fontSize:12, bold:true, color:C.dark, fontFace:'Calibri', align:'center' });
+
+    // ── Slide 4 : IS ─────────────────────────────────────
+    const s4 = pptx.addSlide();
+    s4.background = { color:'F8FAFF' };
+    s4.addText(`IMPÔT SUR LES SOCIÉTÉS — EXERCICE ${exercice}`, { x:.5, y:.3, w:12, h:.6, fontSize:20, bold:true, color:C.navy, fontFace:'Calibri' });
+    s4.addText('Du résultat comptable au résultat fiscal', { x:.5, y:.9, w:12, h:.4, fontSize:12, color:C.muted, fontFace:'Calibri' });
+
+    const fiscalRows = [
+      { label:'Résultat comptable avant IS', val:fmtN(d.resultat), bold:false },
+      { label:`IS calculé (taux ${(d.tauxIS*100).toFixed(2)}%)`, val:fmtN(d.isCalc), bold:false },
+      { label:'Cotisation Minimale (0,5% CA — plancher 3 000)', val:fmtN(d.cm), bold:false },
+      { label:'IS À VERSER', val:fmtN(d.isAVerser)+' MAD', bold:true },
+    ];
+    fiscalRows.forEach((row,i) => {
+      const y = 1.7 + i*.8;
+      const bg = row.bold ? C.navy : (i%2===0?'FFFFFF':'F0F4FF');
+      s4.addShape(pptx.ShapeType.rect, { x:.5, y, w:12, h:.65, fill:{ color:bg } });
+      s4.addText(row.label, { x:.7, y:y+.1, w:8, h:.45, fontSize:12, bold:row.bold, color:row.bold?C.white:C.dark, fontFace:'Calibri' });
+      s4.addText(row.val,   { x:8.8, y:y+.1, w:3.5, h:.45, fontSize:12, bold:row.bold, color:row.bold?C.gold:C.blue, fontFace:'Cambria', align:'right' });
+    });
+
+    // ── Slide 5 : Points d'attention ─────────────────────
+    if(points.length > 0) {
+      const s5 = pptx.addSlide();
+      s5.background = { color:'F8FAFF' };
+      s5.addText('POINTS D\'ATTENTION — À TRAITER', { x:.5, y:.3, w:12, h:.6, fontSize:20, bold:true, color:C.navy, fontFace:'Calibri' });
+      const prioColor = { haute:C.red, moyenne:'E67E22', basse:C.green };
+      points.slice(0,4).forEach((p,i) => {
+        const y = 1.1 + i*1.35;
+        s5.addShape(pptx.ShapeType.rect, { x:.4, y, w:.55, h:.55, fill:{ color:prioColor[p.priorite]||C.blue }, rounding:.3 });
+        s5.addText(String(p.ordre||i+1), { x:.4, y:y+.05, w:.55, h:.45, fontSize:16, bold:true, color:C.white, fontFace:'Calibri', align:'center' });
+        s5.addText(p.titre, { x:1.1, y, w:11, h:.45, fontSize:13, bold:true, color:C.navy, fontFace:'Calibri' });
+        s5.addText(p.description, { x:1.1, y:y+.45, w:11, h:.5, fontSize:10, color:C.muted, fontFace:'Calibri' });
+        s5.addText('→ '+p.action, { x:1.1, y:y+.92, w:11, h:.35, fontSize:10, color:C.blue, fontFace:'Calibri', italic:true });
+      });
+    }
+
+    // ── Slide 6 : Synthèse finale ─────────────────────────
+    const s6 = pptx.addSlide();
+    s6.background = { color: C.navy };
+    s6.addText('Merci de votre confiance', { x:.5, y:.5, w:12, h:.8, fontSize:28, color:C.gold, fontFace:'Cambria', italic:true, align:'center' });
+    s6.addShape(pptx.ShapeType.rect, { x:1, y:1.6, w:11, h:.05, fill:{ color:C.gold } });
+    s6.addText('SYNTHÈSE FINANCIÈRE', { x:.5, y:2, w:12, h:.5, fontSize:16, bold:true, color:C.white, fontFace:'Calibri', align:'center' });
+
+    const synthItems = [
+      { label:'IS à verser', val:fmtN(d.isAVerser)+' MAD', sub:`Taux ${(d.tauxIS*100).toFixed(1)}%` },
+      { label:'Trésorerie nette', val:fmtN(d.tresos)+' MAD', sub:'Banques + Caisse' },
+      { label:'Résultat net', val:fmtN(d.resultat)+' MAD', sub:exercice },
+    ];
+    synthItems.forEach((it,i) => {
+      const x = 1.2 + i*3.8;
+      s6.addShape(pptx.ShapeType.rect, { x, y:2.7, w:3.3, h:1.8, fill:{ color:'FFFFFF', transparency:92 } });
+      s6.addText(it.label, { x:x+.15, y:2.8, w:3, h:.4, fontSize:11, color:C.gold, fontFace:'Calibri', bold:true });
+      s6.addText(it.val,   { x:x+.15, y:3.2, w:3, h:.6, fontSize:16, color:C.white, fontFace:'Cambria', bold:true });
+      s6.addText(it.sub,   { x:x+.15, y:3.8, w:3, h:.4, fontSize:9,  color:'AAAACC', fontFace:'Calibri' });
+    });
+    s6.addText(`${cabinet} — ${new Date().toLocaleDateString('fr-MA')} — Référentiel CGNC`, { x:.5, y:6.8, w:12, h:.3, fontSize:9, color:'7777AA', fontFace:'Calibri', align:'center' });
+
+    // Télécharger
+    await pptx.writeFile({ fileName:`Revue_Comptes_${raison.replace(/\s/g,'_')}_${exercice}.pptx` });
+    toast('Présentation PPTX générée ✓','success');
+  } catch(e) {
+    toast('Erreur PPTX: '+e.message,'error');
+    console.error(e);
+  } finally { btn.disabled=false; btn.textContent='↓ Présentation PPTX'; }
 }
 
 // ===== EXPORT =====
