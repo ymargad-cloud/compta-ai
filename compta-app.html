@@ -1993,7 +1993,7 @@ function calculerKPIs() {
   document.getElementById('total-passif-badge').textContent = fmtAmt(totalPassif);
 
   // IS
-  const tauxIS = resultat <= 300000 ? 0.175 : resultat <= 1000000 ? 0.2 : 0.2375;
+  const tauxIS = resultat <= 100000000 ? 0.20 : 0.35; // LF : 20% si bénéfice < 100M MAD, 35% au-delà
   const isCalc = Math.max(resultat * tauxIS, 0);
   const cm = Math.max(ca * 0.005, 3000);
   const isAVerser = Math.max(isCalc, cm);
@@ -2133,17 +2133,20 @@ async function exportRevuePPTX() {
     const cabinet   = document.getElementById('revue-cabinet').value || 'Cabinet NEOEXPERT';
     const points    = d.points || [];
 
-    // Charger pptxgenjs
-    if(typeof PptxGenJS === 'undefined') {
-      await new Promise((res,rej) => {
+    // Charger pptxgenjs depuis unpkg
+    if(typeof PptxGenJS === 'undefined' && typeof window.PptxGenJS === 'undefined') {
+      await new Promise((res, rej) => {
         const s = document.createElement('script');
-        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pptxgenjs/3.12.0/pptxgen.bundled.js';
-        s.onload = res; s.onerror = rej;
+        s.src = 'https://unpkg.com/pptxgenjs@3.12.0/dist/pptxgen.bundled.js';
+        s.onload = () => { console.log('pptxgenjs loaded, PptxGenJS=', typeof PptxGenJS); res(); };
+        s.onerror = e => rej(new Error('Impossible de charger pptxgenjs: ' + e));
         document.head.appendChild(s);
       });
     }
 
-    const pptx = new PptxGenJS();
+    const PptxCtor = window.PptxGenJS || PptxGenJS;
+    if(typeof PptxCtor !== 'function') throw new Error('pptxgenjs non disponible — vérifiez votre connexion internet');
+    const pptx = new PptxCtor();
     pptx.layout = 'LAYOUT_WIDE';
 
     // Couleurs thème
@@ -2268,7 +2271,8 @@ async function exportRevuePPTX() {
     s6.addText(`${cabinet} — ${new Date().toLocaleDateString('fr-MA')} — Référentiel CGNC`, { x:.5, y:6.8, w:12, h:.3, fontSize:9, color:'7777AA', fontFace:'Calibri', align:'center' });
 
     // Télécharger
-    await pptx.writeFile({ fileName:`Revue_Comptes_${raison.replace(/\s/g,'_')}_${exercice}.pptx` });
+    const fileName = `Revue_Comptes_${raison.replace(/\s/g,'_')}_${exercice}.pptx`;
+    await pptx.writeFile({ fileName });
     toast('Présentation PPTX générée ✓','success');
   } catch(e) {
     toast('Erreur PPTX: '+e.message,'error');
