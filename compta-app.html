@@ -6,6 +6,7 @@
 <title>NEOEXPERT consulting</title>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundled.js"></script>
 <style>
 :root{--bg:#F4F6FA;--bg2:#FFFFFF;--bg3:#EDF0F7;--card:#FFFFFF;--border:#D8DEE9;--accent:#3B5EA6;--accent2:#2A4580;--gold:#F2C12E;--success:#27AE60;--warn:#E67E22;--danger:#C0392B;--text:#2C2C2C;--muted:#7A8299;--mono:'IBM Plex Mono',monospace;--sans:'Inter',sans-serif;--display:'Syne',sans-serif}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -2133,19 +2134,11 @@ async function exportRevuePPTX() {
     const cabinet   = document.getElementById('revue-cabinet').value || 'Cabinet NEOEXPERT';
     const points    = d.points || [];
 
-    // Charger pptxgenjs depuis unpkg
-    if(typeof PptxGenJS === 'undefined' && typeof window.PptxGenJS === 'undefined') {
-      await new Promise((res, rej) => {
-        const s = document.createElement('script');
-        s.src = 'https://unpkg.com/pptxgenjs@3.12.0/dist/pptxgen.bundled.js';
-        s.onload = () => { console.log('pptxgenjs loaded, PptxGenJS=', typeof PptxGenJS); res(); };
-        s.onerror = e => rej(new Error('Impossible de charger pptxgenjs: ' + e));
-        document.head.appendChild(s);
-      });
+    // pptxgenjs est chargé en tête de page — détecter le nom global exposé
+    const PptxCtor = window.PptxGenJS || window.pptxgen || window.PptxGen;
+    if(typeof PptxCtor === 'undefined') {
+      throw new Error('Bibliothèque pptxgenjs non chargée. Rechargez la page et réessayez.');
     }
-
-    const PptxCtor = window.PptxGenJS || PptxGenJS;
-    if(typeof PptxCtor !== 'function') throw new Error('pptxgenjs non disponible — vérifiez votre connexion internet');
     const pptx = new PptxCtor();
     pptx.layout = 'LAYOUT_WIDE';
 
