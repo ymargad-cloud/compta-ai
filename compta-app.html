@@ -504,7 +504,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
         </div>
         <div class="card">
           <div class="card-head"><h3>📒 Prévisualisation — Lot ECRIT</h3><button class="btn btn-primary" onclick="exportECRIT()">↓ ECRIT.xls</button></div>
-          <div style="overflow-x:auto"><table class="data-table" id="table-ecrit"><thead><tr><th>Code journal</th><th>Date écriture</th><th>N° de compte</th><th>Contrepartie</th><th>Libellé</th><th>N° pièce</th><th>Lettrage</th><th>Débit</th><th>Crédit</th></tr></thead><tbody id="tbody-ecrit"><tr><td colspan="9" style="text-align:center;color:var(--muted);padding:30px">Importez des documents pour générer le lot comptable</td></tr></tbody></table></div>
+          <div style="overflow-x:auto"><table class="data-table" id="table-ecrit"><thead><tr><th>Code journal</th><th>Date écriture</th><th>N° de compte</th><th>Contrepartie</th><th>Libellé</th><th>N° pièce</th><th>Lettrage</th><th>Débit</th><th>Crédit</th><th title="Lignes modifiées"><button onclick="resetEcritOverrides()" class="btn btn-ghost" style="font-size:9px;padding:2px 6px;display:none" id="btn-reset-ecrit">↺ Reset</button></th></tr></thead><tbody id="tbody-ecrit"><tr><td colspan="10" style="text-align:center;color:var(--muted);padding:30px">Importez des documents pour générer le lot comptable</td></tr></tbody></table></div>
         </div>
       </div>
 
@@ -2426,17 +2426,111 @@ function buildECRITRows(){
 
   return rows;
 }
-function renderECRITPreview(){
-  const rows=buildECRITRows();const tbody=document.getElementById('tbody-ecrit');if(!tbody)return;
-  if(!rows.length){tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:30px">Importez des documents pour générer le lot comptable</td></tr>';return;}
-  const jrnColors={'A':'var(--accent)','V':'var(--success)','B':'var(--warn)','C':'#1ABC9C','OD':'var(--accent2)','01':'var(--accent2)'};
-  tbody.innerHTML=rows.map(r=>{const[cj,date,cpte,,lib,piece,,debit,credit]=r;const col=jrnColors[cj]||'var(--muted)';
-    return`<tr><td><span style="background:rgba(79,142,247,.1);color:${col};padding:2px 8px;border-radius:6px;font-family:var(--mono);font-size:11px;font-weight:600">${cj}</span></td><td style="font-family:var(--mono);font-size:12px">${date}</td><td style="font-family:var(--mono);font-size:11px">${cpte}</td><td></td><td style="font-size:12px">${lib}</td><td style="font-family:var(--mono);font-size:11px;color:var(--muted)">${piece||''}</td><td></td><td style="font-family:var(--mono);font-size:12px;color:var(--accent);text-align:right">${debit?Number(debit).toLocaleString('fr-MA',{minimumFractionDigits:2,maximumFractionDigits:2}):''}</td><td style="font-family:var(--mono);font-size:12px;color:var(--success);text-align:right">${credit?Number(credit).toLocaleString('fr-MA',{minimumFractionDigits:2,maximumFractionDigits:2}):''}</td></tr>`;
-  }).join('');
+// Stocke les modifications manuelles sur les lignes ECRIT : { rowIndex: { cpte, journal, lib, debit, credit } }
+let ecritOverrides = {};
+
+function resetEcritOverrides() { ecritOverrides = {}; renderECRITPreview(); toast('Modifications réinitialisées','info'); }
+
+function onEcritEdit(rowIdx, field, el) {
+  if(!ecritOverrides[rowIdx]) ecritOverrides[rowIdx] = {};
+  ecritOverrides[rowIdx][field] = el.innerText.trim();
+  // Feedback visuel : cellule modifiée
+  el.style.background = 'rgba(245,200,66,.12)';
+  el.style.borderRadius = '4px';
 }
+
+function renderECRITPreview(){
+  const baseRows = buildECRITRows();
+  const tbody = document.getElementById('tbody-ecrit');
+  if(!tbody) return;
+  if(!baseRows.length){
+    tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:30px">Importez des documents pour générer le lot comptable</td></tr>';
+    return;
+  }
+
+  // Appliquer les overrides manuels
+  const rows = baseRows.map((r, i) => {
+    if(!ecritOverrides[i]) return r;
+    const ov = ecritOverrides[i];
+    return [
+      ov.journal !== undefined ? ov.journal : r[0],
+      r[1], // date non éditable
+      ov.cpte    !== undefined ? ov.cpte    : r[2],
+      r[3],
+      ov.lib     !== undefined ? ov.lib     : r[4],
+      r[5],
+      r[6],
+      ov.debit   !== undefined ? (ov.debit === '' ? null : parseFloat(ov.debit.replace(/\s/g,'').replace(',','.')) || null) : r[7],
+      ov.credit  !== undefined ? (ov.credit === '' ? null : parseFloat(ov.credit.replace(/\s/g,'').replace(',','.')) || null) : r[8],
+    ];
+  });
+
+  const jrnColors = {'A':'var(--accent)','V':'var(--success)','B':'var(--warn)','C':'#1ABC9C','OD':'var(--accent2)'};
+  const fmtMt = v => v !== null && v !== undefined && v !== '' ? Number(v).toLocaleString('fr-MA',{minimumFractionDigits:2,maximumFractionDigits:2}) : '';
+
+  const editStyle = `outline:none;min-width:20px;cursor:text;padding:2px 4px;border-radius:3px;transition:background .15s`;
+  const editHint  = `title="Cliquez pour modifier"`;
+
+  tbody.innerHTML = rows.map((r, i) => {
+    const [cj, date, cpte,, lib, piece,, debit, credit] = r;
+    const col = jrnColors[cj] || 'var(--muted)';
+    const ov  = ecritOverrides[i] || {};
+    const modified = Object.keys(ov).length > 0;
+    const rowStyle = modified ? 'background:rgba(245,200,66,.04)' : '';
+
+    return `<tr style="${rowStyle}">
+      <td>
+        <span contenteditable="true" spellcheck="false" ${editHint}
+          onblur="onEcritEdit(${i},'journal',this)"
+          style="${editStyle};background:rgba(79,142,247,.1);color:${col};padding:2px 8px;border-radius:6px;font-family:var(--mono);font-size:11px;font-weight:600;display:inline-block"
+        >${cj}</span>
+      </td>
+      <td style="font-family:var(--mono);font-size:12px;color:var(--muted)">${date}</td>
+      <td>
+        <span contenteditable="true" spellcheck="false" ${editHint}
+          onblur="onEcritEdit(${i},'cpte',this)"
+          style="${editStyle};font-family:var(--mono);font-size:11px;font-weight:600;color:var(--text)"
+        >${cpte}</span>
+      </td>
+      <td></td>
+      <td>
+        <span contenteditable="true" spellcheck="false" ${editHint}
+          onblur="onEcritEdit(${i},'lib',this)"
+          style="${editStyle};font-size:12px;color:var(--text2);max-width:240px;display:inline-block;overflow:hidden"
+        >${lib}</span>
+      </td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--muted)">${piece||''}</td>
+      <td></td>
+      <td style="text-align:right">
+        <span contenteditable="true" spellcheck="false" ${editHint}
+          onblur="onEcritEdit(${i},'debit',this)"
+          style="${editStyle};font-family:var(--mono);font-size:12px;color:var(--accent);text-align:right;display:inline-block;min-width:60px"
+        >${fmtMt(debit)}</span>
+      </td>
+      <td style="text-align:right">
+        <span contenteditable="true" spellcheck="false" ${editHint}
+          onblur="onEcritEdit(${i},'credit',this)"
+          style="${editStyle};font-family:var(--mono);font-size:12px;color:var(--success);text-align:right;display:inline-block;min-width:60px"
+        >${fmtMt(credit)}</span>
+      </td>
+      <td>
+        ${modified ? `<span title="Ligne modifiée" style="color:var(--gold);font-size:13px;cursor:pointer" onclick="delete ecritOverrides[${i}];renderECRITPreview()">✎</span>` : ''}
+      </td>
+    </tr>`;
+  }).join('');
+  // Afficher/masquer bouton reset
+  const btnReset = document.getElementById('btn-reset-ecrit');
+  if(btnReset) btnReset.style.display = Object.keys(ecritOverrides).length > 0 ? 'inline-flex' : 'none';
+}
+
 function exportECRIT(){
   if(!allFactures.length&&!allTransactions.length){toast('Aucune donnée','info');return;}
-  const rows=buildECRITRows();if(!rows.length){toast('Aucune écriture','info');return;}
+  const baseRows=buildECRITRows();if(!baseRows.length){toast('Aucune écriture','info');return;}
+  const rows=baseRows.map((r,i)=>{
+    const ov=ecritOverrides[i];if(!ov)return r;
+    const pf=s=>s===''?null:parseFloat(String(s).replace(/[\s ]/g,'').replace(',','.'))||null;
+    return[ov.journal!==undefined?ov.journal:r[0],r[1],ov.cpte!==undefined?ov.cpte:r[2],r[3],ov.lib!==undefined?ov.lib:r[4],r[5],r[6],ov.debit!==undefined?pf(ov.debit):r[7],ov.credit!==undefined?pf(ov.credit):r[8]];
+  });
   const wb=XLSX.utils.book_new();
   const header=[['Code journal','Date écriture',"n° de compte",'Contrepartie',"Libéllé d'écriture",'N° pièce','Lettrage ','Débit','Crédit']];
   const ws=XLSX.utils.aoa_to_sheet([...header,...rows.map(r=>r.map(v=>v===null?'':v))]);
