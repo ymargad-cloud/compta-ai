@@ -6,7 +6,6 @@
 <title>NEOEXPERT consulting</title>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundled.js"></script>
 <style>
 :root{--bg:#F4F6FA;--bg2:#FFFFFF;--bg3:#EDF0F7;--card:#FFFFFF;--border:#D8DEE9;--accent:#3B5EA6;--accent2:#2A4580;--gold:#F2C12E;--success:#27AE60;--warn:#E67E22;--danger:#C0392B;--text:#2C2C2C;--muted:#7A8299;--mono:'IBM Plex Mono',monospace;--sans:'Inter',sans-serif;--display:'Syne',sans-serif}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -650,7 +649,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
           </div>
           <div style="display:flex;gap:8px" id="revue-export-btns" style="display:none">
             <button class="btn btn-ghost" onclick="exportRevueXLS()">↓ Synthèse XLS</button>
-            <button class="btn btn-primary" onclick="exportRevuePPTX()">↓ Présentation PPTX</button>
+            <button class="btn btn-primary" onclick="exportRevuePDF()">↓ Présentation PDF</button>
           </div>
         </div>
 
@@ -2122,157 +2121,177 @@ function exportRevueXLS() {
   toast('Synthèse XLS générée ✓','success');
 }
 
-async function exportRevuePPTX() {
+function exportRevuePDF() {
   if(!window._revueData) { toast('Importez d\'abord un grand livre','error'); return; }
-  const btn = document.querySelector('[onclick="exportRevuePPTX()"]');
-  btn.disabled = true; btn.textContent = '⏳ Génération PPTX...';
-  try {
-    const d = window._revueData;
-    const raison    = document.getElementById('revue-raison').value || 'Société';
-    const exercice  = document.getElementById('revue-exercice').value;
-    const cloture   = document.getElementById('revue-cloture').value || '31/12/' + exercice;
-    const cabinet   = document.getElementById('revue-cabinet').value || 'Cabinet NEOEXPERT';
-    const points    = d.points || [];
+  const d = window._revueData;
+  const raison   = document.getElementById('revue-raison').value || 'Société';
+  const exercice = document.getElementById('revue-exercice').value;
+  const cloture  = document.getElementById('revue-cloture').value || '31/12/'+exercice;
+  const cabinet  = document.getElementById('revue-cabinet').value || 'Cabinet NEOEXPERT';
+  const points   = d.points || [];
+  const fmtN = v => Number(v).toLocaleString('fr-MA',{minimumFractionDigits:2,maximumFractionDigits:2});
 
-    // pptxgenjs est chargé en tête de page — détecter le nom global exposé
-    const PptxCtor = window.PptxGenJS || window.pptxgen || window.PptxGen;
-    if(typeof PptxCtor === 'undefined') {
-      throw new Error('Bibliothèque pptxgenjs non chargée. Rechargez la page et réessayez.');
-    }
-    const pptx = new PptxCtor();
-    pptx.layout = 'LAYOUT_WIDE';
+  const slides = [
+    // Slide 1 — Couverture
+    `<div class="slide cover">
+      <div class="cover-bg"></div>
+      <div class="cover-content">
+        <div class="cover-title">${raison.toUpperCase()}</div>
+        <div class="cover-sub">Revue des <em>comptes</em></div>
+        <div class="cover-year">${exercice}</div>
+        <div class="cover-info">Clôture ${cloture} — Référentiel CGNC</div>
+        <div class="cover-cabinet">Document préparé par ${cabinet}</div>
+      </div>
+    </div>`,
 
-    // Couleurs thème
-    const C = { navy:'1E2761', gold:'F5C842', white:'FFFFFF', light:'EEF2FF',
-                green:'27AE60', red:'C0392B', blue:'2563EB', muted:'6B7A99', dark:'0D0F14' };
+    // Slide 2 — Chiffres clés
+    `<div class="slide">
+      <div class="slide-header">ACTIVITÉ ${exercice} — CHIFFRES CLÉS</div>
+      <div class="kpi-grid">
+        <div class="kpi-card"><div class="kpi-val blue">${fmtN(d.ca)} MAD</div><div class="kpi-lbl">Chiffre d'affaires total</div><div class="kpi-sub">Comptes 71xx–72xx</div></div>
+        <div class="kpi-card"><div class="kpi-val ${d.resultat>=0?'green':'red'}">${fmtN(d.resultat)} MAD</div><div class="kpi-lbl">Résultat net</div><div class="kpi-sub">${d.resultat>=0?'Exercice bénéficiaire':'Exercice déficitaire'}</div></div>
+        <div class="kpi-card"><div class="kpi-val green">${fmtN(d.tresos)} MAD</div><div class="kpi-lbl">Trésorerie nette</div><div class="kpi-sub">Banques ${fmtN(d.banques)} + Caisse ${fmtN(d.caisse)}</div></div>
+        <div class="kpi-card"><div class="kpi-val navy">${fmtN(d.capPropres)} MAD</div><div class="kpi-lbl">Capitaux propres</div><div class="kpi-sub">Fonds propres cumulés</div></div>
+      </div>
+      <div class="slide-footer">${exercice} — Clôture ${cloture} — Référentiel CGNC</div>
+    </div>`,
 
-    const fmtN = v => Number(v).toLocaleString('fr-MA',{minimumFractionDigits:2,maximumFractionDigits:2});
+    // Slide 3 — Bilan
+    `<div class="slide">
+      <div class="slide-header">SITUATION COMPTABLE AU ${cloture}</div>
+      <div class="bilan-grid">
+        <div class="bilan-col">
+          <div class="bilan-head">ACTIF</div>
+          ${d.bilanItems.slice(0,8).map(i=>`<div class="bilan-row"><span>${String(i.lib||i.cpte).substring(0,32)}</span><span class="amt">${fmtN(Math.abs(i.val))}</span></div>`).join('')}
+          <div class="bilan-total">TOTAL ACTIF<span>${fmtN(d.totalActif)} MAD</span></div>
+        </div>
+        <div class="bilan-col">
+          <div class="bilan-head">PASSIF</div>
+          ${d.passifItems.slice(0,8).map(i=>`<div class="bilan-row"><span>${String(i.lib||i.cpte).substring(0,32)}</span><span class="amt">${fmtN(Math.abs(i.solde))}</span></div>`).join('')}
+          <div class="bilan-total">TOTAL PASSIF<span>${fmtN(d.totalPassif)} MAD</span></div>
+        </div>
+      </div>
+    </div>`,
 
-    // ── Slide 1 : Couverture ─────────────────────────────
-    const s1 = pptx.addSlide();
-    s1.background = { color: C.navy };
-    s1.addShape(pptx.ShapeType.rect, { x:0, y:4.5, w:13.33, h:3.17, fill:{ color:C.gold } });
-    s1.addText(raison.toUpperCase(), { x:.5, y:.6, w:12, h:1, fontSize:32, bold:true, color:C.white, fontFace:'Cambria' });
-    s1.addText('Revue des', { x:.5, y:1.8, w:6, h:.7, fontSize:28, color:C.gold, fontFace:'Cambria', italic:true });
-    s1.addText('comptes', { x:.5, y:2.5, w:6, h:.7, fontSize:28, color:C.gold, fontFace:'Cambria', italic:true });
-    s1.addText(String(exercice), { x:7, y:1.5, w:5.5, h:2, fontSize:96, bold:true, color:C.white, fontFace:'Arial', align:'right', transparency:80 });
-    s1.addText(`Clôture ${cloture} — Référentiel CGNC`, { x:.5, y:4.7, w:9, h:.5, fontSize:12, color:C.dark, fontFace:'Calibri' });
-    s1.addText(`Document préparé par ${cabinet}`, { x:.5, y:5.2, w:9, h:.5, fontSize:11, color:C.dark, fontFace:'Calibri' });
+    // Slide 4 — IS
+    `<div class="slide">
+      <div class="slide-header">IMPÔT SUR LES SOCIÉTÉS — EXERCICE ${exercice}</div>
+      <div class="is-sub">Du résultat comptable au résultat fiscal</div>
+      <div class="is-table">
+        <div class="is-row"><span>Résultat comptable avant IS</span><span class="is-val">${fmtN(d.resultat)} MAD</span></div>
+        <div class="is-row alt"><span>IS calculé (taux ${(d.tauxIS*100).toFixed(0)}%)</span><span class="is-val blue">${fmtN(d.isCalc)} MAD</span></div>
+        <div class="is-row"><span>Cotisation Minimale (0,5% CA — plancher 3 000 MAD)</span><span class="is-val orange">${fmtN(d.cm)} MAD</span></div>
+        <div class="is-row total"><span>IS À VERSER</span><span class="is-val gold">${fmtN(d.isAVerser)} MAD</span></div>
+      </div>
+    </div>`,
 
-    // ── Slide 2 : Chiffres clés ──────────────────────────
-    const s2 = pptx.addSlide();
-    s2.background = { color:'F8FAFF' };
-    s2.addText(`ACTIVITÉ ${exercice} — CHIFFRES CLÉS`, { x:.5, y:.3, w:12, h:.6, fontSize:20, bold:true, color:C.navy, fontFace:'Calibri' });
+    // Slide 5 — Points d'attention
+    points.length > 0 ? `<div class="slide">
+      <div class="slide-header">POINTS D'ATTENTION — À TRAITER</div>
+      <div class="points-list">
+        ${points.slice(0,4).map((p,i)=>`
+        <div class="point-item">
+          <div class="point-num ${p.priorite}">${p.ordre||i+1}</div>
+          <div class="point-body">
+            <div class="point-title">${p.titre}</div>
+            <div class="point-desc">${p.description}</div>
+            <div class="point-action">→ ${p.action}</div>
+          </div>
+          <div class="point-badge ${p.priorite}">${p.priorite}</div>
+        </div>`).join('')}
+      </div>
+    </div>` : '',
 
-    const kpis = [
-      { label:'Chiffre d\'affaires total', val:fmtN(d.ca)+' MAD', sub:'Comptes 71xx–72xx', col:C.blue },
-      { label:'Résultat net', val:fmtN(d.resultat)+' MAD', sub:d.resultat>=0?'Exercice bénéficiaire':'Exercice déficitaire', col:d.resultat>=0?C.green:C.red },
-      { label:'Trésorerie nette', val:fmtN(d.tresos)+' MAD', sub:`Banques ${fmtN(d.banques)} + Caisse ${fmtN(d.caisse)}`, col:C.green },
-      { label:'Capitaux propres', val:fmtN(d.capPropres)+' MAD', sub:'Fonds propres cumulés', col:C.navy },
-    ];
-    kpis.forEach((k,i) => {
-      const x = .4 + (i%2)*6.3, y = i<2 ? 1.1 : 3.4;
-      s2.addShape(pptx.ShapeType.rect, { x, y, w:5.9, h:1.9, fill:{ color:C.white }, line:{ color:'D0D8FF', width:1 }, shadow:{ type:'outer', blur:4, offset:2, angle:45, color:'CCCCCC', opacity:.3 } });
-      s2.addText(k.val, { x:x+.2, y:y+.15, w:5.5, h:.8, fontSize:26, bold:true, color:k.col, fontFace:'Cambria' });
-      s2.addText(k.label, { x:x+.2, y:y+.9, w:5.5, h:.4, fontSize:12, bold:true, color:C.navy, fontFace:'Calibri' });
-      s2.addText(k.sub,   { x:x+.2, y:y+1.3, w:5.5, h:.4, fontSize:10, color:C.muted, fontFace:'Calibri' });
-    });
-    s2.addText(`Exercice ${exercice} — Clôture ${cloture} — Référentiel CGNC`, { x:.5, y:6.8, w:12, h:.3, fontSize:9, color:C.muted, fontFace:'Calibri', align:'center' });
+    // Slide 6 — Synthèse
+    `<div class="slide cover-end">
+      <div class="end-title">Merci de votre confiance</div>
+      <div class="end-divider"></div>
+      <div class="end-section">SYNTHÈSE FINANCIÈRE</div>
+      <div class="end-kpis">
+        <div class="end-kpi"><div class="end-kpi-lbl">IS à verser</div><div class="end-kpi-val">${fmtN(d.isAVerser)} MAD</div></div>
+        <div class="end-kpi"><div class="end-kpi-lbl">Trésorerie nette</div><div class="end-kpi-val">${fmtN(d.tresos)} MAD</div></div>
+        <div class="end-kpi"><div class="end-kpi-lbl">Résultat net</div><div class="end-kpi-val">${fmtN(d.resultat)} MAD</div></div>
+      </div>
+      <div class="end-footer">${cabinet} — ${new Date().toLocaleDateString('fr-MA')} — Référentiel CGNC / CGI ${exercice}</div>
+    </div>`,
+  ].filter(Boolean).join('');
 
-    // ── Slide 3 : Bilan ──────────────────────────────────
-    const s3 = pptx.addSlide();
-    s3.background = { color:'F8FAFF' };
-    s3.addText(`SITUATION COMPTABLE AU ${cloture}`, { x:.5, y:.3, w:12, h:.6, fontSize:20, bold:true, color:C.navy, fontFace:'Calibri' });
+  const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
+<title>Revue des comptes — ${raison} — ${exercice}</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Calibri',Arial,sans-serif;background:#fff}
+  .slide{width:297mm;height:190mm;padding:12mm 14mm;position:relative;page-break-after:always;overflow:hidden;display:flex;flex-direction:column}
+  /* Couverture */
+  .cover{background:#1E2761;color:#fff;justify-content:center}
+  .cover-bg{position:absolute;bottom:0;left:0;right:0;height:55mm;background:#F5C842}
+  .cover-content{position:relative;z-index:1}
+  .cover-title{font-size:28pt;font-weight:700;letter-spacing:1px;margin-bottom:4mm}
+  .cover-sub{font-size:22pt;font-style:italic;color:#F5C842;line-height:1.2;margin-bottom:2mm}
+  .cover-year{position:absolute;right:0;top:-10mm;font-size:72pt;font-weight:900;color:rgba(255,255,255,.12);line-height:1}
+  .cover-info{font-size:10pt;color:#1E2761;margin-top:42mm}
+  .cover-cabinet{font-size:9pt;color:#1E2761;margin-top:2mm}
+  /* Header */
+  .slide-header{font-size:16pt;font-weight:700;color:#1E2761;border-bottom:2px solid #F5C842;padding-bottom:3mm;margin-bottom:6mm}
+  .slide-footer{font-size:7pt;color:#999;text-align:center;margin-top:auto;padding-top:4mm}
+  /* KPIs */
+  .kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:5mm;flex:1}
+  .kpi-card{background:#F0F4FF;border-radius:4px;padding:6mm;display:flex;flex-direction:column;justify-content:center}
+  .kpi-val{font-size:20pt;font-weight:700;margin-bottom:2mm}
+  .kpi-lbl{font-size:10pt;font-weight:600;color:#1E2761;margin-bottom:1mm}
+  .kpi-sub{font-size:8pt;color:#888}
+  .blue{color:#2563EB}.green{color:#27AE60}.red{color:#C0392B}.navy{color:#1E2761}.orange{color:#E67E22}
+  /* Bilan */
+  .bilan-grid{display:grid;grid-template-columns:1fr 1fr;gap:6mm;flex:1}
+  .bilan-head{background:#1E2761;color:#fff;padding:3mm 4mm;font-weight:700;font-size:11pt;text-align:center;margin-bottom:2mm}
+  .bilan-row{display:flex;justify-content:space-between;padding:2.5mm 4mm;border-bottom:1px solid #EEF;font-size:8.5pt}
+  .bilan-row span:first-child{color:#333;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60mm}
+  .amt{font-weight:600;color:#1E2761;white-space:nowrap;margin-left:2mm}
+  .bilan-total{display:flex;justify-content:space-between;padding:3mm 4mm;background:#F5C842;font-weight:700;font-size:9pt;margin-top:2mm}
+  /* IS */
+  .is-sub{font-size:9pt;color:#888;margin-bottom:6mm}
+  .is-table{flex:1;display:flex;flex-direction:column;gap:3mm}
+  .is-row{display:flex;justify-content:space-between;align-items:center;padding:4mm 6mm;background:#fff;border:1px solid #EEF}
+  .is-row.alt{background:#F0F4FF}
+  .is-row.total{background:#1E2761;border-color:#1E2761}
+  .is-row.total span:first-child{color:#fff;font-weight:700;font-size:13pt}
+  .is-val{font-size:13pt;font-weight:700;text-align:right}
+  .is-val.gold{color:#F5C842}
+  /* Points */
+  .points-list{display:flex;flex-direction:column;gap:4mm;flex:1}
+  .point-item{display:flex;align-items:flex-start;gap:4mm;padding:3mm;background:#F8FAFF;border-radius:4px}
+  .point-num{width:10mm;height:10mm;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12pt;color:#fff;flex-shrink:0}
+  .point-num.haute{background:#C0392B}.point-num.moyenne{background:#E67E22}.point-num.basse{background:#27AE60}
+  .point-body{flex:1}
+  .point-title{font-size:10pt;font-weight:700;color:#1E2761;margin-bottom:1mm}
+  .point-desc{font-size:8.5pt;color:#555;margin-bottom:1.5mm}
+  .point-action{font-size:8pt;color:#2563EB;font-style:italic}
+  .point-badge{padding:1mm 3mm;border-radius:10px;font-size:7.5pt;font-weight:600;white-space:nowrap;margin-top:1mm}
+  .point-badge.haute{background:rgba(192,57,43,.1);color:#C0392B}
+  .point-badge.moyenne{background:rgba(230,126,22,.1);color:#E67E22}
+  .point-badge.basse{background:rgba(39,174,96,.1);color:#27AE60}
+  /* Fin */
+  .cover-end{background:#1E2761;color:#fff;align-items:center;justify-content:center;text-align:center}
+  .end-title{font-size:24pt;font-style:italic;color:#F5C842;margin-bottom:4mm}
+  .end-divider{width:100mm;height:1px;background:#F5C842;margin:0 auto 5mm}
+  .end-section{font-size:13pt;font-weight:700;color:#fff;margin-bottom:6mm;letter-spacing:1px}
+  .end-kpis{display:flex;gap:8mm;margin-bottom:8mm}
+  .end-kpi{background:rgba(255,255,255,.1);padding:4mm 6mm;border-radius:4px;min-width:55mm}
+  .end-kpi-lbl{font-size:9pt;color:#F5C842;font-weight:600;margin-bottom:2mm}
+  .end-kpi-val{font-size:13pt;font-weight:700;color:#fff}
+  .end-footer{font-size:8pt;color:rgba(255,255,255,.5)}
+  @media print{.slide{page-break-after:always}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+</style>
+</head><body>${slides}</body></html>`;
 
-    // Actif
-    s3.addShape(pptx.ShapeType.rect, { x:.4, y:1, w:5.9, h:.45, fill:{ color:C.navy } });
-    s3.addText('ACTIF', { x:.4, y:1, w:5.9, h:.45, fontSize:13, bold:true, color:C.white, fontFace:'Calibri', align:'center' });
-    d.bilanItems.slice(0,8).forEach((item,i) => {
-      const y = 1.55 + i*.42;
-      s3.addText(String(item.lib||item.cpte).substring(0,30), { x:.5, y, w:3.8, h:.38, fontSize:10, color:C.dark, fontFace:'Calibri' });
-      s3.addText(fmtN(Math.abs(item.val)), { x:4.3, y, w:1.9, h:.38, fontSize:10, color:C.dark, fontFace:'Calibri', align:'right', bold:true });
-    });
-    s3.addShape(pptx.ShapeType.rect, { x:.4, y:5, w:5.9, h:.45, fill:{ color:C.gold } });
-    s3.addText(`TOTAL ACTIF   ${fmtN(d.totalActif)} MAD`, { x:.4, y:5, w:5.9, h:.45, fontSize:12, bold:true, color:C.dark, fontFace:'Calibri', align:'center' });
-
-    // Passif
-    s3.addShape(pptx.ShapeType.rect, { x:7, y:1, w:5.9, h:.45, fill:{ color:C.navy } });
-    s3.addText('PASSIF', { x:7, y:1, w:5.9, h:.45, fontSize:13, bold:true, color:C.white, fontFace:'Calibri', align:'center' });
-    d.passifItems.slice(0,8).forEach((item,i) => {
-      const y = 1.55 + i*.42;
-      s3.addText(String(item.lib||item.cpte).substring(0,30), { x:7.1, y, w:3.8, h:.38, fontSize:10, color:C.dark, fontFace:'Calibri' });
-      s3.addText(fmtN(Math.abs(item.solde)), { x:10.9, y, w:1.9, h:.38, fontSize:10, color:C.dark, fontFace:'Calibri', align:'right', bold:true });
-    });
-    s3.addShape(pptx.ShapeType.rect, { x:7, y:5, w:5.9, h:.45, fill:{ color:C.gold } });
-    s3.addText(`TOTAL PASSIF   ${fmtN(d.totalPassif)} MAD`, { x:7, y:5, w:5.9, h:.45, fontSize:12, bold:true, color:C.dark, fontFace:'Calibri', align:'center' });
-
-    // ── Slide 4 : IS ─────────────────────────────────────
-    const s4 = pptx.addSlide();
-    s4.background = { color:'F8FAFF' };
-    s4.addText(`IMPÔT SUR LES SOCIÉTÉS — EXERCICE ${exercice}`, { x:.5, y:.3, w:12, h:.6, fontSize:20, bold:true, color:C.navy, fontFace:'Calibri' });
-    s4.addText('Du résultat comptable au résultat fiscal', { x:.5, y:.9, w:12, h:.4, fontSize:12, color:C.muted, fontFace:'Calibri' });
-
-    const fiscalRows = [
-      { label:'Résultat comptable avant IS', val:fmtN(d.resultat), bold:false },
-      { label:`IS calculé (taux ${(d.tauxIS*100).toFixed(2)}%)`, val:fmtN(d.isCalc), bold:false },
-      { label:'Cotisation Minimale (0,5% CA — plancher 3 000)', val:fmtN(d.cm), bold:false },
-      { label:'IS À VERSER', val:fmtN(d.isAVerser)+' MAD', bold:true },
-    ];
-    fiscalRows.forEach((row,i) => {
-      const y = 1.7 + i*.8;
-      const bg = row.bold ? C.navy : (i%2===0?'FFFFFF':'F0F4FF');
-      s4.addShape(pptx.ShapeType.rect, { x:.5, y, w:12, h:.65, fill:{ color:bg } });
-      s4.addText(row.label, { x:.7, y:y+.1, w:8, h:.45, fontSize:12, bold:row.bold, color:row.bold?C.white:C.dark, fontFace:'Calibri' });
-      s4.addText(row.val,   { x:8.8, y:y+.1, w:3.5, h:.45, fontSize:12, bold:row.bold, color:row.bold?C.gold:C.blue, fontFace:'Cambria', align:'right' });
-    });
-
-    // ── Slide 5 : Points d'attention ─────────────────────
-    if(points.length > 0) {
-      const s5 = pptx.addSlide();
-      s5.background = { color:'F8FAFF' };
-      s5.addText('POINTS D\'ATTENTION — À TRAITER', { x:.5, y:.3, w:12, h:.6, fontSize:20, bold:true, color:C.navy, fontFace:'Calibri' });
-      const prioColor = { haute:C.red, moyenne:'E67E22', basse:C.green };
-      points.slice(0,4).forEach((p,i) => {
-        const y = 1.1 + i*1.35;
-        s5.addShape(pptx.ShapeType.rect, { x:.4, y, w:.55, h:.55, fill:{ color:prioColor[p.priorite]||C.blue }, rounding:.3 });
-        s5.addText(String(p.ordre||i+1), { x:.4, y:y+.05, w:.55, h:.45, fontSize:16, bold:true, color:C.white, fontFace:'Calibri', align:'center' });
-        s5.addText(p.titre, { x:1.1, y, w:11, h:.45, fontSize:13, bold:true, color:C.navy, fontFace:'Calibri' });
-        s5.addText(p.description, { x:1.1, y:y+.45, w:11, h:.5, fontSize:10, color:C.muted, fontFace:'Calibri' });
-        s5.addText('→ '+p.action, { x:1.1, y:y+.92, w:11, h:.35, fontSize:10, color:C.blue, fontFace:'Calibri', italic:true });
-      });
-    }
-
-    // ── Slide 6 : Synthèse finale ─────────────────────────
-    const s6 = pptx.addSlide();
-    s6.background = { color: C.navy };
-    s6.addText('Merci de votre confiance', { x:.5, y:.5, w:12, h:.8, fontSize:28, color:C.gold, fontFace:'Cambria', italic:true, align:'center' });
-    s6.addShape(pptx.ShapeType.rect, { x:1, y:1.6, w:11, h:.05, fill:{ color:C.gold } });
-    s6.addText('SYNTHÈSE FINANCIÈRE', { x:.5, y:2, w:12, h:.5, fontSize:16, bold:true, color:C.white, fontFace:'Calibri', align:'center' });
-
-    const synthItems = [
-      { label:'IS à verser', val:fmtN(d.isAVerser)+' MAD', sub:`Taux ${(d.tauxIS*100).toFixed(1)}%` },
-      { label:'Trésorerie nette', val:fmtN(d.tresos)+' MAD', sub:'Banques + Caisse' },
-      { label:'Résultat net', val:fmtN(d.resultat)+' MAD', sub:exercice },
-    ];
-    synthItems.forEach((it,i) => {
-      const x = 1.2 + i*3.8;
-      s6.addShape(pptx.ShapeType.rect, { x, y:2.7, w:3.3, h:1.8, fill:{ color:'FFFFFF', transparency:92 } });
-      s6.addText(it.label, { x:x+.15, y:2.8, w:3, h:.4, fontSize:11, color:C.gold, fontFace:'Calibri', bold:true });
-      s6.addText(it.val,   { x:x+.15, y:3.2, w:3, h:.6, fontSize:16, color:C.white, fontFace:'Cambria', bold:true });
-      s6.addText(it.sub,   { x:x+.15, y:3.8, w:3, h:.4, fontSize:9,  color:'AAAACC', fontFace:'Calibri' });
-    });
-    s6.addText(`${cabinet} — ${new Date().toLocaleDateString('fr-MA')} — Référentiel CGNC`, { x:.5, y:6.8, w:12, h:.3, fontSize:9, color:'7777AA', fontFace:'Calibri', align:'center' });
-
-    // Télécharger
-    const fileName = `Revue_Comptes_${raison.replace(/\s/g,'_')}_${exercice}.pptx`;
-    await pptx.writeFile({ fileName });
-    toast('Présentation PPTX générée ✓','success');
-  } catch(e) {
-    toast('Erreur PPTX: '+e.message,'error');
-    console.error(e);
-  } finally { btn.disabled=false; btn.textContent='↓ Présentation PPTX'; }
+  const w = window.open('','_blank');
+  w.document.write(html);
+  w.document.close();
+  setTimeout(() => w.print(), 800);
+  toast('Présentation ouverte — utilisez Ctrl+P pour imprimer/exporter en PDF ✓','success');
 }
 
+async function exportRevuePPTX() { exportRevuePDF(); }
 // ===== EXPORT =====
 function exportTable(type){
   const rows=type==='factures'?allFactures:allTransactions;
