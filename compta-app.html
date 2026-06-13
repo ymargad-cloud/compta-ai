@@ -1632,16 +1632,18 @@ function buildTVADeductionsTable() {
 
 
   // Filtrer : factures achats + tickets caisse avec TVA > 0
+  // Filtrage sur DATE DE PAIEMENT (et non date de facture)
   const factures = (allFactures || []).filter(f => {
     if (f.type_facture === 'vente') return false;
     if (!f.montant_tva || +f.montant_tva === 0) return false;
-    if (!f.date_facture) return false;
-    const d = new Date(f.date_facture);
-    if (d.getFullYear() !== annee) return false;
-    if (moisFiltres && !moisFiltres.includes(d.getMonth() + 1)) return false;
-    // Doit être payée (rapprochée) OU être un ticket caisse (espèces)
+    // Récupérer la date de paiement
     const paiement = getModeEtDatePaiement(f);
-    return paiement !== null;
+    if (!paiement) return false; // non payée → exclure
+    const datePaie = new Date(paiement.date);
+    if (isNaN(datePaie)) return false;
+    if (datePaie.getFullYear() !== annee) return false;
+    if (moisFiltres && !moisFiltres.includes(datePaie.getMonth() + 1)) return false;
+    return true;
   });
 
   const tbody = document.getElementById('tbody-tva-ded');
@@ -1697,11 +1699,14 @@ function getTVADeductionData() {
   const factures = (allFactures || []).filter(f => {
     if (f.type_facture === 'vente') return false;
     if (!f.montant_tva || +f.montant_tva === 0) return false;
-    if (!f.date_facture) return false;
-    const d = new Date(f.date_facture);
-    if (d.getFullYear() !== parseInt(annee)) return false;
-    if (moisFiltresExp && !moisFiltresExp.includes(d.getMonth() + 1)) return false;
-    return getModeEtDatePaiement(f) !== null;
+    // Filtrage sur DATE DE PAIEMENT
+    const paiement = getModeEtDatePaiement(f);
+    if (!paiement) return false;
+    const datePaie = new Date(paiement.date);
+    if (isNaN(datePaie)) return false;
+    if (datePaie.getFullYear() !== parseInt(annee)) return false;
+    if (moisFiltresExp && !moisFiltresExp.includes(datePaie.getMonth() + 1)) return false;
+    return true;
   });
 
   return { annee, periode, regime, raison, idFisc, factures };
@@ -2012,17 +2017,17 @@ function calculerKPIs() {
   const immo22 = totalNet(['22']); const prov282 = totalNet(['282']); const prov292 = totalNet(['292']);
   const immo23 = totalNet(['23']); const prov283 = totalNet(['283']); const prov293 = totalNet(['293']);
   const immo24 = totalNet(['24']); const immo25 = totalNet(['25']);
-  const netImmo21 = immo21 - prov281;
-  const netImmo22 = immo22 - prov282 - prov292;
-  const netImmo23 = immo23 - prov283 - prov293;
+  const netImmo21 = immo21 + prov281;  // 21+281
+  const netImmo22 = immo22 + prov282 + prov292;  // 22+282+292
+  const netImmo23 = immo23 + prov283 + prov293;  // 23+283+293
   const netImmo2425 = immo24 + immo25;
   const totalImmo = netImmo21 + netImmo22 + netImmo23 + netImmo2425;
 
   // Actif circulant
   const stocks31  = totalNet(['31']); const provStocks = totalNet(['391']);
-  const netStocks = stocks31 - provStocks;
+  const netStocks = stocks31 + provStocks;  // 31+391
   const creances34 = totalNet(['34']); const provCrea = totalNet(['394']);
-  const netCreances = creances34 - provCrea;
+  const netCreances = creances34 + provCrea;  // 34+394
   const tvp35     = totalNet(['35']);
   const ecart37   = totalNet(['37']);
   const tresActif = treso51;
@@ -2112,14 +2117,14 @@ function calculerKPIs() {
 
   document.getElementById('bilan-actif').innerHTML =
     fmtSection('Actif immobilisé') +
-    fmtRow('Immobilisations en non-valeurs nettes', '21−281', netImmo21) +
-    fmtRow('Immobilisations incorporelles nettes', '22−282−292', netImmo22) +
-    fmtRow('Immobilisations corporelles nettes', '23−283−293', netImmo23) +
+    fmtRow('Immobilisations en non-valeurs nettes', '21+281', netImmo21) +
+    fmtRow('Immobilisations incorporelles nettes', '22+282+292', netImmo22) +
+    fmtRow('Immobilisations corporelles nettes', '23+283+293', netImmo23) +
     fmtRow('Immobilisations financières', '24/25', netImmo2425) +
     fmtTotal('Total immobilisations', totalImmo) +
     fmtSection('Actif circulant') +
-    fmtRow('Stocks nets', '31−391', netStocks) +
-    fmtRow('Créances nettes', '34−394', netCreances) +
+    fmtRow('Stocks nets', '31+391', netStocks) +
+    fmtRow('Créances nettes', '34+394', netCreances) +
     fmtRow('Titres et valeurs de placement', '35', tvp35) +
     fmtRow('Écarts de conversion – actif', '37', ecart37) +
     fmtTotal('Total actif circulant', totalActifCirc) +
@@ -2370,12 +2375,19 @@ function exportRevuePDF() {
   const cloture  = document.getElementById('revue-cloture').value || '31/12/'+exercice;
   const cabinet  = document.getElementById('revue-cabinet').value || 'Cabinet NEOEXPERT';
   const points   = d.points || [];
-  const fmtN = v => Number(v).toLocaleString('fr-MA',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const fmtN = v => (v===undefined||v===null) ? '—' : Number(v).toLocaleString('fr-MA',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const fmtP = v => (v===undefined||v===null) ? '—' : (v>=0?'+':'')+Number(v).toFixed(1)+' %';
+
+  // Récupérer le HTML du bilan et du CPC depuis le DOM de l'app
+  const bilanActifHTML  = document.getElementById('bilan-actif')?.innerHTML  || '';
+  const bilanPassifHTML = document.getElementById('bilan-passif')?.innerHTML || '';
+  const resultatHTML    = document.getElementById('resultat-table')?.innerHTML || '';
+  const isHTML          = document.getElementById('is-table')?.innerHTML || '';
 
   const slides = [
     // Slide 1 — Couverture
     `<div class="slide cover">
-      <div class="cover-bg"></div>
+      <div class="cover-band"></div>
       <div class="cover-content">
         <div class="cover-title">${raison.toUpperCase()}</div>
         <div class="cover-sub">Revue des <em>comptes</em></div>
@@ -2385,50 +2397,58 @@ function exportRevuePDF() {
       </div>
     </div>`,
 
-    // Slide 2 — Chiffres clés
+    // Slide 2 — Chiffres clés + marges
     `<div class="slide">
       <div class="slide-header">ACTIVITÉ ${exercice} — CHIFFRES CLÉS</div>
       <div class="kpi-grid">
-        <div class="kpi-card"><div class="kpi-val blue">${fmtN(d.ca)} MAD</div><div class="kpi-lbl">Chiffre d'affaires total</div><div class="kpi-sub">Comptes 71xx–72xx</div></div>
-        <div class="kpi-card"><div class="kpi-val ${d.resultat>=0?'green':'red'}">${fmtN(d.resultat)} MAD</div><div class="kpi-lbl">Résultat net</div><div class="kpi-sub">${d.resultat>=0?'Exercice bénéficiaire':'Exercice déficitaire'}</div></div>
-        <div class="kpi-card"><div class="kpi-val green">${fmtN(d.tresos)} MAD</div><div class="kpi-lbl">Trésorerie nette</div><div class="kpi-sub">Banques ${fmtN(d.banques)} + Caisse ${fmtN(d.caisse)}</div></div>
-        <div class="kpi-card"><div class="kpi-val navy">${fmtN(d.capPropres)} MAD</div><div class="kpi-lbl">Capitaux propres</div><div class="kpi-sub">Fonds propres cumulés</div></div>
+        <div class="kpi-card"><div class="kpi-val blue">${fmtN(d.ca)} MAD</div><div class="kpi-lbl">Chiffre d\'affaires (711+712)</div></div>
+        <div class="kpi-card"><div class="kpi-val ${(d.resultat||0)>=0?'green':'red'}">${fmtN(d.resultat)} MAD</div><div class="kpi-lbl">Résultat net</div></div>
+        <div class="kpi-card"><div class="kpi-val green">${fmtN(d.tresos)} MAD</div><div class="kpi-lbl">Trésorerie nette (51−55)</div></div>
+        <div class="kpi-card"><div class="kpi-val navy">${fmtN(d.capPropres)} MAD</div><div class="kpi-lbl">Capitaux propres</div></div>
+        <div class="kpi-card gold-border"><div class="kpi-val ${(d.margeCommPct||0)>=0?'green':'red'}">${fmtP(d.margeCommPct)}</div><div class="kpi-lbl">Marge commerciale</div><div class="kpi-sub">(711+712 − 611+612) / CA</div></div>
+        <div class="kpi-card gold-border"><div class="kpi-val ${(d.margeNettePct||0)>=0?'green':'red'}">${fmtP(d.margeNettePct)}</div><div class="kpi-lbl">Marge nette</div><div class="kpi-sub">Résultat net / CA</div></div>
       </div>
       <div class="slide-footer">${exercice} — Clôture ${cloture} — Référentiel CGNC</div>
     </div>`,
 
-    // Slide 3 — Bilan
-    `<div class="slide">
-      <div class="slide-header">SITUATION COMPTABLE AU ${cloture}</div>
-      <div class="bilan-grid">
-        <div class="bilan-col">
-          <div class="bilan-head">ACTIF</div>
-          ${d.bilanItems.slice(0,8).map(i=>`<div class="bilan-row"><span>${String(i.lib||i.cpte).substring(0,32)}</span><span class="amt">${fmtN(Math.abs(i.val))}</span></div>`).join('')}
-          <div class="bilan-total">TOTAL ACTIF<span>${fmtN(d.totalActif)} MAD</span></div>
+    // Slide 3 — Bilan (reprise exacte du DOM)
+    `<div class="slide slide-bilan">
+      <div class="slide-header">BILAN AU ${cloture}</div>
+      <div class="bilan-wrap">
+        <div class="bilan-col-wrap">
+          <div class="bilan-head-pdf">ACTIF</div>
+          <div class="bilan-content">${bilanActifHTML}</div>
         </div>
-        <div class="bilan-col">
-          <div class="bilan-head">PASSIF</div>
-          ${d.passifItems.slice(0,8).map(i=>`<div class="bilan-row"><span>${String(i.lib||i.cpte).substring(0,32)}</span><span class="amt">${fmtN(Math.abs(i.solde))}</span></div>`).join('')}
-          <div class="bilan-total">TOTAL PASSIF<span>${fmtN(d.totalPassif)} MAD</span></div>
+        <div class="bilan-col-wrap">
+          <div class="bilan-head-pdf">PASSIF</div>
+          <div class="bilan-content">${bilanPassifHTML}</div>
         </div>
       </div>
     </div>`,
 
-    // Slide 4 — IS
+    // Slide 4 — CPC (reprise exacte du DOM)
+    `<div class="slide slide-cpc">
+      <div class="slide-header">COMPTE DE PRODUITS ET CHARGES (CPC) — ${exercice}</div>
+      <div class="cpc-wrap">${resultatHTML}</div>
+    </div>`,
+
+    // Slide 5 — IS
     `<div class="slide">
       <div class="slide-header">IMPÔT SUR LES SOCIÉTÉS — EXERCICE ${exercice}</div>
       <div class="is-sub">Du résultat comptable au résultat fiscal</div>
-      <div class="is-table">
-        <div class="is-row"><span>Résultat comptable avant IS</span><span class="is-val">${fmtN(d.resultat)} MAD</span></div>
-        <div class="is-row alt"><span>IS calculé (taux ${(d.tauxIS*100).toFixed(0)}%)</span><span class="is-val blue">${fmtN(d.isCalc)} MAD</span></div>
-        <div class="is-row"><span>Cotisation Minimale (0,5% CA — plancher 3 000 MAD)</span><span class="is-val orange">${fmtN(d.cm)} MAD</span></div>
-        <div class="is-row total"><span>IS À VERSER</span><span class="is-val gold">${fmtN(d.isAVerser)} MAD</span></div>
+      <div class="is-table-pdf">
+        <div class="is-row-pdf"><span>Résultat comptable (7−6)</span><span class="is-val">${fmtN(d.resultat)} MAD</span></div>
+        <div class="is-row-pdf alt"><span>Réintégrations fiscales (67+65+6xx8)</span><span class="is-val orange">${fmtN(d.reintegrations)} MAD</span></div>
+        <div class="is-row-pdf"><span>Résultat fiscal avant IS</span><span class="is-val blue">${fmtN(d.resultatFiscal)} MAD</span></div>
+        <div class="is-row-pdf alt"><span>IS calculé (taux ${((d.tauxIS||0)*100).toFixed(0)}%)</span><span class="is-val orange">${fmtN(d.isCalc)} MAD</span></div>
+        <div class="is-row-pdf"><span>Cotisation Minimale (0,5% CA — plancher 3 000 MAD)</span><span class="is-val">${fmtN(d.cm)} MAD</span></div>
+        <div class="is-row-pdf total"><span>IS À VERSER</span><span class="is-val gold">${fmtN(d.isAVerser)} MAD</span></div>
       </div>
     </div>`,
 
-    // Slide 5 — Points d'attention
+    // Slide 6 — Points d'attention IA
     points.length > 0 ? `<div class="slide">
-      <div class="slide-header">POINTS D'ATTENTION — À TRAITER</div>
+      <div class="slide-header">POINTS D\'ATTENTION — À TRAITER</div>
       <div class="points-list">
         ${points.slice(0,4).map((p,i)=>`
         <div class="point-item">
@@ -2443,14 +2463,15 @@ function exportRevuePDF() {
       </div>
     </div>` : '',
 
-    // Slide 6 — Synthèse
+    // Slide 7 — Synthèse
     `<div class="slide cover-end">
       <div class="end-title">Merci de votre confiance</div>
       <div class="end-divider"></div>
       <div class="end-section">SYNTHÈSE FINANCIÈRE</div>
       <div class="end-kpis">
         <div class="end-kpi"><div class="end-kpi-lbl">IS à verser</div><div class="end-kpi-val">${fmtN(d.isAVerser)} MAD</div></div>
-        <div class="end-kpi"><div class="end-kpi-lbl">Trésorerie nette</div><div class="end-kpi-val">${fmtN(d.tresos)} MAD</div></div>
+        <div class="end-kpi"><div class="end-kpi-lbl">Marge commerciale</div><div class="end-kpi-val">${fmtP(d.margeCommPct)}</div></div>
+        <div class="end-kpi"><div class="end-kpi-lbl">Marge nette</div><div class="end-kpi-val">${fmtP(d.margeNettePct)}</div></div>
         <div class="end-kpi"><div class="end-kpi-lbl">Résultat net</div><div class="end-kpi-val">${fmtN(d.resultat)} MAD</div></div>
       </div>
       <div class="end-footer">${cabinet} — ${new Date().toLocaleDateString('fr-MA')} — Référentiel CGNC / CGI ${exercice}</div>
@@ -2460,76 +2481,93 @@ function exportRevuePDF() {
   const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
 <title>Revue des comptes — ${raison} — ${exercice}</title>
 <style>
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'Calibri',Arial,sans-serif;background:#fff}
-  .slide{width:297mm;height:190mm;padding:12mm 14mm;position:relative;page-break-after:always;overflow:hidden;display:flex;flex-direction:column}
-  /* Couverture */
-  .cover{background:#1E2761;color:#fff;justify-content:center}
-  .cover-bg{position:absolute;bottom:0;left:0;right:0;height:55mm;background:#F5C842}
-  .cover-content{position:relative;z-index:1}
-  .cover-title{font-size:28pt;font-weight:700;letter-spacing:1px;margin-bottom:4mm}
-  .cover-sub{font-size:22pt;font-style:italic;color:#F5C842;line-height:1.2;margin-bottom:2mm}
-  .cover-year{position:absolute;right:0;top:-10mm;font-size:72pt;font-weight:900;color:rgba(255,255,255,.12);line-height:1}
-  .cover-info{font-size:10pt;color:#1E2761;margin-top:42mm}
-  .cover-cabinet{font-size:9pt;color:#1E2761;margin-top:2mm}
-  /* Header */
-  .slide-header{font-size:16pt;font-weight:700;color:#1E2761;border-bottom:2px solid #F5C842;padding-bottom:3mm;margin-bottom:6mm}
-  .slide-footer{font-size:7pt;color:#999;text-align:center;margin-top:auto;padding-top:4mm}
-  /* KPIs */
-  .kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:5mm;flex:1}
-  .kpi-card{background:#F0F4FF;border-radius:4px;padding:6mm;display:flex;flex-direction:column;justify-content:center}
-  .kpi-val{font-size:20pt;font-weight:700;margin-bottom:2mm}
-  .kpi-lbl{font-size:10pt;font-weight:600;color:#1E2761;margin-bottom:1mm}
-  .kpi-sub{font-size:8pt;color:#888}
-  .blue{color:#2563EB}.green{color:#27AE60}.red{color:#C0392B}.navy{color:#1E2761}.orange{color:#E67E22}
-  /* Bilan */
-  .bilan-grid{display:grid;grid-template-columns:1fr 1fr;gap:6mm;flex:1}
-  .bilan-head{background:#1E2761;color:#fff;padding:3mm 4mm;font-weight:700;font-size:11pt;text-align:center;margin-bottom:2mm}
-  .bilan-row{display:flex;justify-content:space-between;padding:2.5mm 4mm;border-bottom:1px solid #EEF;font-size:8.5pt}
-  .bilan-row span:first-child{color:#333;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60mm}
-  .amt{font-weight:600;color:#1E2761;white-space:nowrap;margin-left:2mm}
-  .bilan-total{display:flex;justify-content:space-between;padding:3mm 4mm;background:#F5C842;font-weight:700;font-size:9pt;margin-top:2mm}
-  /* IS */
-  .is-sub{font-size:9pt;color:#888;margin-bottom:6mm}
-  .is-table{flex:1;display:flex;flex-direction:column;gap:3mm}
-  .is-row{display:flex;justify-content:space-between;align-items:center;padding:4mm 6mm;background:#fff;border:1px solid #EEF}
-  .is-row.alt{background:#F0F4FF}
-  .is-row.total{background:#1E2761;border-color:#1E2761}
-  .is-row.total span:first-child{color:#fff;font-weight:700;font-size:13pt}
-  .is-val{font-size:13pt;font-weight:700;text-align:right}
-  .is-val.gold{color:#F5C842}
-  /* Points */
-  .points-list{display:flex;flex-direction:column;gap:4mm;flex:1}
-  .point-item{display:flex;align-items:flex-start;gap:4mm;padding:3mm;background:#F8FAFF;border-radius:4px}
-  .point-num{width:10mm;height:10mm;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12pt;color:#fff;flex-shrink:0}
-  .point-num.haute{background:#C0392B}.point-num.moyenne{background:#E67E22}.point-num.basse{background:#27AE60}
-  .point-body{flex:1}
-  .point-title{font-size:10pt;font-weight:700;color:#1E2761;margin-bottom:1mm}
-  .point-desc{font-size:8.5pt;color:#555;margin-bottom:1.5mm}
-  .point-action{font-size:8pt;color:#2563EB;font-style:italic}
-  .point-badge{padding:1mm 3mm;border-radius:10px;font-size:7.5pt;font-weight:600;white-space:nowrap;margin-top:1mm}
-  .point-badge.haute{background:rgba(192,57,43,.1);color:#C0392B}
-  .point-badge.moyenne{background:rgba(230,126,22,.1);color:#E67E22}
-  .point-badge.basse{background:rgba(39,174,96,.1);color:#27AE60}
-  /* Fin */
-  .cover-end{background:#1E2761;color:#fff;align-items:center;justify-content:center;text-align:center}
-  .end-title{font-size:24pt;font-style:italic;color:#F5C842;margin-bottom:4mm}
-  .end-divider{width:100mm;height:1px;background:#F5C842;margin:0 auto 5mm}
-  .end-section{font-size:13pt;font-weight:700;color:#fff;margin-bottom:6mm;letter-spacing:1px}
-  .end-kpis{display:flex;gap:8mm;margin-bottom:8mm}
-  .end-kpi{background:rgba(255,255,255,.1);padding:4mm 6mm;border-radius:4px;min-width:55mm}
-  .end-kpi-lbl{font-size:9pt;color:#F5C842;font-weight:600;margin-bottom:2mm}
-  .end-kpi-val{font-size:13pt;font-weight:700;color:#fff}
-  .end-footer{font-size:8pt;color:rgba(255,255,255,.5)}
-  @media print{.slide{page-break-after:always}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Calibri',Arial,sans-serif;background:#fff;font-size:9pt}
+.slide{width:297mm;min-height:190mm;padding:10mm 12mm;position:relative;page-break-after:always;overflow:hidden;display:flex;flex-direction:column}
+/* Couverture */
+.cover{background:#1E2761;color:#fff;justify-content:center;min-height:210mm}
+.cover-band{position:absolute;bottom:0;left:0;right:0;height:50mm;background:#F5C842}
+.cover-content{position:relative;z-index:1}
+.cover-title{font-size:26pt;font-weight:700;letter-spacing:1px;margin-bottom:4mm}
+.cover-sub{font-size:20pt;font-style:italic;color:#F5C842;line-height:1.2;margin-bottom:2mm}
+.cover-year{position:absolute;right:0;top:-8mm;font-size:64pt;font-weight:900;color:rgba(255,255,255,.1);line-height:1}
+.cover-info{font-size:9pt;color:#1E2761;margin-top:38mm}
+.cover-cabinet{font-size:8pt;color:#1E2761;margin-top:2mm}
+/* Slide header */
+.slide-header{font-size:14pt;font-weight:700;color:#1E2761;border-bottom:2px solid #F5C842;padding-bottom:2.5mm;margin-bottom:5mm}
+.slide-footer{font-size:7pt;color:#999;text-align:center;margin-top:auto;padding-top:3mm}
+.is-sub{font-size:8pt;color:#888;margin-bottom:4mm}
+/* KPIs */
+.kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4mm;flex:1}
+.kpi-card{background:#F0F4FF;border-radius:4px;padding:5mm;display:flex;flex-direction:column;justify-content:center}
+.kpi-card.gold-border{background:#FFFBF0;border:1px solid #F5C842}
+.kpi-val{font-size:16pt;font-weight:700;margin-bottom:1.5mm}
+.kpi-lbl{font-size:8.5pt;font-weight:600;color:#1E2761;margin-bottom:1mm}
+.kpi-sub{font-size:7pt;color:#888}
+.blue{color:#2563EB}.green{color:#27AE60}.red{color:#C0392B}.navy{color:#1E2761}.orange{color:#E67E22}
+/* Bilan */
+.slide-bilan{min-height:210mm}
+.bilan-wrap{display:grid;grid-template-columns:1fr 1fr;gap:5mm;flex:1}
+.bilan-col-wrap{display:flex;flex-direction:column}
+.bilan-head-pdf{background:#1E2761;color:#fff;padding:2.5mm 4mm;font-weight:700;font-size:10pt;text-align:center;margin-bottom:0}
+.bilan-content{flex:1;font-size:8pt}
+/* On réutilise les styles du DOM pour le bilan */
+.bilan-content > div{display:flex;justify-content:space-between;padding:2mm 3mm;border-bottom:1px solid #EEF;font-size:8pt;align-items:center}
+.bilan-content .amount{font-weight:600;white-space:nowrap;margin-left:2mm;font-family:monospace}
+.bilan-content .amount.pos{color:#27AE60}
+.bilan-content .amount.neg{color:#C0392B}
+/* Sections bilan */
+.bilan-content > div[style*="background:var(--bg3)"],
+.bilan-content > div[style*="var(--bg3)"] { background:#EEF2FF!important;font-weight:700;font-size:7.5pt;color:#555;text-transform:uppercase;letter-spacing:.5px }
+/* Totaux bilan */
+.bilan-content > div[style*="background:rgba(79"],
+.bilan-content > div[style*="font-weight:600"] { background:#E8F0FF!important;font-weight:700 }
+/* CPC */
+.slide-cpc{min-height:210mm}
+.cpc-wrap{display:grid;grid-template-columns:1fr 1fr;gap:5mm;flex:1;font-size:8pt}
+.cpc-wrap > div{display:flex;justify-content:space-between;padding:2mm 3mm;border-bottom:1px solid #EEF;align-items:center}
+.cpc-wrap .amount{font-weight:600;font-family:monospace;white-space:nowrap;margin-left:2mm}
+.cpc-wrap .amount.pos{color:#27AE60}.cpc-wrap .amount.neg{color:#C0392B}
+/* IS */
+.is-table-pdf{flex:1;display:flex;flex-direction:column;gap:2.5mm}
+.is-row-pdf{display:flex;justify-content:space-between;align-items:center;padding:3.5mm 5mm;background:#fff;border:1px solid #EEF}
+.is-row-pdf.alt{background:#F0F4FF}
+.is-row-pdf.total{background:#1E2761;border-color:#1E2761}
+.is-row-pdf.total span:first-child{color:#fff;font-weight:700;font-size:11pt}
+.is-val{font-size:11pt;font-weight:700;text-align:right}
+.is-val.gold{color:#F5C842}.is-val.blue{color:#2563EB}.is-val.orange{color:#E67E22}
+/* Points */
+.points-list{display:flex;flex-direction:column;gap:3.5mm;flex:1}
+.point-item{display:flex;align-items:flex-start;gap:3mm;padding:3mm;background:#F8FAFF;border-radius:3px}
+.point-num{width:9mm;height:9mm;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11pt;color:#fff;flex-shrink:0}
+.point-num.haute{background:#C0392B}.point-num.moyenne{background:#E67E22}.point-num.basse{background:#27AE60}
+.point-body{flex:1}
+.point-title{font-size:9.5pt;font-weight:700;color:#1E2761;margin-bottom:1mm}
+.point-desc{font-size:8pt;color:#555;margin-bottom:1mm}
+.point-action{font-size:7.5pt;color:#2563EB;font-style:italic}
+.point-badge{padding:1mm 3mm;border-radius:10px;font-size:7pt;font-weight:600;white-space:nowrap;margin-top:1mm}
+.point-badge.haute{background:rgba(192,57,43,.1);color:#C0392B}
+.point-badge.moyenne{background:rgba(230,126,22,.1);color:#E67E22}
+.point-badge.basse{background:rgba(39,174,96,.1);color:#27AE60}
+/* Fin */
+.cover-end{background:#1E2761;color:#fff;align-items:center;justify-content:center;text-align:center;min-height:210mm}
+.end-title{font-size:22pt;font-style:italic;color:#F5C842;margin-bottom:4mm}
+.end-divider{width:100mm;height:1px;background:#F5C842;margin:0 auto 5mm}
+.end-section{font-size:12pt;font-weight:700;color:#fff;margin-bottom:6mm;letter-spacing:1px}
+.end-kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:4mm;margin-bottom:8mm;width:120mm}
+.end-kpi{background:rgba(255,255,255,.1);padding:4mm;border-radius:3px}
+.end-kpi-lbl{font-size:8.5pt;color:#F5C842;font-weight:600;margin-bottom:1.5mm}
+.end-kpi-val{font-size:12pt;font-weight:700;color:#fff}
+.end-footer{font-size:7.5pt;color:rgba(255,255,255,.5)}
+@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}.slide{page-break-after:always}}
 </style>
 </head><body>${slides}</body></html>`;
 
   const w = window.open('','_blank');
   w.document.write(html);
   w.document.close();
-  setTimeout(() => w.print(), 800);
-  toast('Présentation ouverte — utilisez Ctrl+P pour imprimer/exporter en PDF ✓','success');
+  setTimeout(() => w.print(), 1000);
+  toast('Présentation ouverte — Ctrl+P pour exporter en PDF ✓','success');
 }
 
 async function exportRevuePPTX() { exportRevuePDF(); }
