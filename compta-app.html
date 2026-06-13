@@ -2631,21 +2631,31 @@ function buildECRITRows(){
   // ── Journal ACHATS — factures achats & tickets caisse ─────────────────────
   allFactures.filter(f => f.type_facture !== 'vente').forEach(f=>{
     const journal = f.journal === 'C' ? JOURNAUX.CAISSE : JOURNAUX.ACHATS;
-    const date=excelDate(f.date_facture),lib=((f.description||f.categorie||'FACTURE')+' '+(f.fournisseur||'')).substring(0,40).toUpperCase(),piece=f.numero||'',ht=+f.montant_ht||0,tva=+f.montant_tva||0,ttc=+f.montant_ttc||0,cpte=getCompteCharge(f.categorie);
-    rows.push([journal,date,cpte,'',lib,piece,'',ht,null]);
-    if(tva>0)rows.push([journal,date,PLAN_COMPTES.tva_recuperable,'','TVA / '+lib.substring(0,35),piece,'',tva,null]);
-    rows.push([journal,date,PLAN_COMPTES.fournisseurs,'',lib,piece,'',null,ttc]);
+    const piece0=f.numero||'';
+    const libBase0=((f.description||f.categorie||'FACTURE')+' '+(f.fournisseur||'')).toUpperCase();
+    const lib=(piece0?(piece0+' - '):'')+libBase0;
+    const libT=lib.substring(0,40);
+    const ht=+f.montant_ht||0,tva=+f.montant_tva||0,ttc=+f.montant_ttc||0,cpte=getCompteCharge(f.categorie);
+    const date=excelDate(f.date_facture);
+    rows.push([journal,date,cpte,'',libT,'','',ht,null]);
+    if(tva>0)rows.push([journal,date,PLAN_COMPTES.tva_recuperable,'','TVA / '+libT.substring(0,35),'','',tva,null]);
+    rows.push([journal,date,PLAN_COMPTES.fournisseurs,'',libT,'','',null,ttc]);
   });
 
   // ── Journal VENTES — factures de ventes ───────────────────────────────────
   allFactures.filter(f => f.type_facture === 'vente').forEach(f=>{
-    const date=excelDate(f.date_facture),lib=((f.description||'VENTE')+' '+(f.fournisseur||'')).substring(0,40).toUpperCase(),piece=f.numero||'',ht=+f.montant_ht||0,tva=+f.montant_tva||0,ttc=+f.montant_ttc||0;
+    const piece0v=f.numero||'';
+    const libBase0v=((f.description||'VENTE')+' '+(f.fournisseur||'')).toUpperCase();
+    const libV=(piece0v?(piece0v+' - '):'')+libBase0v;
+    const libVT=libV.substring(0,40);
+    const dateV=excelDate(f.date_facture);
+    const ht=+f.montant_ht||0,tva=+f.montant_tva||0,ttc=+f.montant_ttc||0;
     // Client au débit
-    rows.push([JOURNAUX.VENTES,date,PLAN_COMPTES.clients,'',lib,piece,'',ttc,null]);
+    rows.push([JOURNAUX.VENTES,dateV,PLAN_COMPTES.clients,'',libVT,'','',ttc,null]);
     // Produit au crédit (7111 = ventes de marchandises)
-    rows.push([JOURNAUX.VENTES,date,'7111000000','',lib,piece,'',null,ht]);
+    rows.push([JOURNAUX.VENTES,dateV,'7111000000','',libVT,'','',null,ht]);
     // TVA facturée au crédit
-    if(tva>0) rows.push([JOURNAUX.VENTES,date,PLAN_COMPTES.tva_exigible,'','TVA / '+lib.substring(0,35),piece,'',null,tva]);
+    if(tva>0) rows.push([JOURNAUX.VENTES,dateV,PLAN_COMPTES.tva_exigible,'','TVA / '+libVT.substring(0,35),'','',null,tva]);
   });
 
   // ── Journal BANQUE — transactions relevés ─────────────────────────────────
