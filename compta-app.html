@@ -693,11 +693,23 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
         <!-- Chiffres clés calculés -->
         <div id="revue-kpis" style="display:none">
           <div class="divider"><h2>Chiffres clés</h2><div class="divider-line"></div></div>
-          <div class="stats-grid" style="margin-bottom:16px">
-            <div class="stat-card"><div class="stat-label">Chiffre d'affaires</div><div class="stat-value accent" id="kpi-ca">—</div><div class="stat-sub" id="kpi-ca-sub">Comptes 7xxx</div></div>
-            <div class="stat-card"><div class="stat-label">Résultat net</div><div class="stat-value" id="kpi-resultat">—</div><div class="stat-sub">Produits – Charges</div></div>
-            <div class="stat-card"><div class="stat-label">Trésorerie</div><div class="stat-value success" id="kpi-tresos">—</div><div class="stat-sub">Banques + Caisse</div></div>
-            <div class="stat-card"><div class="stat-label">Capitaux propres</div><div class="stat-value" id="kpi-cp">—</div><div class="stat-sub">Comptes 1xxx</div></div>
+          <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:8px">
+            <div class="stat-card"><div class="stat-label">Chiffre d'affaires</div><div class="stat-value accent" id="kpi-ca">—</div><div class="stat-sub" id="kpi-ca-sub">Comptes 711 + 712</div></div>
+            <div class="stat-card"><div class="stat-label">Résultat net</div><div class="stat-value" id="kpi-resultat">—</div><div class="stat-sub">Produits 7 − Charges 6</div></div>
+            <div class="stat-card"><div class="stat-label">Trésorerie nette</div><div class="stat-value success" id="kpi-tresos">—</div><div class="stat-sub">Comptes 51 − 55</div></div>
+          </div>
+          <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:16px">
+            <div class="stat-card"><div class="stat-label">Capitaux propres</div><div class="stat-value" id="kpi-cp">—</div><div class="stat-sub">Comptes 11 + Résultat</div></div>
+            <div class="stat-card" style="border-color:rgba(245,200,66,.25)">
+              <div class="stat-label">Marge commerciale</div>
+              <div class="stat-value" id="kpi-marge-comm" style="font-size:26px">—</div>
+              <div class="stat-sub">(711+712 − 611+612) / (711+712)</div>
+            </div>
+            <div class="stat-card" style="border-color:rgba(245,200,66,.25)">
+              <div class="stat-label">Marge nette</div>
+              <div class="stat-value" id="kpi-marge-nette" style="font-size:26px">—</div>
+              <div class="stat-sub">Résultat net / (711+712)</div>
+            </div>
           </div>
 
           <!-- Bilan simplifié -->
@@ -2067,6 +2079,23 @@ function calculerKPIs() {
   document.getElementById('kpi-tresos').textContent   = fmtAmt(tresos);
   document.getElementById('kpi-cp').textContent       = fmtAmt(capPropres);
 
+  // Marges
+  const chAchats = totalNet(['611','612']);
+  const margeCommPct  = ca > 0 ? ((ca - chAchats) / ca * 100) : 0;
+  const margeNettePct = ca > 0 ? (resultat / ca * 100) : 0;
+  const fmtPct = v => (v >= 0 ? '+' : '') + v.toFixed(1) + ' %';
+
+  const mcEl = document.getElementById('kpi-marge-comm');
+  if(mcEl) {
+    mcEl.textContent   = fmtPct(margeCommPct);
+    mcEl.style.color   = margeCommPct >= 0 ? 'var(--success)' : 'var(--danger)';
+  }
+  const mnEl = document.getElementById('kpi-marge-nette');
+  if(mnEl) {
+    mnEl.textContent   = fmtPct(margeNettePct);
+    mnEl.style.color   = margeNettePct >= 0 ? 'var(--success)' : 'var(--danger)';
+  }
+
   // ── Bilan actif ──────────────────────────────────────────────────────────
   const fmtRow = (lbl, cptes, val, sign='+') => `
     <div style="display:flex;justify-content:space-between;padding:6px 8px;border-bottom:1px solid var(--border);font-size:11.5px">
@@ -2203,6 +2232,7 @@ function calculerKPIs() {
     totalActif, totalPassif,
     totalFP, totalActifCirc, totalPassCirc,
     isAVerser, isCalc, cm, tauxIS,
+    margeCommPct, margeNettePct,
     res,
     // Pour le PPTX/PDF
     bilanItems: [
@@ -2244,13 +2274,15 @@ async function genererPointsIA() {
     const prompt = `Tu es expert-comptable marocain. Analyse ces données financières pour ${raison} — exercice ${exercice} et génère 3 à 5 points d'attention concrets et actionnables.
 
 Données:
-- CA: ${d.ca.toFixed(2)} MAD
-- Résultat: ${d.resultat.toFixed(2)} MAD
-- Trésorerie (banques): ${d.banques.toFixed(2)} MAD
-- Trésorerie (caisse): ${d.caisse.toFixed(2)} MAD
+- CA (711+712): ${d.ca.toFixed(2)} MAD
+- Résultat net: ${d.resultat.toFixed(2)} MAD
+- Marge commerciale: ${d.margeCommPct !== undefined ? d.margeCommPct.toFixed(1)+'%' : 'N/A'}
+- Marge nette: ${d.margeNettePct !== undefined ? d.margeNettePct.toFixed(1)+'%' : 'N/A'}
+- Trésorerie (51−55): ${d.tresos.toFixed(2)} MAD
 - IS à verser: ${d.isAVerser.toFixed(2)} MAD
 - Total actif: ${d.totalActif.toFixed(2)} MAD
 - Capitaux propres: ${d.capPropres.toFixed(2)} MAD
+- Résultat fiscal: ${d.resultatFiscal.toFixed(2)} MAD
 
 Réponds en JSON uniquement, sans markdown:
 [{"ordre":1,"titre":"...","description":"...","priorite":"haute|moyenne|basse","action":"..."}]`;
@@ -2300,10 +2332,11 @@ function exportRevueXLS() {
     ['Exercice ' + exercice],
     [],
     ['CHIFFRES CLÉS',''],
-    ['Chiffre d\'affaires', d.ca],
+    ['Chiffre d\'affaires (711+712)', d.ca],
     ['Résultat net', d.resultat],
-    ['Trésorerie — Banques', d.banques],
-    ['Trésorerie — Caisse', d.caisse],
+    ['Marge commerciale', (d.margeCommPct||0).toFixed(2) + ' %'],
+    ['Marge nette', (d.margeNettePct||0).toFixed(2) + ' %'],
+    ['Trésorerie nette (51−55)', d.tresos],
     ['Capitaux propres', d.capPropres],
     [],
     ['IMPÔT SUR LES SOCIÉTÉS',''],
