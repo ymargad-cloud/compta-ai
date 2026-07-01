@@ -1296,17 +1296,76 @@ async function loadTVADeclarations(){
 function renderFactures(){
   const tbody=document.getElementById('tbody-factures');
   if(!allFactures.length){tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:40px">Aucune facture</td></tr>';return;}
-  tbody.innerHTML=allFactures.map(f=>`<tr>
+
+  const editCell = (fId, field, val, cls='') => {
+    const style = `outline:none;min-width:20px;cursor:text;padding:2px 4px;border-radius:3px;transition:background .15s;${cls}`;
+    return `<span contenteditable="true" spellcheck="false"
+      style="${style}"
+      title="Cliquez pour modifier"
+      onblur="saveFactureField('${fId}','${field}',this)"
+      onfocus="this._orig=this.innerText"
+    >${val}</span>`;
+  };
+
+  tbody.innerHTML=allFactures.map(f=>`<tr id="facture-row-${f.id}">
     <td style="font-family:var(--mono);font-size:12px">${f.date_facture||'—'}</td>
     <td><div style="font-weight:500">${f.fournisseur||'—'}</div><div style="font-size:11px;color:var(--muted)">${f.fournisseur_ice||''}</div></td>
-    <td style="font-family:var(--mono);font-size:11px">${f.numero||'—'}</td>
+    <td style="font-family:var(--mono);font-size:11px">${editCell(f.id,'numero',f.numero||'','font-family:var(--mono);font-size:11px')}</td>
     <td><span style="background:rgba(79,142,247,.1);color:var(--accent);padding:2px 8px;border-radius:6px;font-size:11px">${f.categorie||'—'}</span></td>
-    <td class="amount">${fmtAmt(f.montant_ht)}</td>
-    <td class="amount" style="color:var(--warn)">${fmtAmt(f.montant_tva)}</td>
-    <td class="amount pos">${fmtAmt(f.montant_ttc)}</td>
+    <td class="amount">${editCell(f.id,'montant_ht',f.montant_ht!=null?Number(f.montant_ht).toFixed(2):'','font-family:var(--mono);font-size:12px;color:var(--text)')}</td>
+    <td class="amount">${editCell(f.id,'montant_tva',f.montant_tva!=null?Number(f.montant_tva).toFixed(2):'','font-family:var(--mono);font-size:12px;color:var(--warn)')}</td>
+    <td class="amount">${editCell(f.id,'montant_ttc',f.montant_ttc!=null?Number(f.montant_ttc).toFixed(2):'','font-family:var(--mono);font-size:12px;color:var(--success)')}</td>
     <td><span class="status-badge done">${f.statut||'a_valider'}</span></td>
     <td><button onclick="deleteFacture('${f.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px;padding:2px 6px;border-radius:4px;transition:color .15s" title="Supprimer" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--muted)'">🗑</button></td>
   </tr>`).join('');
+}
+
+async function saveFactureField(id, field, el) {
+  const raw = el.innerText.trim();
+  // Annuler si inchangé
+  if(raw === (el._orig||'').trim()) return;
+
+  const numFields = ['montant_ht','montant_tva','montant_ttc','taux_tva'];
+  let value = numFields.includes(field) ? (parseFloat(raw.replace(',','.')) || 0) : raw;
+
+  // Feedback visuel immédiat
+  el.style.background = 'rgba(245,200,66,.15)';
+
+  try {
+    await api('PATCH', `/api/factures/${id}`, { [field]: value });
+
+    // Mettre à jour allFactures en mémoire
+    const f = allFactures.find(x => x.id === id);
+    if(f) {
+      f[field] = value;
+      // Si HT ou TVA modifiés, recalculer TTC automatiquement
+      if(field === 'montant_ht' || field === 'montant_tva') {
+        const newTtc = (+f.montant_ht||0) + (+f.montant_tva||0);
+        f.montant_ttc = Math.round(newTtc*100)/100;
+        // Mettre à jour la cellule TTC dans le DOM sans re-render
+        const row = document.getElementById(`facture-row-${id}`);
+        if(row) {
+          const ttcCell = row.querySelectorAll('[contenteditable]')[2];
+          if(ttcCell) ttcCell.innerText = f.montant_ttc.toFixed(2);
+        }
+        // Persister TTC en base aussi
+        await api('PATCH', `/api/factures/${id}`, { montant_ttc: f.montant_ttc });
+      }
+    }
+
+    el.style.background = 'rgba(52,211,153,.1)';
+    setTimeout(() => el.style.background = '', 1200);
+
+    // Propager les changements vers ECRIT et tableau de bord
+    updateDashboard();
+    renderECRITPreview();
+    toast(`${field === 'numero' ? 'N°' : field === 'montant_ht' ? 'HT' : field === 'montant_tva' ? 'TVA' : 'TTC'} mis à jour ✓`, 'success');
+  } catch(e) {
+    el.innerText = el._orig || '';
+    el.style.background = 'rgba(248,113,113,.1)';
+    setTimeout(() => el.style.background = '', 1200);
+    toast('Erreur sauvegarde: '+e.message, 'error');
+  }
 }
 
 function renderReleves(){

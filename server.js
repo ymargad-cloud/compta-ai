@@ -195,6 +195,21 @@ const handler = async (req, res) => {
     return send(res, 200, { ok: true });
   }
 
+  // PATCH /api/factures/:id — modification partielle d'une facture (N°, HT, TVA, TTC)
+  if (req.method === 'PATCH' && url.startsWith('/api/factures/') && url.split('/').length === 4) {
+    const user = await getUser(req);
+    if (!user) return send(res, 401, { error: 'Non authentifié' });
+    const id = url.split('/')[3];
+    const body = await parseBody(req);
+    // Champs autorisés à être modifiés
+    const ALLOWED = ['numero','montant_ht','montant_tva','montant_ttc','taux_tva','description','categorie','date_facture','statut'];
+    const patch = {};
+    for(const k of ALLOWED) { if(body[k] !== undefined) patch[k] = body[k]; }
+    if(!Object.keys(patch).length) return send(res, 400, { error: 'Aucun champ valide' });
+    await supa('PATCH', `factures?id=eq.${id}`, { body: patch });
+    return send(res, 200, { ok: true });
+  }
+
   // DELETE /api/transactions/:id
   if (req.method === 'DELETE' && url.startsWith('/api/transactions/') && url.split('/').length === 4) {
     const user = await getUser(req);
@@ -245,7 +260,7 @@ const handler = async (req, res) => {
     const user = await getUser(req);
     if (!user) return send(res, 401, { error: 'Non authentifié' });
     const body = await parseBody(req);
-    const { data } = await supa('POST', 'companies', { body: { name: body.name, ice: body.ice, ville: body.ville, owner_id: user.id } });
+    const { data } = await supa('POST', 'companies', { body: { name: body.name, ice: body.ice, if_fiscal: body.if_fiscal, ville: body.ville, exercice: body.exercice, owner_id: user.id } });
     const company = Array.isArray(data) ? data[0] : data;
     await supa('POST', 'user_companies', { body: { user_id: user.id, company_id: company.id } });
     return send(res, 201, company);
