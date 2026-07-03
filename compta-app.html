@@ -3072,28 +3072,44 @@ async function submitPortalFiles(){
   const companyId = document.getElementById('portal-public').dataset.companyId;
   const note      = document.getElementById('portal-note')?.value?.trim() || '';
   const btn       = document.getElementById('portal-submit');
+  if(!portalFiles.length){ toast('Aucun fichier sélectionné','error'); return; }
   btn.disabled = true; btn.textContent = 'Envoi en cours...';
   try {
-    // Convertir chaque fichier en base64
-    const filesData = await Promise.all(portalFiles.map(async f => {
+    let success = 0;
+    // Envoyer fichier par fichier pour éviter le dépassement de taille (limite Vercel 4.5 Mo)
+    for(let i = 0; i < portalFiles.length; i++){
+      const f = portalFiles[i];
+      btn.textContent = `Envoi ${i+1}/${portalFiles.length}...`;
+      // Convertir en base64
       const data = await new Promise((res, rej) => {
         const r = new FileReader();
         r.onload = () => res(r.result.split(',')[1]);
-        r.onerror = () => rej(new Error('Lecture impossible'));
+        r.onerror = () => rej(new Error('Lecture impossible: '+f.name));
         r.readAsDataURL(f);
       });
-      return { name: f.name, size: f.size, type: f.type, data };
-    }));
-    await api('POST', '/api/portal/upload', { company_id: companyId, files: filesData, note });
-    document.getElementById('portal-success').style.display = 'block';
-    document.getElementById('portal-submit').style.display  = 'none';
-    document.getElementById('portal-files-list').innerHTML  = '';
-    if (document.getElementById('portal-note')) document.getElementById('portal-note').value = '';
-    setTimeout(() => {
-      document.getElementById('portal-public').classList.remove('active');
-      document.getElementById('portal-success').style.display = 'none';
-      portalFiles = [];
-    }, 3000);
+      // Vérifier taille (max ~7 Mo en base64 pour rester sous 10 Mo JSON)
+      if(data.length > 7 * 1024 * 1024) {
+        toast(`${f.name} trop volumineux (max ~5 Mo)`, 'error');
+        continue;
+      }
+      await api('POST', '/api/portal/upload', {
+        company_id: companyId,
+        note: i === 0 ? note : '',
+        files: [{ name: f.name, size: f.size, type: f.type, data }]
+      });
+      success++;
+    }
+    if(success > 0){
+      document.getElementById('portal-success').style.display = 'block';
+      document.getElementById('portal-submit').style.display  = 'none';
+      document.getElementById('portal-files-list').innerHTML  = '';
+      if(document.getElementById('portal-note')) document.getElementById('portal-note').value = '';
+      setTimeout(() => {
+        document.getElementById('portal-public').classList.remove('active');
+        document.getElementById('portal-success').style.display = 'none';
+        portalFiles = [];
+      }, 3000);
+    }
   } catch(e) {
     toast('Erreur dépôt: ' + e.message, 'error');
     btn.disabled = false; btn.textContent = 'Envoyer les documents';

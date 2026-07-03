@@ -67,11 +67,23 @@ async function supa(method, table, { filter, body, select } = {}) {
   return { data: parsed2, status };
 }
 
+const MAX_BODY = 10 * 1024 * 1024; // 10 Mo max par requête
+
 function parseBody(req) {
-  return new Promise(res => {
+  return new Promise((res, rej) => {
     let b = '';
-    req.on('data', c => b += c);
+    let size = 0;
+    req.on('data', c => {
+      size += c.length;
+      if (size > MAX_BODY) {
+        req.destroy();
+        rej(new Error('Payload trop volumineux (max 10 Mo)'));
+        return;
+      }
+      b += c;
+    });
     req.on('end', () => { try { res(JSON.parse(b)); } catch { res({}); } });
+    req.on('error', rej);
   });
 }
 
@@ -364,21 +376,30 @@ const handler = async (req, res) => {
     return send(res, 200, { message: 'Mot de passe modifié avec succès' });
   }
 
-  // POST /api/portal/upload
+  // POST /api/portal/upload — accepte un fichier à la fois (base64)
   if (req.method === 'POST' && url === '/api/portal/upload') {
-    const body = await parseBody(req);
-    const docs = (body.files || []).map(f => ({
-      company_id:    body.company_id,
-      original_name: f.name,
-      file_size:     f.size || null,
-      file_data:     f.data || null,   // base64 du fichier
-      media_type:    f.type || null,
-      status:        'pending',
-      from_client:   true,
-      client_note:   body.note || null,
-    }));
-    await supa('POST', 'documents', { body: docs });
-    return send(res, 201, { ok: true });
+    try {
+      const body = await parseBody(req);
+      if (!body.company_id) return send(res, 400, { error: 'company_id manquant' });
+      const files = body.files || [];
+      if (!files.length) return send(res, 400, { error: 'Aucun fichier' });
+      const docs = files.map(f => ({
+        company_id:    body.company_id,
+        original_name: f.name,
+        file_size:     f.size || null,
+        file_data:     f.data || null,
+        media_type:    f.type || null,
+        status:        'pending',
+        from_client:   true,
+        client_note:   body.note || null,
+      }));
+      const { status } = await supa('POST', 'documents', { body: docs });
+      if (status >= 400) return send(res, 500, { error: 'Erreur base de données' });
+      return send(res, 201, { ok: true });
+    } catch(e) {
+      console.error('Portal upload error:', e.message);
+      return send(res, 500, { error: e.message || 'Erreur serveur' });
+    }
   }
 
   // GET /api/documents?company_id=xxx  (admin/comptable seulement)
