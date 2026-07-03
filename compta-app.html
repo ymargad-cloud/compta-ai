@@ -922,15 +922,6 @@ async function loadCompanies() {
     const companies = await api('GET', '/api/companies');
     allCompanies = companies;
 
-    // Recréer le select entièrement pour forcer le rafraîchissement
-    const container = document.getElementById('company-select').parentNode;
-    const oldSel = document.getElementById('company-select');
-    const newSel = document.createElement('select');
-    newSel.className = oldSel.className;
-    newSel.id = 'company-select';
-    newSel.onchange = function() { selectCompany(this.value); };
-
-    // Construire les options — groupées par user pour l'admin
     let html = '<option value="">— Choisir une société —</option>';
 
     if (currentUser && currentUser.role === 'admin' && companies.length > 0) {
@@ -945,50 +936,50 @@ async function loadCompanies() {
           if (!coUsers[l.company_id]) coUsers[l.company_id] = [];
           coUsers[l.company_id].push(l.user_id);
         });
-        const grouped = {};
-        const noUser = [];
+        const grouped = {}, noUser = [];
         companies.forEach(c => {
           const uids = coUsers[c.id] || [];
           if (!uids.length) { noUser.push(c); return; }
-          uids.forEach(uid => {
-            if (!grouped[uid]) grouped[uid] = [];
-            grouped[uid].push(c);
-          });
+          uids.forEach(uid => { if (!grouped[uid]) grouped[uid]=[]; grouped[uid].push(c); });
         });
         Object.entries(grouped).forEach(([uid, cos]) => {
-          const u = userMap[uid];
-          if (!u) return;
+          const u = userMap[uid]; if (!u) return;
           html += `<optgroup label="${u.prenom} ${u.nom} (${u.role})">`;
-          cos.forEach(c => { html += `<option value="${c.id}">${c.name}${c.exercice ? ' · '+c.exercice : ''}</option>`; });
+          cos.forEach(c => { html += `<option value="${c.id}">${c.name}${c.exercice?' · '+c.exercice:''}</option>`; });
           html += '</optgroup>';
         });
         if (noUser.length) {
           html += '<optgroup label="── Sans utilisateur ──">';
-          noUser.forEach(c => { html += `<option value="${c.id}">${c.name}${c.exercice ? ' · '+c.exercice : ''}</option>`; });
+          noUser.forEach(c => { html += `<option value="${c.id}">${c.name}${c.exercice?' · '+c.exercice:''}</option>`; });
           html += '</optgroup>';
         }
       } catch(e) {
-        companies.forEach(c => { html += `<option value="${c.id}">${c.name}${c.exercice ? ' · '+c.exercice : ''}</option>`; });
+        console.warn('grouping failed:', e.message);
+        companies.forEach(c => { html += `<option value="${c.id}">${c.name}${c.exercice?' · '+c.exercice:''}</option>`; });
       }
     } else {
-      companies.forEach(c => { html += `<option value="${c.id}">${c.name}${c.exercice ? ' · '+c.exercice : ''}</option>`; });
+      companies.forEach(c => { html += `<option value="${c.id}">${c.name}${c.exercice?' · '+c.exercice:''}</option>`; });
     }
 
-    newSel.innerHTML = html;
-    container.replaceChild(newSel, oldSel);
+    const sel = document.getElementById('company-select');
+    if (!sel) return;
+    const currentVal = currentCompanyId || '';
+    sel.innerHTML = html;
+    if (currentVal) sel.value = currentVal;
 
     renderPortailCompanies(companies);
 
-    // Synchroniser bouton supprimer et champs TVA
-    const co = allCompanies.find(c => c.id === currentCompanyId);
-    if (co) {
-      newSel.value = currentCompanyId;
-      const btnDel = document.getElementById('btn-delete-company');
-      if(btnDel) btnDel.style.display = 'block';
-    }
+    const btnDel = document.getElementById('btn-delete-company');
+    if (btnDel) btnDel.style.display = currentCompanyId ? 'block' : 'none';
 
-    if(companies.length === 1) { newSel.value = companies[0].id; selectCompany(companies[0].id); }
-  } catch(e) { toast('Erreur chargement sociétés: ' + e.message, 'error'); }
+    if (companies.length === 1 && !currentCompanyId) {
+      sel.value = companies[0].id;
+      selectCompany(companies[0].id);
+    }
+  } catch(e) {
+    console.error('loadCompanies error:', e);
+    toast('Erreur chargement sociétés: ' + e.message, 'error');
+  }
 }
 
 async function selectCompany(id) {
