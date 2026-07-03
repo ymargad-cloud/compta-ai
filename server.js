@@ -39,6 +39,12 @@ async function supa(method, table, { filter, body, select } = {}) {
   const qs = [];
   if (select) qs.push(`select=${select}`);
   if (filter) qs.push(filter);
+  // Ajouter limit=1000 par défaut sur les GET si aucun limit n'est déjà spécifié
+  if (method === 'GET' && filter && !filter.includes('limit=') && !filter.includes('id=eq.') && !filter.includes('email=eq.') && !filter.includes('key=eq.') && !filter.includes('portal_token=eq.')) {
+    qs.push('limit=1000');
+  } else if (method === 'GET' && !filter) {
+    qs.push('limit=1000');
+  }
   if (qs.length) urlPath += '?' + qs.join('&');
 
   const parsed = new URL(SUPA_URL + urlPath);
@@ -55,6 +61,7 @@ async function supa(method, table, { filter, body, select } = {}) {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
       'Prefer': method === 'POST' ? 'return=representation' : 'return=representation',
+      'Range': '0-9999',
     }
   };
   if (bodyStr) options.headers['Content-Length'] = Buffer.byteLength(bodyStr);
