@@ -983,6 +983,11 @@ async function loadCompanies() {
     }
 
     renderPortailCompanies(companies);
+    // Forcer le rafraîchissement visuel du select (fix navigateur)
+    const parent = sel.parentNode;
+    const next = sel.nextSibling;
+    parent.removeChild(sel);
+    parent.insertBefore(sel, next);
     if(companies.length === 1) { sel.value = companies[0].id; selectCompany(companies[0].id); }
   } catch(e) { toast('Erreur chargement sociétés','error'); }
 }
