@@ -922,8 +922,65 @@ async function loadCompanies() {
     const companies = await api('GET', '/api/companies');
     allCompanies = companies;
     const sel = document.getElementById('company-select');
-    sel.innerHTML = '<option value="">— Choisir une société —</option>' +
-      companies.map(c=>`<option value="${c.id}">${c.name}${c.exercice ? ' · '+c.exercice : ''}</option>`).join('');
+
+    if (currentUser && currentUser.role === 'admin' && companies.length > 0) {
+      // Admin : grouper par utilisateur via user_companies
+      try {
+        const [users, links] = await Promise.all([
+          api('GET', '/api/users'),
+          api('GET', '/api/user-companies'),
+        ]);
+        // Index userId → user
+        const userMap = Object.fromEntries(users.map(u => [u.id, u]));
+        // Index companyId → [userId]
+        const coUsers = {};
+        links.forEach(l => {
+          if (!coUsers[l.company_id]) coUsers[l.company_id] = [];
+          coUsers[l.company_id].push(l.user_id);
+        });
+        // Grouper les sociétés par utilisateur
+        const grouped = {}; // userId → [company]
+        const noUser  = []; // sociétés sans utilisateur
+        companies.forEach(c => {
+          const uids = coUsers[c.id] || [];
+          if (!uids.length) { noUser.push(c); return; }
+          uids.forEach(uid => {
+            if (!grouped[uid]) grouped[uid] = [];
+            grouped[uid].push(c);
+          });
+        });
+
+        let html = '<option value="">— Choisir une société —</option>';
+        // Par utilisateur
+        Object.entries(grouped).forEach(([uid, cos]) => {
+          const u = userMap[uid];
+          if (!u) return;
+          html += `<optgroup label="${u.prenom} ${u.nom} (${u.role})">`;
+          cos.forEach(c => {
+            html += `<option value="${c.id}">${c.name}${c.exercice ? ' · ' + c.exercice : ''}</option>`;
+          });
+          html += '</optgroup>';
+        });
+        // Sociétés sans utilisateur affecté
+        if (noUser.length) {
+          html += `<optgroup label="── Sans utilisateur ──">`;
+          noUser.forEach(c => {
+            html += `<option value="${c.id}">${c.name}${c.exercice ? ' · ' + c.exercice : ''}</option>`;
+          });
+          html += '</optgroup>';
+        }
+        sel.innerHTML = html;
+      } catch(e) {
+        // Fallback liste simple si erreur
+        sel.innerHTML = '<option value="">— Choisir une société —</option>' +
+          companies.map(c=>`<option value="${c.id}">${c.name}${c.exercice ? ' · '+c.exercice : ''}</option>`).join('');
+      }
+    } else {
+      // Non-admin : liste simple
+      sel.innerHTML = '<option value="">— Choisir une société —</option>' +
+        companies.map(c=>`<option value="${c.id}">${c.name}${c.exercice ? ' · '+c.exercice : ''}</option>`).join('');
+    }
+
     renderPortailCompanies(companies);
     if(companies.length === 1) { sel.value = companies[0].id; selectCompany(companies[0].id); }
   } catch(e) { toast('Erreur chargement sociétés','error'); }
