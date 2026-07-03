@@ -357,6 +357,32 @@ const handler = async (req, res) => {
     return send(res, 200, data || []);
   }
 
+  // GET /api/user-companies — toutes les liaisons user↔société (admin)
+  if (req.method === 'GET' && url === '/api/user-companies') {
+    const user = await getUser(req);
+    if (!user || user.role !== 'admin') return send(res, 403, { error: 'Admin requis' });
+    const { data } = await supa('GET', 'user_companies', { filter: 'limit=5000' });
+    return send(res, 200, data || []);
+  }
+
+  // POST /api/user-companies — affecter une société à un utilisateur (admin)
+  if (req.method === 'POST' && url === '/api/user-companies') {
+    const user = await getUser(req);
+    if (!user || user.role !== 'admin') return send(res, 403, { error: 'Admin requis' });
+    const body = await parseBody(req);
+    await supa('POST', 'user_companies', { body: { user_id: body.user_id, company_id: body.company_id } });
+    return send(res, 201, { ok: true });
+  }
+
+  // DELETE /api/user-companies — retirer une société d'un utilisateur (admin)
+  if (req.method === 'DELETE' && url === '/api/user-companies') {
+    const user = await getUser(req);
+    if (!user || user.role !== 'admin') return send(res, 403, { error: 'Admin requis' });
+    const body = await parseBody(req);
+    await supa('DELETE', 'user_companies', { filter: `user_id=eq.${body.user_id}&company_id=eq.${body.company_id}` });
+    return send(res, 200, { ok: true });
+  }
+
   // POST /api/auth/change-password
   if (req.method === 'POST' && url === '/api/auth/change-password') {
     const caller = await getUser(req);

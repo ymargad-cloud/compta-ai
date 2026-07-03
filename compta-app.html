@@ -510,11 +510,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 
       <!-- UTILISATEURS -->
       <div class="page" id="page-users">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
-          <div style="font-family:var(--display);font-size:16px;font-weight:700">Gestion des utilisateurs</div>
-          <button class="btn btn-primary" onclick="openNewUserModal()">+ Ajouter</button>
+        <div style="font-family:var(--display);font-size:16px;font-weight:700;margin-bottom:16px">Gestion des utilisateurs</div>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px" id="users-grid">
+          <div class="loading"><div class="spinner"></div> Chargement...</div>
         </div>
-        <div class="users-grid" id="users-grid"><div class="loading"><div class="spinner"></div> Chargement...</div></div>
       </div>
 
       <!-- PORTAIL CLIENTS -->
@@ -2892,17 +2891,94 @@ function exportECRIT(){
 // ===== UTILISATEURS =====
 async function loadUsers(){
   if(!currentUser||currentUser.role!=='admin')return;
+  const grid = document.getElementById('users-grid');
+  grid.innerHTML = '<div class="loading"><div class="spinner"></div> Chargement...</div>';
   try{
-    const users=await api('GET','/api/users');
-    const companies=await api('GET','/api/companies');
-    document.getElementById('users-grid').innerHTML=users.map(u=>`
-      <div class="user-card">
-        <div class="user-avatar-lg">${(u.prenom[0]||'')+(u.nom[0]||'')}</div>
-        <div style="font-weight:500">${u.prenom} ${u.nom}</div>
-        <div style="font-size:12px;color:var(--muted);margin-top:3px">${u.email}</div>
-        <span class="role-badge ${u.role}">${u.role}</span>
-      </div>`).join('');
-  }catch(e){toast('Erreur chargement utilisateurs','error');}
+    const [users, companies, links] = await Promise.all([
+      api('GET','/api/users'),
+      api('GET','/api/companies'),
+      api('GET','/api/user-companies'),
+    ]);
+
+    // Index : companyId → company
+    const coMap = Object.fromEntries(companies.map(c=>[c.id, c]));
+    // Index : userId → [companyIds]
+    const userCos = {};
+    links.forEach(l => {
+      if(!userCos[l.user_id]) userCos[l.user_id] = [];
+      userCos[l.user_id].push(l.company_id);
+    });
+
+    const roleColors = {admin:'var(--danger)',comptable:'var(--accent)',auditeur:'var(--warn)'};
+
+    grid.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;grid-column:1/-1">
+        <div style="font-size:13px;color:var(--muted)">${users.length} utilisateur${users.length>1?'s':''} · ${companies.length} société${companies.length>1?'s':''}</div>
+        <button class="btn btn-primary" onclick="openNewUserModal()">+ Nouvel utilisateur</button>
+      </div>
+      ${users.map(u => {
+        const coIds = userCos[u.id] || [];
+        const coList = coIds.map(id => coMap[id]).filter(Boolean);
+        const initials = (u.prenom?.[0]||'')+(u.nom?.[0]||'');
+        return `
+        <div class="user-card" style="text-align:left;padding:16px">
+          <!-- En-tête utilisateur -->
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--border)">
+            <div class="user-avatar-lg" style="width:36px;height:36px;font-size:13px;flex-shrink:0">${initials}</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:600;font-size:13px">${u.prenom} ${u.nom}</div>
+              <div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${u.email}</div>
+            </div>
+            <span style="background:rgba(79,142,247,.1);color:${roleColors[u.role]||'var(--muted)'};border:1px solid currentColor;border-radius:20px;padding:2px 8px;font-size:10px;font-family:var(--mono);opacity:.8;flex-shrink:0">${u.role}</span>
+          </div>
+
+          <!-- Sociétés affectées -->
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-family:var(--mono);margin-bottom:6px">
+            Sociétés (${coList.length})
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:10px;max-height:140px;overflow-y:auto">
+            ${coList.length ? coList.map(c=>`
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 8px;background:var(--bg3);border-radius:6px;font-size:11px">
+                <span style="color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px">${c.name}${c.exercice?' · '+c.exercice:''}</span>
+                <button onclick="removeUserCompany('${u.id}','${c.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:0 2px;flex-shrink:0" title="Retirer" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--muted)'">✕</button>
+              </div>`) .join('')
+            : '<div style="font-size:11px;color:var(--muted);padding:4px 8px;font-style:italic">Aucune société affectée</div>'}
+          </div>
+
+          <!-- Ajouter une société -->
+          <div style="display:flex;gap:6px">
+            <select id="add-co-${u.id}" class="form-input" style="font-size:11px;padding:5px 8px;flex:1">
+              <option value="">+ Affecter une société</option>
+              ${companies.filter(c=>!coIds.includes(c.id)).map(c=>`<option value="${c.id}">${c.name}${c.exercice?' · '+c.exercice:''}</option>`).join('')}
+            </select>
+            <button onclick="addUserCompany('${u.id}')" class="btn btn-ghost" style="font-size:11px;padding:5px 10px;flex-shrink:0">+</button>
+          </div>
+        </div>`;
+      }).join('')}`;
+  }catch(e){
+    grid.innerHTML = `<div style="color:var(--danger);padding:20px">${e.message}</div>`;
+    toast('Erreur chargement utilisateurs','error');
+  }
+}
+
+async function addUserCompany(userId) {
+  const sel = document.getElementById(`add-co-${userId}`);
+  const companyId = sel?.value;
+  if(!companyId){ toast('Sélectionnez une société','error'); return; }
+  try {
+    await api('POST','/api/user-companies',{ user_id: userId, company_id: companyId });
+    toast('Société affectée ✓','success');
+    loadUsers();
+  } catch(e){ toast(e.message,'error'); }
+}
+
+async function removeUserCompany(userId, companyId) {
+  if(!confirm('Retirer cette société de l\'utilisateur ?')) return;
+  try {
+    await api('DELETE','/api/user-companies',{ user_id: userId, company_id: companyId });
+    toast('Société retirée','info');
+    loadUsers();
+  } catch(e){ toast(e.message,'error'); }
 }
 
 function openNewUserModal(){
