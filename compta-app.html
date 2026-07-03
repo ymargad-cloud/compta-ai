@@ -927,8 +927,8 @@ async function loadCompanies() {
       // Admin : grouper par utilisateur via user_companies
       try {
         const [users, links] = await Promise.all([
-          api('GET', '/api/users'),
-          api('GET', '/api/user-companies'),
+          api('GET', '/api/users').catch(() => []),
+          api('GET', '/api/user-companies').catch(() => []),
         ]);
         // Index userId → user
         const userMap = Object.fromEntries(users.map(u => [u.id, u]));
@@ -971,7 +971,8 @@ async function loadCompanies() {
         }
         sel.innerHTML = html;
       } catch(e) {
-        // Fallback liste simple si erreur
+        // Fallback liste simple si les routes admin échouent
+        console.warn('loadCompanies grouping failed:', e.message);
         sel.innerHTML = '<option value="">— Choisir une société —</option>' +
           companies.map(c=>`<option value="${c.id}">${c.name}${c.exercice ? ' · '+c.exercice : ''}</option>`).join('');
       }
