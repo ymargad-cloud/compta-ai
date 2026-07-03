@@ -48,6 +48,7 @@ async function supa(method, table, { filter, body, select } = {}) {
   if (qs.length) urlPath += '?' + qs.join('&');
 
   const parsed = new URL(SUPA_URL + urlPath);
+  console.log(`SUPA URL: ${parsed.pathname}${parsed.search}`);
   const bodyStr = body ? JSON.stringify(Array.isArray(body) ? body : body) : null;
 
   const options = {
