@@ -257,12 +257,12 @@ const handler = async (req, res) => {
     if (!user) return send(res, 401, { error: 'Non authentifié' });
     let result;
     if (user.role === 'admin') {
-      result = await supa('GET', 'companies', {});
+      result = await supa('GET', 'companies', { filter: 'order=name.asc&limit=1000' });
     } else {
-      const links = await supa('GET', 'user_companies', { filter: `user_id=eq.${user.id}` });
+      const links = await supa('GET', 'user_companies', { filter: `user_id=eq.${user.id}&limit=1000` });
       const ids = (links.data || []).map(l => l.company_id);
       if (!ids.length) return send(res, 200, []);
-      result = await supa('GET', 'companies', { filter: `id=in.(${ids.join(',')})` });
+      result = await supa('GET', 'companies', { filter: `id=in.(${ids.join(',')})&order=name.asc&limit=1000` });
     }
     return send(res, 200, result.data || []);
   }
@@ -353,7 +353,7 @@ const handler = async (req, res) => {
   if (req.method === 'GET' && url === '/api/users') {
     const user = await getUser(req);
     if (!user || user.role !== 'admin') return send(res, 403, { error: 'Admin requis' });
-    const { data } = await supa('GET', 'users', { select: 'id,email,nom,prenom,role,created_at' });
+    const { data } = await supa('GET', 'users', { select: 'id,email,nom,prenom,role,created_at', filter: 'order=nom.asc&limit=1000' });
     return send(res, 200, data || []);
   }
 
