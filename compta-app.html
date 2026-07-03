@@ -921,26 +921,32 @@ async function loadCompanies() {
   try {
     const companies = await api('GET', '/api/companies');
     allCompanies = companies;
-    const sel = document.getElementById('company-select');
+
+    // Recréer le select entièrement pour forcer le rafraîchissement
+    const container = document.getElementById('company-select').parentNode;
+    const oldSel = document.getElementById('company-select');
+    const newSel = document.createElement('select');
+    newSel.className = oldSel.className;
+    newSel.id = 'company-select';
+    newSel.onchange = function() { selectCompany(this.value); };
+
+    // Construire les options — groupées par user pour l'admin
+    let html = '<option value="">— Choisir une société —</option>';
 
     if (currentUser && currentUser.role === 'admin' && companies.length > 0) {
-      // Admin : grouper par utilisateur via user_companies
       try {
         const [users, links] = await Promise.all([
           api('GET', '/api/users').catch(() => []),
           api('GET', '/api/user-companies').catch(() => []),
         ]);
-        // Index userId → user
         const userMap = Object.fromEntries(users.map(u => [u.id, u]));
-        // Index companyId → [userId]
         const coUsers = {};
         links.forEach(l => {
           if (!coUsers[l.company_id]) coUsers[l.company_id] = [];
           coUsers[l.company_id].push(l.user_id);
         });
-        // Grouper les sociétés par utilisateur
-        const grouped = {}; // userId → [company]
-        const noUser  = []; // sociétés sans utilisateur
+        const grouped = {};
+        const noUser = [];
         companies.forEach(c => {
           const uids = coUsers[c.id] || [];
           if (!uids.length) { noUser.push(c); return; }
@@ -949,47 +955,40 @@ async function loadCompanies() {
             grouped[uid].push(c);
           });
         });
-
-        let html = '<option value="">— Choisir une société —</option>';
-        // Par utilisateur
         Object.entries(grouped).forEach(([uid, cos]) => {
           const u = userMap[uid];
           if (!u) return;
           html += `<optgroup label="${u.prenom} ${u.nom} (${u.role})">`;
-          cos.forEach(c => {
-            html += `<option value="${c.id}">${c.name}${c.exercice ? ' · ' + c.exercice : ''}</option>`;
-          });
+          cos.forEach(c => { html += `<option value="${c.id}">${c.name}${c.exercice ? ' · '+c.exercice : ''}</option>`; });
           html += '</optgroup>';
         });
-        // Sociétés sans utilisateur affecté
         if (noUser.length) {
-          html += `<optgroup label="── Sans utilisateur ──">`;
-          noUser.forEach(c => {
-            html += `<option value="${c.id}">${c.name}${c.exercice ? ' · ' + c.exercice : ''}</option>`;
-          });
+          html += '<optgroup label="── Sans utilisateur ──">';
+          noUser.forEach(c => { html += `<option value="${c.id}">${c.name}${c.exercice ? ' · '+c.exercice : ''}</option>`; });
           html += '</optgroup>';
         }
-        sel.innerHTML = html;
       } catch(e) {
-        // Fallback liste simple si les routes admin échouent
-        console.warn('loadCompanies grouping failed:', e.message);
-        sel.innerHTML = '<option value="">— Choisir une société —</option>' +
-          companies.map(c=>`<option value="${c.id}">${c.name}${c.exercice ? ' · '+c.exercice : ''}</option>`).join('');
+        companies.forEach(c => { html += `<option value="${c.id}">${c.name}${c.exercice ? ' · '+c.exercice : ''}</option>`; });
       }
     } else {
-      // Non-admin : liste simple
-      sel.innerHTML = '<option value="">— Choisir une société —</option>' +
-        companies.map(c=>`<option value="${c.id}">${c.name}${c.exercice ? ' · '+c.exercice : ''}</option>`).join('');
+      companies.forEach(c => { html += `<option value="${c.id}">${c.name}${c.exercice ? ' · '+c.exercice : ''}</option>`; });
     }
 
+    newSel.innerHTML = html;
+    container.replaceChild(newSel, oldSel);
+
     renderPortailCompanies(companies);
-    // Forcer le rafraîchissement visuel du select (fix navigateur)
-    const parent = sel.parentNode;
-    const next = sel.nextSibling;
-    parent.removeChild(sel);
-    parent.insertBefore(sel, next);
-    if(companies.length === 1) { sel.value = companies[0].id; selectCompany(companies[0].id); }
-  } catch(e) { toast('Erreur chargement sociétés','error'); }
+
+    // Synchroniser bouton supprimer et champs TVA
+    const co = allCompanies.find(c => c.id === currentCompanyId);
+    if (co) {
+      newSel.value = currentCompanyId;
+      const btnDel = document.getElementById('btn-delete-company');
+      if(btnDel) btnDel.style.display = 'block';
+    }
+
+    if(companies.length === 1) { newSel.value = companies[0].id; selectCompany(companies[0].id); }
+  } catch(e) { toast('Erreur chargement sociétés: ' + e.message, 'error'); }
 }
 
 async function selectCompany(id) {
