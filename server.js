@@ -62,8 +62,6 @@ async function supa(method, table, { filter, body, select } = {}) {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
       'Prefer': method === 'POST' ? 'return=representation' : 'return=representation,count=none',
-      'Range-Unit': 'items',
-      'Range': '0-9999',
     }
   };
   if (bodyStr) options.headers['Content-Length'] = Buffer.byteLength(bodyStr);
