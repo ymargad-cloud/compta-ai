@@ -374,6 +374,19 @@ const handler = async (req, res) => {
     return send(res, 201, data);
   }
 
+  // DELETE /api/users/:id (admin uniquement)
+  if (req.method === 'DELETE' && url.startsWith('/api/users/') && url.split('/').length === 4) {
+    const user = await getUser(req);
+    if (!user || user.role !== 'admin') return send(res, 403, { error: 'Admin requis' });
+    const targetId = url.split('/')[3];
+    if (targetId === user.id) return send(res, 400, { error: 'Impossible de supprimer votre propre compte' });
+    // Supprimer les liaisons user_companies
+    await supa('DELETE', 'user_companies', { filter: `user_id=eq.${targetId}` });
+    // Supprimer l'utilisateur
+    await supa('DELETE', 'users', { filter: `id=eq.${targetId}` });
+    return send(res, 200, { ok: true });
+  }
+
   // GET /api/users
   if (req.method === 'GET' && url === '/api/users') {
     const user = await getUser(req);

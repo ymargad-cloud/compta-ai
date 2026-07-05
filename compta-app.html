@@ -2983,6 +2983,7 @@ async function loadUsers(){
               <div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${u.email}</div>
             </div>
             <span style="background:rgba(79,142,247,.1);color:${roleColors[u.role]||'var(--muted)'};border:1px solid currentColor;border-radius:20px;padding:2px 8px;font-size:10px;font-family:var(--mono);opacity:.8;flex-shrink:0">${u.role}</span>
+            ${u.id !== currentUser.id ? `<button onclick="deleteUser('${u.id}','${u.prenom} ${u.nom}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px;padding:2px 4px;border-radius:4px" title="Supprimer cet utilisateur" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--muted)'">🗑</button>` : ''}
           </div>
 
           <!-- Sociétés affectées -->
@@ -3032,6 +3033,15 @@ async function removeUserCompany(userId, companyId) {
     toast('Société retirée','info');
     loadUsers();
   } catch(e){ toast(e.message,'error'); }
+}
+
+async function deleteUser(userId, userName) {
+  if(!confirm(`Supprimer définitivement l'utilisateur "${userName}" ?\n\nSes accès aux sociétés seront également supprimés.`)) return;
+  try {
+    await api('DELETE', `/api/users/${userId}`);
+    toast(`Utilisateur "${userName}" supprimé`, 'info');
+    loadUsers();
+  } catch(e) { toast('Erreur: ' + e.message, 'error'); }
 }
 
 function openNewUserModal(){
