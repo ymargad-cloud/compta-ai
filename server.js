@@ -61,7 +61,8 @@ async function supa(method, table, { filter, body, select } = {}) {
       'Authorization': `Bearer ${SUPA_KEY}`,
       'Content-Type': 'application/json',
       'Accept': 'application/json',
-      'Prefer': method === 'POST' ? 'return=representation' : 'return=representation',
+      'Prefer': method === 'POST' ? 'return=representation' : 'return=representation,count=none',
+      'Range-Unit': 'items',
       'Range': '0-9999',
     }
   };
@@ -676,11 +677,13 @@ const handler = async (req, res) => {
   if (url === '/api/debug-companies') {
     const r1 = await supa('GET', 'companies', {});
     const r2 = await supa('GET', 'companies', { filter: 'limit=1000' });
-    const r3 = await supa('GET', 'companies', { filter: 'limit=500&order=name.asc' });
+    const r3 = await supa('GET', 'companies', { filter: 'limit=20&offset=20' });
+    const r4 = await supa('GET', 'companies', { filter: 'limit=20&offset=0' });
     return send(res, 200, {
-      no_filter: { count: Array.isArray(r1.data) ? r1.data.length : 'err', status: r1.status },
-      limit_1000: { count: Array.isArray(r2.data) ? r2.data.length : 'err', status: r2.status },
-      limit_500: { count: Array.isArray(r3.data) ? r3.data.length : 'err', status: r3.status },
+      no_filter:     { count: Array.isArray(r1.data) ? r1.data.length : 'err', status: r1.status },
+      limit_1000:    { count: Array.isArray(r2.data) ? r2.data.length : 'err', status: r2.status },
+      offset_20:     { count: Array.isArray(r3.data) ? r3.data.length : 'err', status: r3.status, names: Array.isArray(r3.data) ? r3.data.slice(0,3).map(c=>c.name) : [] },
+      offset_0:      { count: Array.isArray(r4.data) ? r4.data.length : 'err', status: r4.status },
     });
   }
 
