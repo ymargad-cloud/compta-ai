@@ -1805,27 +1805,36 @@ function buildAnalyseTVA() {
   if(co && !document.getElementById('atva-societe').value) document.getElementById('atva-societe').value = co.name;
 
   // ── Régime encaissement : filtrer sur DATE DE PAIEMENT ──────────────────
-  // Pour les ventes : date du premier virement REÇU (credit) dans le dossier
-  // Pour les achats : date du premier virement ÉMIS (debit) dans le dossier
-  const dossierDateCredit = {}; // encaissement ventes
-  const dossierDateDebit  = {}; // paiement achats
+  // Indexer toutes les transactions par dossier_id
+  const txParDossier = {};
   (allTransactions || []).forEach(t => {
     if(!t.dossier_id || !t.date_operation) return;
-    if(t.type_mouvement === 'credit') {
-      if(!dossierDateCredit[t.dossier_id] || t.date_operation < dossierDateCredit[t.dossier_id])
-        dossierDateCredit[t.dossier_id] = t.date_operation;
-    } else {
-      if(!dossierDateDebit[t.dossier_id] || t.date_operation < dossierDateDebit[t.dossier_id])
-        dossierDateDebit[t.dossier_id] = t.date_operation;
-    }
+    if(!txParDossier[t.dossier_id]) txParDossier[t.dossier_id] = [];
+    txParDossier[t.dossier_id].push(t);
   });
 
-  // Date de paiement selon le type de facture
+  // Trouver la date de paiement d'une facture :
+  // → vente : transaction credit APRÈS ou proche de la date de facture
+  // → achat : transaction debit APRÈS ou proche de la date de facture
   const getDatePaie = f => {
     if(!f.dossier_id) return null;
-    if(f.type_facture === 'vente') return dossierDateCredit[f.dossier_id] || null;
-    return dossierDateDebit[f.dossier_id] || null;
+    const txs = txParDossier[f.dossier_id] || [];
+    const type = f.type_facture === 'vente' ? 'credit' : 'debit';
+    // Chercher la transaction du bon type la plus proche APRÈS la date de facture
+    const dateRef = f.date_facture || '2000-01-01';
+    const candidates = txs.filter(t => t.type_mouvement === type && t.date_operation >= dateRef);
+    if(candidates.length > 0) {
+      // La plus ancienne après la date de facture
+      return candidates.reduce((a,b) => a.date_operation <= b.date_operation ? a : b).date_operation;
+    }
+    // Fallback : toute transaction du bon type dans le dossier
+    const any = txs.filter(t => t.type_mouvement === type);
+    if(any.length > 0) return any.reduce((a,b) => a.date_operation <= b.date_operation ? a : b).date_operation;
+    return null;
   };
+
+  const dossierDateCredit = {}; // pour export XLS
+  const dossierDateDebit  = {};
 
   // Filtrer une facture selon la date de paiement (régime encaissement)
   const filtreEncaissement = f => {
