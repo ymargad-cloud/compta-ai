@@ -3149,7 +3149,7 @@ function getCompteBancaire(lib) {
   // 1. Achats carte → 3497000000 (avances/acomptes sur achats carte)
   if (/ACHAT CARTE|\bCARTE\b/.test(l))                                           return { cpte: '3497000000', tva: 0 };
   // 2. TVA → 6147000000 + TVA 10%
-  if (/\bTVA\b|TAXE SUR LA VALEUR AJOUTEE/.test(l))                               return { cpte: '6147000000', tva: 10 };
+  if (/\bTVA\b|TAXE SUR LA VALEUR AJOUTEE|TAXE SUR VALEUR AJOUTEE/.test(l))       return { cpte: '6147000000', tva: 10 };
   // 3. Frais bancaires → 6147000000 + TVA 10%
   if (/OPERATION AU DEBIT REF|ARRETE DU COMPTE|COMMISSION|FRAIS/.test(l))        return { cpte: '6147000000', tva: 10 };
   // 4. CNSS → 4441000000
