@@ -1917,7 +1917,7 @@ function buildAnalyseTVA() {
   document.getElementById('atva-res-label').textContent      = tvaResultat >= 0 ? 'TVA due' : 'Crédit de TVA';
 
   // Stocker pour export
-  window._analyseTVA = { ventes, achats, fraisBancaires, totalTVAVentes, totalTVAAchats, totalTVABanque, totalDeductible, tvaResultat, dossierDatePaie, getDatePaie };
+  window._analyseTVA = { ventes, achats, fraisBancaires, totalTVAVentes, totalTVAAchats, totalTVABanque, totalDeductible, tvaResultat, dossierDateCredit, dossierDateDebit, getDatePaie };
   document.getElementById('atva-content').style.display = 'block';
 }
 
@@ -1940,7 +1940,7 @@ function exportAnalyseTVAXLS() {
   // Section Ventes
   data.push(['TVA FACTURÉE — VENTES (régime encaissement — date de paiement)']);
   data.push(['Libellé','N° facture','TTC','HT','TVA','Date facture','Date paiement']);
-  const getDP = d._getDatePaie || (f => f.dossier_id ? (d.dossierDatePaie?.[f.dossier_id] || f.date_facture) : f.date_facture);
+  const getDP = f => { if(!f.dossier_id) return f.date_facture; return f.type_facture==='vente' ? (d.dossierDateCredit?.[f.dossier_id]||f.date_facture) : (d.dossierDateDebit?.[f.dossier_id]||f.date_facture); };
   d.ventes.forEach(f => data.push([f.fournisseur||f.description||'', f.numero||'', fmtN(f.montant_ttc), fmtN(f.montant_ht), fmtN(f.montant_tva), f.date_facture||'', getDP(f)||'']));
   data.push(['Total TVA facturée','','','', fmtN(d.totalTVAVentes)]);
   data.push([]);
