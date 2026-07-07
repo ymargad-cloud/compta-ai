@@ -271,6 +271,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 2.5 2 2.5-2 3.5 2z"/></svg>
         Déductions TVA
       </div>
+      <div class="nav-item" id="nav-analyse-tva" onclick="showPage('analyse-tva')">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 17v-2m3 2v-4m3 4v-6M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        Analyse TVA
+      </div>
       <div class="nav-item" id="nav-revue-comptes" onclick="showPage('revue-comptes')">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
         Revue des comptes
@@ -529,6 +533,116 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
             <button class="btn btn-ghost" onclick="loadClientDocs()" style="font-size:12px">🔄 Actualiser</button>
           </div>
           <div id="client-docs-list" style="padding:20px;color:var(--muted);font-size:12px;text-align:center">Sélectionnez une société pour voir les documents reçus</div>
+        </div>
+      </div>
+
+      <!-- ANALYSE TVA -->
+      <div class="page" id="page-analyse-tva">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+          <div>
+            <div style="font-family:var(--display);font-size:16px;font-weight:700">Analyse TVA</div>
+            <div style="color:var(--muted);font-size:12px;margin-top:4px">Tableau de synthèse TVA facturée / récupérable / due</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-ghost" onclick="exportAnalyseTVAXLS()">↓ XLS</button>
+            <button class="btn btn-primary" onclick="buildAnalyseTVA()">🔄 Générer</button>
+          </div>
+        </div>
+
+        <!-- Paramètres -->
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-head"><h3>⚙ Paramètres</h3></div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;padding:16px">
+            <div class="form-group"><label>Société</label><input class="form-input" id="atva-societe" placeholder="Nom de la société"/></div>
+            <div class="form-group"><label>Année</label>
+              <select class="form-input" id="atva-annee">
+                <option value="2024">2024</option><option value="2025">2025</option>
+                <option value="2026" selected>2026</option><option value="2027">2027</option>
+              </select>
+            </div>
+            <div class="form-group"><label>Période</label>
+              <select class="form-input" id="atva-periode">
+                <option value="0">Annuel</option>
+                <optgroup label="── Mensuel ──">
+                  <option value="M1">Janvier</option><option value="M2">Février</option><option value="M3">Mars</option>
+                  <option value="M4">Avril</option><option value="M5">Mai</option><option value="M6">Juin</option>
+                  <option value="M7">Juillet</option><option value="M8">Août</option><option value="M9">Septembre</option>
+                  <option value="M10">Octobre</option><option value="M11">Novembre</option><option value="M12">Décembre</option>
+                </optgroup>
+                <optgroup label="── Trimestriel ──">
+                  <option value="T1">T1 — Jan/Fév/Mar</option><option value="T2">T2 — Avr/Mai/Jun</option>
+                  <option value="T3">T3 — Jul/Aoû/Sep</option><option value="T4">T4 — Oct/Nov/Déc</option>
+                </optgroup>
+              </select>
+            </div>
+            <div style="display:flex;align-items:flex-end">
+              <button class="btn btn-primary" style="width:100%" onclick="buildAnalyseTVA()">🔄 Générer</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="atva-content" style="display:none">
+          <!-- Section Ventes -->
+          <div class="card" style="margin-bottom:14px">
+            <div class="card-head" style="background:rgba(52,211,153,.05)"><h3 style="color:var(--success)">📤 TVA facturée — Ventes</h3></div>
+            <div style="overflow-x:auto">
+              <table class="data-table" id="atva-table-ventes">
+                <thead><tr><th>Libellé</th><th>N° facture</th><th>TTC</th><th>HT</th><th>TVA</th></tr></thead>
+                <tbody id="atva-tbody-ventes"></tbody>
+              </table>
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:24px;padding:10px 16px;background:rgba(52,211,153,.06);border-top:1px solid var(--border);font-weight:600;font-size:12px;font-family:var(--mono)">
+              <span>Total TVA facturée : <strong id="atva-total-ventes" style="color:var(--success)">—</strong></span>
+            </div>
+          </div>
+
+          <!-- Section Achats -->
+          <div class="card" style="margin-bottom:14px">
+            <div class="card-head" style="background:rgba(79,142,247,.05)"><h3 style="color:var(--accent)">🧾 TVA récupérable — Achats</h3></div>
+            <div style="overflow-x:auto">
+              <table class="data-table" id="atva-table-achats">
+                <thead><tr><th>Libellé</th><th>N° facture</th><th>TTC</th><th>HT</th><th>TVA</th></tr></thead>
+                <tbody id="atva-tbody-achats"></tbody>
+              </table>
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:24px;padding:10px 16px;background:rgba(79,142,247,.06);border-top:1px solid var(--border);font-weight:600;font-size:12px;font-family:var(--mono)">
+              <span>Total TVA récupérable achats : <strong id="atva-total-achats" style="color:var(--accent)">—</strong></span>
+            </div>
+          </div>
+
+          <!-- Section Frais bancaires -->
+          <div class="card" style="margin-bottom:14px">
+            <div class="card-head" style="background:rgba(251,191,36,.05)"><h3 style="color:var(--warn)">🏦 TVA récupérable — Frais bancaires (6147000000)</h3></div>
+            <div style="overflow-x:auto">
+              <table class="data-table" id="atva-table-banque">
+                <thead><tr><th>Libellé</th><th>Date relevé</th><th>TTC</th><th>HT</th><th>TVA 10%</th></tr></thead>
+                <tbody id="atva-tbody-banque"></tbody>
+              </table>
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:24px;padding:10px 16px;background:rgba(251,191,36,.06);border-top:1px solid var(--border);font-weight:600;font-size:12px;font-family:var(--mono)">
+              <span>Total TVA récupérable frais bancaires : <strong id="atva-total-banque" style="color:var(--warn)">—</strong></span>
+            </div>
+          </div>
+
+          <!-- Résultat final -->
+          <div class="card">
+            <div class="card-head"><h3>📊 Résultat TVA</h3></div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0">
+              <div style="padding:18px;border-right:1px solid var(--border)">
+                <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-family:var(--mono);margin-bottom:8px">TVA collectée</div>
+                <div style="font-family:var(--display);font-size:24px;color:var(--success)" id="atva-res-collectee">—</div>
+              </div>
+              <div style="padding:18px;border-right:1px solid var(--border)">
+                <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-family:var(--mono);margin-bottom:8px">TVA déductible</div>
+                <div style="font-family:var(--display);font-size:24px;color:var(--accent)" id="atva-res-deductible">—</div>
+                <div style="font-size:10px;color:var(--muted);margin-top:4px">Achats + Frais bancaires</div>
+              </div>
+              <div style="padding:18px;background:rgba(79,142,247,.04)">
+                <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-family:var(--mono);margin-bottom:8px" id="atva-res-label">TVA due</div>
+                <div style="font-family:var(--display);font-size:24px" id="atva-res-final">—</div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1050,7 +1164,7 @@ async function createCompany() {
 }
 
 // ===== NAVIGATION =====
-const pageTitles={dashboard:'Tableau de bord',upload:'Upload & traitement',dossiers:'Dossiers',factures:'Factures',releves:'Relevés bancaires',tva:'Déclarations TVA',rapprochement:'Rapprochement',export:'Export','tva-deductions':'Déductions TVA','revue-comptes':'Revue des comptes',users:'Utilisateurs',portail:'Portail clients',profil:'Mon profil'};
+const pageTitles={dashboard:'Tableau de bord',upload:'Upload & traitement',dossiers:'Dossiers',factures:'Factures',releves:'Relevés bancaires',tva:'Déclarations TVA',rapprochement:'Rapprochement',export:'Export','tva-deductions':'Déductions TVA','analyse-tva':'Analyse TVA','revue-comptes':'Revue des comptes',users:'Utilisateurs',portail:'Portail clients',profil:'Mon profil'};
 function showPage(id) {
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
@@ -1080,6 +1194,7 @@ function showPage(id) {
     }
     buildTVADeductionsTable();
   }
+  if(id==='analyse-tva' && currentCompanyId) buildAnalyseTVA();
 }
 
 // ===== API KEY =====
@@ -1677,6 +1792,152 @@ function runRapprochement(){
   const pct=allFactures.length?Math.round(matched/allFactures.length*100):0;
   document.getElementById('rappr-status').textContent=`${matched}/${allFactures.length} rapprochements réussis`;
   toast(`Rapprochement: ${pct}% de matching`,pct>60?'success':'info');
+}
+
+// ===== ANALYSE TVA =====
+function buildAnalyseTVA() {
+  const annee    = parseInt(document.getElementById('atva-annee').value);
+  const periodeV = document.getElementById('atva-periode').value;
+  const mois     = periodeMois(periodeV);
+
+  // Pré-remplir société
+  const co = allCompanies.find(c => c.id === currentCompanyId);
+  if(co && !document.getElementById('atva-societe').value) document.getElementById('atva-societe').value = co.name;
+
+  const filtre = f => {
+    if(!f.date_facture) return false;
+    const d = new Date(f.date_facture);
+    if(d.getFullYear() !== annee) return false;
+    if(mois && !mois.includes(d.getMonth()+1)) return false;
+    return true;
+  };
+
+  const filtreT = t => {
+    if(!t.date_operation) return false;
+    const d = new Date(t.date_operation);
+    if(d.getFullYear() !== annee) return false;
+    if(mois && !mois.includes(d.getMonth()+1)) return false;
+    return true;
+  };
+
+  // Ventes
+  const ventes = (allFactures||[]).filter(f => f.type_facture === 'vente' && filtre(f) && +f.montant_tva > 0);
+  // Achats
+  const achats = (allFactures||[]).filter(f => f.type_facture !== 'vente' && filtre(f) && +f.montant_tva > 0);
+  // Frais bancaires (libellés FRAIS/COMMISSIONS/OPERATION AU DEBIT REF/ARRETE DU COMPTE)
+  const fraisBancaires = (allTransactions||[]).filter(t => {
+    if(!filtreT(t)) return false;
+    const lib = (t.libelle||'').toUpperCase();
+    return /OPERATION AU DEBIT REF|ARRETE DU COMPTE|COMMISSIONS|FRAIS/.test(lib);
+  });
+
+  const fmtA = v => v!=null ? Number(v).toLocaleString('fr-MA',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
+  const row = (lib, num, ttc, ht, tva) => `<tr>
+    <td style="font-size:12px">${lib}</td>
+    <td style="font-family:var(--mono);font-size:11px">${num||'—'}</td>
+    <td class="amount">${fmtA(ttc)}</td>
+    <td class="amount">${fmtA(ht)}</td>
+    <td class="amount pos">${fmtA(tva)}</td>
+  </tr>`;
+
+  // Remplir ventes
+  let totalTVAVentes = 0;
+  document.getElementById('atva-tbody-ventes').innerHTML = ventes.length
+    ? ventes.map(f => { totalTVAVentes += +f.montant_tva||0; return row(f.fournisseur||f.description||'—', f.numero, f.montant_ttc, f.montant_ht, f.montant_tva); }).join('')
+    : '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">Aucune facture de vente</td></tr>';
+  document.getElementById('atva-total-ventes').textContent = fmtA(totalTVAVentes) + ' MAD';
+
+  // Remplir achats
+  let totalTVAAchats = 0;
+  document.getElementById('atva-tbody-achats').innerHTML = achats.length
+    ? achats.map(f => { totalTVAAchats += +f.montant_tva||0; return row(f.fournisseur||f.description||'—', f.numero, f.montant_ttc, f.montant_ht, f.montant_tva); }).join('')
+    : '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">Aucune facture achat</td></tr>';
+  document.getElementById('atva-total-achats').textContent = fmtA(totalTVAAchats) + ' MAD';
+
+  // Remplir frais bancaires — TVA 10% à défalquer
+  let totalTVABanque = 0;
+  document.getElementById('atva-tbody-banque').innerHTML = fraisBancaires.length
+    ? fraisBancaires.map(t => {
+        const ttc = +t.montant||0;
+        const ht  = Math.round(ttc / 1.10 * 100) / 100;
+        const tva = Math.round((ttc - ht) * 100) / 100;
+        totalTVABanque += tva;
+        return `<tr>
+          <td style="font-size:12px">${t.libelle||'—'}</td>
+          <td style="font-family:var(--mono);font-size:11px">${t.date_operation||'—'}</td>
+          <td class="amount">${fmtA(ttc)}</td>
+          <td class="amount">${fmtA(ht)}</td>
+          <td class="amount" style="color:var(--warn)">${fmtA(tva)}</td>
+        </tr>`;
+      }).join('')
+    : '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">Aucun frais bancaire</td></tr>';
+  document.getElementById('atva-total-banque').textContent = fmtA(totalTVABanque) + ' MAD';
+
+  // Résultat final
+  const totalDeductible = totalTVAAchats + totalTVABanque;
+  const tvaResultat = totalTVAVentes - totalDeductible;
+  document.getElementById('atva-res-collectee').textContent  = fmtA(totalTVAVentes) + ' MAD';
+  document.getElementById('atva-res-deductible').textContent = fmtA(totalDeductible) + ' MAD';
+  document.getElementById('atva-res-final').textContent      = fmtA(Math.abs(tvaResultat)) + ' MAD';
+  document.getElementById('atva-res-final').style.color      = tvaResultat >= 0 ? 'var(--danger)' : 'var(--success)';
+  document.getElementById('atva-res-label').textContent      = tvaResultat >= 0 ? 'TVA due' : 'Crédit de TVA';
+
+  // Stocker pour export
+  window._analyseTVA = { ventes, achats, fraisBancaires, totalTVAVentes, totalTVAAchats, totalTVABanque, totalDeductible, tvaResultat };
+
+  document.getElementById('atva-content').style.display = 'block';
+}
+
+function exportAnalyseTVAXLS() {
+  if(!window._analyseTVA) { buildAnalyseTVA(); }
+  const d = window._analyseTVA;
+  const societe  = document.getElementById('atva-societe').value || (allCompanies.find(c=>c.id===currentCompanyId)?.name || '');
+  const annee    = document.getElementById('atva-annee').value;
+  const periodeV = document.getElementById('atva-periode').value;
+  const periode  = periodeLabel(periodeV);
+  const fmtN = v => v!=null ? +Number(v).toFixed(2) : 0;
+
+  const wb = XLSX.utils.book_new();
+  const data = [];
+
+  // En-tête
+  data.push([`ANALYSE TVA PERIODE: ${societe} — ${periode} ${annee}`]);
+  data.push([]);
+
+  // Section Ventes
+  data.push(['TVA FACTURÉE — VENTES']);
+  data.push(['Libellé','N° facture','TTC','HT','TVA']);
+  d.ventes.forEach(f => data.push([f.fournisseur||f.description||'', f.numero||'', fmtN(f.montant_ttc), fmtN(f.montant_ht), fmtN(f.montant_tva)]));
+  data.push(['Total TVA facturée','','','', fmtN(d.totalTVAVentes)]);
+  data.push([]);
+
+  // Section Achats
+  data.push(['TVA RÉCUPÉRABLE — ACHATS']);
+  data.push(['Libellé','N° facture','TTC','HT','TVA']);
+  d.achats.forEach(f => data.push([f.fournisseur||f.description||'', f.numero||'', fmtN(f.montant_ttc), fmtN(f.montant_ht), fmtN(f.montant_tva)]));
+  data.push(['TVA récupérable achats','','','', fmtN(d.totalTVAAchats)]);
+  data.push([]);
+
+  // Section Frais bancaires
+  data.push(['TVA RÉCUPÉRABLE — FRAIS BANCAIRES (6147000000)']);
+  data.push(['Libellé','Date relevé','TTC','HT','TVA 10%']);
+  d.fraisBancaires.forEach(t => {
+    const ttc = +t.montant||0;
+    const ht  = Math.round(ttc/1.10*100)/100;
+    const tva = Math.round((ttc-ht)*100)/100;
+    data.push([t.libelle||'', t.date_operation||'', fmtN(ttc), fmtN(ht), fmtN(tva)]);
+  });
+  data.push(['TVA récupérable frais bancaires','','','', fmtN(d.totalTVABanque)]);
+  data.push([]);
+
+  // Résultat
+  data.push([d.tvaResultat >= 0 ? 'TVA DUE' : 'CRÉDIT DE TVA','','','', fmtN(Math.abs(d.tvaResultat))]);
+
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  ws['!cols'] = [{wch:40},{wch:16},{wch:14},{wch:14},{wch:14}];
+  XLSX.utils.book_append_sheet(wb, ws, 'Analyse TVA');
+  XLSX.writeFile(wb, `Analyse_TVA_${societe.replace(/\s/g,'_')}_${annee}_${periodeV}.xls`, {bookType:'biff8'});
+  toast('Analyse TVA exportée ✓','success');
 }
 
 // ===== TVA DÉDUCTIONS =====
@@ -2730,9 +2991,9 @@ function excelDate(d){if(!d)return'';const dt=new Date(d);if(isNaN(dt))return d;
 // Détection des libellés bancaires spéciaux
 function getCompteBancaire(lib) {
   const l = lib.toUpperCase();
-  if (/CNSS/.test(l))                                                             return { cpte: '4441000000', tva: 0 };
-  if (/\bDGI\b|DIRECTION GENERALE.*IMPOTS/.test(l))                              return { cpte: '4456000000', tva: 0 };
-  if (/OPERATION AU DEBIT REF|ARRETE DU COMPTE|COMMISSIONS|FRAIS/.test(l))      return { cpte: '6147000000', tva: 10 };
+  if (/CNSS/.test(l))                                                               return { cpte: '4441000000', tva: 0 };
+  if (/\bDGI\b|DIRECTION GENERALE.*IMPOTS/.test(l))                                return { cpte: '4456000000', tva: 0 };
+  if (/OPERATION AU DEBIT REF|ARRETE DU COMPTE|COMMISSIONS|FRAIS/.test(l))        return { cpte: '6147000000', tva: 10 };
   return null;
 }
 
@@ -2774,12 +3035,14 @@ function buildECRITRows(){
     const date=excelDate(t.date_operation),lib=(t.libelle||'').substring(0,40).toUpperCase(),montant=+t.montant||0;
     const special = getCompteBancaire(lib);
     if(special){
-      // Opérations spéciales : CNSS, DGI, frais bancaires
-      const ht = special.tva > 0 ? Math.round(montant / (1 + special.tva/100) * 100)/100 : montant;
+      const ht  = special.tva > 0 ? Math.round(montant / (1 + special.tva/100) * 100)/100 : montant;
       const tva = Math.round((montant - ht) * 100) / 100;
-      rows.push([JOURNAUX.BANQUE,date,special.cpte,'',lib,'','',ht,null]);
-      if(tva > 0) rows.push([JOURNAUX.BANQUE,date,PLAN_COMPTES.tva_recuperable,'','TVA / '+lib.substring(0,35),'','',tva,null]);
-      rows.push([JOURNAUX.BANQUE,date,PLAN_COMPTES.banque,'',lib,'','',null,montant]);
+      // Charge HT au débit
+      rows.push([JOURNAUX.BANQUE, date, special.cpte, '', lib, '', '', ht, null]);
+      // TVA récupérable 10% au débit (compte 3455000000)
+      if(tva > 0) rows.push([JOURNAUX.BANQUE, date, '3455000000', '', 'TVA / '+lib.substring(0,35), '', '', tva, null]);
+      // Banque au crédit (montant TTC)
+      rows.push([JOURNAUX.BANQUE, date, PLAN_COMPTES.banque, '', lib, '', '', null, montant]);
     } else if(t.type_mouvement==='credit'){
       rows.push([JOURNAUX.BANQUE,date,PLAN_COMPTES.banque,'',lib,'','',montant,null]);
       rows.push([JOURNAUX.BANQUE,date,PLAN_COMPTES.clients,'',lib,'','',null,montant]);
