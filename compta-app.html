@@ -1883,18 +1883,39 @@ function buildAnalyseTVA() {
   });
 
   // ── TVA RÉCUPÉRABLE (Achats) ──────────────────────────────────────────────
-  // Règle : journal A (achats), compte 3455000000 au DÉBIT = TVA récupérable
-  // La facture d'achat est payée si le dossier contient une transaction bancaire
-  const achatsPayes = allFactures.filter(f => {
-    if(f.type_facture === 'vente' || !f.montant_tva || +f.montant_tva === 0) return false;
-    if(!f.dossier_id) return false;
-    // Chercher une transaction débit dans le même dossier sur la période
-    const txs = (allTransactions||[]).filter(t =>
-      t.dossier_id === f.dossier_id &&
-      t.type_mouvement === 'debit' &&
-      inPeriode(t.date_operation)
+  // Règle : journal B (banque), compte 4411000000 au DÉBIT = paiement fournisseur
+  // Récupérer les lignes ECRIT correspondantes
+  const paiementsFournisseurs = ecritRows.filter(r =>
+    r[0] === JOURNAUX.BANQUE &&
+    String(r[2]) === '4411000000' &&
+    r[7] != null && r[7] > 0 &&
+    inPeriode(r[1])
+  );
+
+  // Pour chaque paiement fournisseur, retrouver la facture d'achat correspondante
+  const achatsPayes = [];
+  paiementsFournisseurs.forEach(payRow => {
+    const ttc = +payRow[7] || 0;
+    // Chercher la facture d'achat avec ce TTC (approchant)
+    const facture = allFactures.find(f =>
+      f.type_facture !== 'vente' &&
+      +f.montant_tva > 0 &&
+      Math.abs((+f.montant_ttc||0) - ttc) < 1
     );
-    return txs.length > 0;
+    if(facture) {
+      achatsPayes.push({ ...facture, _datePaie: payRow[1] });
+    } else {
+      // Pas de facture trouvée — créer une entrée depuis la ligne ECRIT
+      const libEcrit = payRow[4] || '';
+      // Chercher si montant HT dispo dans la ligne précédente (ligne charge)
+      const ht = Math.round(ttc / 1.20 * 100) / 100;
+      const tva = Math.round((ttc - ht) * 100) / 100;
+      achatsPayes.push({
+        fournisseur: libEcrit, description: libEcrit, numero: '',
+        montant_ttc: ttc, montant_ht: ht, montant_tva: tva, taux_tva: 20,
+        date_facture: '', type_facture: 'achat', _datePaie: payRow[1], _noFac: true,
+      });
+    }
   });
 
   // ── FRAIS BANCAIRES ───────────────────────────────────────────────────────
@@ -1937,10 +1958,9 @@ function buildAnalyseTVA() {
   document.getElementById('atva-tbody-achats').innerHTML = achatsPayes.length
     ? achatsPayes.map(f => {
         totalTVAAchats += +f.montant_tva||0;
-        const txDebit = (allTransactions||[]).find(t => t.dossier_id===f.dossier_id && t.type_mouvement==='debit' && inPeriode(t.date_operation));
         return `<tr>
           <td style="font-size:12px">${f.fournisseur||f.description||'—'}
-            <div style="font-size:10px;color:var(--muted);font-family:var(--mono)">Facture: ${f.date_facture||'—'} · Paiement: ${txDebit?.date_operation||'—'}</div>
+            <div style="font-size:10px;color:var(--muted);font-family:var(--mono)">Facture: ${f.date_facture||'—'} · Paiement: ${f._datePaie||'—'}</div>
           </td>
           <td style="font-family:var(--mono);font-size:11px">${f.numero||'—'}</td>
           <td class="amount">${fmtA(f.montant_ttc)}</td>
@@ -1948,7 +1968,7 @@ function buildAnalyseTVA() {
           <td class="amount pos">${fmtA(f.montant_tva)}</td>
         </tr>`;
       }).join('')
-    : '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">Aucune facture achat payée sur cette période</td></tr>';
+    : '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">Aucun paiement fournisseur (compte 4411 débit journal banque) sur cette période</td></tr>';
   document.getElementById('atva-total-achats').textContent = fmtA(totalTVAAchats) + ' MAD';
 
   // Frais bancaires
