@@ -1828,7 +1828,7 @@ function buildAnalyseTVA() {
   const fraisBancaires = (allTransactions||[]).filter(t => {
     if(!filtreT(t)) return false;
     const lib = (t.libelle||'').toUpperCase();
-    return /OPERATION AU DEBIT REF|ARRETE DU COMPTE|COMMISSIONS|FRAIS/.test(lib);
+    return /OPERATION AU DEBIT REF|ARRETE DU COMPTE|COMMISSION|FRAIS/.test(lib);
   });
 
   const fmtA = v => v!=null ? Number(v).toLocaleString('fr-MA',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
@@ -2989,11 +2989,15 @@ const PLAN_COMPTES = {
 function getCompteCharge(cat){ return PLAN_COMPTES.charges[cat] || PLAN_COMPTES.charges['Autre']; }
 function excelDate(d){if(!d)return'';const dt=new Date(d);if(isNaN(dt))return d;return String(dt.getDate()).padStart(2,'0')+'/'+String(dt.getMonth()+1).padStart(2,'0')+'/'+dt.getFullYear();}
 // Détection des libellés bancaires spéciaux
+// Priorité : frais bancaires > CNSS > DGI
 function getCompteBancaire(lib) {
   const l = lib.toUpperCase();
-  if (/CNSS/.test(l))                                                               return { cpte: '4441000000', tva: 0 };
-  if (/\bDGI\b|DIRECTION GENERALE.*IMPOTS/.test(l))                                return { cpte: '4456000000', tva: 0 };
-  if (/OPERATION AU DEBIT REF|ARRETE DU COMPTE|COMMISSIONS|FRAIS/.test(l))        return { cpte: '6147000000', tva: 10 };
+  // 1. Frais bancaires en priorité absolue → 6147000000 + TVA 10%
+  if (/OPERATION AU DEBIT REF|ARRETE DU COMPTE|COMMISSION|FRAIS/.test(l))        return { cpte: '6147000000', tva: 10 };
+  // 2. CNSS → 4441000000
+  if (/\bCNSS\b/.test(l))                                                        return { cpte: '4441000000', tva: 0 };
+  // 3. DGI → 4456000000
+  if (/\bDGI\b|DIRECTION GENERALE.*IMPOTS/.test(l))                              return { cpte: '4456000000', tva: 0 };
   return null;
 }
 
