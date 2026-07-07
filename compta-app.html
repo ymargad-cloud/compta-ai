@@ -1804,14 +1804,34 @@ function buildAnalyseTVA() {
   const co = allCompanies.find(c => c.id === currentCompanyId);
   if(co && !document.getElementById('atva-societe').value) document.getElementById('atva-societe').value = co.name;
 
-  const filtre = f => {
-    if(!f.date_facture) return false;
-    const d = new Date(f.date_facture);
+  // ── Régime encaissement : filtrer sur DATE DE PAIEMENT ──────────────────
+  // Construire un index dossier_id → date de paiement (première transaction débit ou crédit)
+  const dossierDatePaie = {};
+  (allTransactions || []).forEach(t => {
+    if(!t.dossier_id || !t.date_operation) return;
+    if(!dossierDatePaie[t.dossier_id]) {
+      dossierDatePaie[t.dossier_id] = t.date_operation;
+    } else {
+      // Garder la date la plus ancienne du dossier
+      if(t.date_operation < dossierDatePaie[t.dossier_id]) dossierDatePaie[t.dossier_id] = t.date_operation;
+    }
+  });
+
+  // Filtrer une facture selon la date de paiement (régime encaissement)
+  const filtreEncaissement = f => {
+    if(!f.dossier_id) return false; // non rapprochée → non encaissée/payée
+    const datePaie = dossierDatePaie[f.dossier_id];
+    if(!datePaie) return false;
+    const d = new Date(datePaie);
     if(d.getFullYear() !== annee) return false;
     if(mois && !mois.includes(d.getMonth()+1)) return false;
     return true;
   };
 
+  // Date de paiement d'une facture (pour affichage)
+  const getDatePaie = f => f.dossier_id ? (dossierDatePaie[f.dossier_id] || f.date_facture) : f.date_facture;
+
+  // Filtre transactions bancaires (frais) sur date opération
   const filtreT = t => {
     if(!t.date_operation) return false;
     const d = new Date(t.date_operation);
@@ -1820,11 +1840,11 @@ function buildAnalyseTVA() {
     return true;
   };
 
-  // Ventes
-  const ventes = (allFactures||[]).filter(f => f.type_facture === 'vente' && filtre(f) && +f.montant_tva > 0);
-  // Achats
-  const achats = (allFactures||[]).filter(f => f.type_facture !== 'vente' && filtre(f) && +f.montant_tva > 0);
-  // Frais bancaires (libellés FRAIS/COMMISSIONS/OPERATION AU DEBIT REF/ARRETE DU COMPTE)
+  // Ventes encaissées sur la période
+  const ventes = (allFactures||[]).filter(f => f.type_facture === 'vente' && +f.montant_tva > 0 && filtreEncaissement(f));
+  // Achats payés sur la période
+  const achats = (allFactures||[]).filter(f => f.type_facture !== 'vente' && +f.montant_tva > 0 && filtreEncaissement(f));
+  // Frais bancaires sur la période
   const fraisBancaires = (allTransactions||[]).filter(t => {
     if(!filtreT(t)) return false;
     const lib = (t.libelle||'').toUpperCase();
@@ -1832,29 +1852,36 @@ function buildAnalyseTVA() {
   });
 
   const fmtA = v => v!=null ? Number(v).toLocaleString('fr-MA',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
-  const row = (lib, num, ttc, ht, tva) => `<tr>
-    <td style="font-size:12px">${lib}</td>
-    <td style="font-family:var(--mono);font-size:11px">${num||'—'}</td>
-    <td class="amount">${fmtA(ttc)}</td>
-    <td class="amount">${fmtA(ht)}</td>
-    <td class="amount pos">${fmtA(tva)}</td>
-  </tr>`;
+
+  const rowFacture = (f) => {
+    const datePaie = getDatePaie(f);
+    return `<tr>
+      <td style="font-size:12px">
+        ${f.fournisseur||f.description||'—'}
+        <div style="font-size:10px;color:var(--muted);font-family:var(--mono)">Facture: ${f.date_facture||'—'} · Paiement: ${datePaie||'—'}</div>
+      </td>
+      <td style="font-family:var(--mono);font-size:11px">${f.numero||'—'}</td>
+      <td class="amount">${fmtA(f.montant_ttc)}</td>
+      <td class="amount">${fmtA(f.montant_ht)}</td>
+      <td class="amount pos">${fmtA(f.montant_tva)}</td>
+    </tr>`;
+  };
 
   // Remplir ventes
   let totalTVAVentes = 0;
   document.getElementById('atva-tbody-ventes').innerHTML = ventes.length
-    ? ventes.map(f => { totalTVAVentes += +f.montant_tva||0; return row(f.fournisseur||f.description||'—', f.numero, f.montant_ttc, f.montant_ht, f.montant_tva); }).join('')
-    : '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">Aucune facture de vente</td></tr>';
+    ? ventes.map(f => { totalTVAVentes += +f.montant_tva||0; return rowFacture(f); }).join('')
+    : '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">Aucune facture de vente encaissée sur cette période</td></tr>';
   document.getElementById('atva-total-ventes').textContent = fmtA(totalTVAVentes) + ' MAD';
 
   // Remplir achats
   let totalTVAAchats = 0;
   document.getElementById('atva-tbody-achats').innerHTML = achats.length
-    ? achats.map(f => { totalTVAAchats += +f.montant_tva||0; return row(f.fournisseur||f.description||'—', f.numero, f.montant_ttc, f.montant_ht, f.montant_tva); }).join('')
-    : '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">Aucune facture achat</td></tr>';
+    ? achats.map(f => { totalTVAAchats += +f.montant_tva||0; return rowFacture(f); }).join('')
+    : '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">Aucune facture achat payée sur cette période</td></tr>';
   document.getElementById('atva-total-achats').textContent = fmtA(totalTVAAchats) + ' MAD';
 
-  // Remplir frais bancaires — TVA 10% à défalquer
+  // Remplir frais bancaires
   let totalTVABanque = 0;
   document.getElementById('atva-tbody-banque').innerHTML = fraisBancaires.length
     ? fraisBancaires.map(t => {
@@ -1870,7 +1897,7 @@ function buildAnalyseTVA() {
           <td class="amount" style="color:var(--warn)">${fmtA(tva)}</td>
         </tr>`;
       }).join('')
-    : '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">Aucun frais bancaire</td></tr>';
+    : '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">Aucun frais bancaire sur cette période</td></tr>';
   document.getElementById('atva-total-banque').textContent = fmtA(totalTVABanque) + ' MAD';
 
   // Résultat final
@@ -1883,8 +1910,7 @@ function buildAnalyseTVA() {
   document.getElementById('atva-res-label').textContent      = tvaResultat >= 0 ? 'TVA due' : 'Crédit de TVA';
 
   // Stocker pour export
-  window._analyseTVA = { ventes, achats, fraisBancaires, totalTVAVentes, totalTVAAchats, totalTVABanque, totalDeductible, tvaResultat };
-
+  window._analyseTVA = { ventes, achats, fraisBancaires, totalTVAVentes, totalTVAAchats, totalTVABanque, totalDeductible, tvaResultat, dossierDatePaie, getDatePaie };
   document.getElementById('atva-content').style.display = 'block';
 }
 
@@ -1905,16 +1931,17 @@ function exportAnalyseTVAXLS() {
   data.push([]);
 
   // Section Ventes
-  data.push(['TVA FACTURÉE — VENTES']);
-  data.push(['Libellé','N° facture','TTC','HT','TVA']);
-  d.ventes.forEach(f => data.push([f.fournisseur||f.description||'', f.numero||'', fmtN(f.montant_ttc), fmtN(f.montant_ht), fmtN(f.montant_tva)]));
+  data.push(['TVA FACTURÉE — VENTES (régime encaissement — date de paiement)']);
+  data.push(['Libellé','N° facture','TTC','HT','TVA','Date facture','Date paiement']);
+  const getDP = d._getDatePaie || (f => f.dossier_id ? (d.dossierDatePaie?.[f.dossier_id] || f.date_facture) : f.date_facture);
+  d.ventes.forEach(f => data.push([f.fournisseur||f.description||'', f.numero||'', fmtN(f.montant_ttc), fmtN(f.montant_ht), fmtN(f.montant_tva), f.date_facture||'', getDP(f)||'']));
   data.push(['Total TVA facturée','','','', fmtN(d.totalTVAVentes)]);
   data.push([]);
 
   // Section Achats
-  data.push(['TVA RÉCUPÉRABLE — ACHATS']);
-  data.push(['Libellé','N° facture','TTC','HT','TVA']);
-  d.achats.forEach(f => data.push([f.fournisseur||f.description||'', f.numero||'', fmtN(f.montant_ttc), fmtN(f.montant_ht), fmtN(f.montant_tva)]));
+  data.push(['TVA RÉCUPÉRABLE — ACHATS (régime encaissement — date de paiement)']);
+  data.push(['Libellé','N° facture','TTC','HT','TVA','Date facture','Date paiement']);
+  d.achats.forEach(f => data.push([f.fournisseur||f.description||'', f.numero||'', fmtN(f.montant_ttc), fmtN(f.montant_ht), fmtN(f.montant_tva), f.date_facture||'', getDP(f)||'']));
   data.push(['TVA récupérable achats','','','', fmtN(d.totalTVAAchats)]);
   data.push([]);
 
