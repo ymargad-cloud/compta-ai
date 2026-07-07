@@ -507,7 +507,21 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
           <div class="stat-card" onclick="exportTable('factures')"><div style="font-size:28px;margin-bottom:10px">🧾</div><div class="stat-label">Factures CSV</div><div style="font-size:13px;font-weight:500;margin-bottom:4px">Format CSV</div></div>
         </div>
         <div class="card">
+          <div class="card">
           <div class="card-head"><h3>📒 Prévisualisation — Lot ECRIT</h3><button class="btn btn-primary" onclick="exportECRIT()">↓ ECRIT.xls</button></div>
+          <!-- Filtres ECRIT -->
+          <div style="display:grid;grid-template-columns:repeat(5,1fr) repeat(4,1fr);gap:6px;padding:10px 12px;background:var(--bg3);border-bottom:1px solid var(--border)">
+            <input class="search-input" id="f-journal"      placeholder="Code journal"  oninput="filterECRIT()" style="font-size:11px;padding:5px 8px"/>
+            <input class="search-input" id="f-date"         placeholder="Date écriture" oninput="filterECRIT()" style="font-size:11px;padding:5px 8px"/>
+            <input class="search-input" id="f-compte"       placeholder="N° compte"     oninput="filterECRIT()" style="font-size:11px;padding:5px 8px"/>
+            <input class="search-input" id="f-contrepartie" placeholder="Contrepartie"  oninput="filterECRIT()" style="font-size:11px;padding:5px 8px"/>
+            <input class="search-input" id="f-libelle"      placeholder="Libellé"       oninput="filterECRIT()" style="font-size:11px;padding:5px 8px"/>
+            <input class="search-input" id="f-piece"        placeholder="N° pièce"      oninput="filterECRIT()" style="font-size:11px;padding:5px 8px"/>
+            <input class="search-input" id="f-lettrage"     placeholder="Lettrage"      oninput="filterECRIT()" style="font-size:11px;padding:5px 8px"/>
+            <input class="search-input" id="f-debit"        placeholder="Débit"         oninput="filterECRIT()" style="font-size:11px;padding:5px 8px"/>
+            <input class="search-input" id="f-credit"       placeholder="Crédit"        oninput="filterECRIT()" style="font-size:11px;padding:5px 8px"/>
+            <button class="btn btn-ghost" onclick="clearECRITFilters()" style="font-size:10px;padding:5px 8px">✕ Effacer</button>
+          </div>
           <div style="overflow-x:auto"><table class="data-table" id="table-ecrit"><thead><tr><th>Code journal</th><th>Date écriture</th><th>N° de compte</th><th>Contrepartie</th><th>Libellé</th><th>N° pièce</th><th>Lettrage</th><th>Débit</th><th>Crédit</th><th title="Lignes modifiées"><button onclick="resetEcritOverrides()" class="btn btn-ghost" style="font-size:9px;padding:2px 6px;display:none" id="btn-reset-ecrit">↺ Reset</button></th></tr></thead><tbody id="tbody-ecrit"><tr><td colspan="10" style="text-align:center;color:var(--muted);padding:30px">Importez des documents pour générer le lot comptable</td></tr></tbody></table></div>
         </div>
       </div>
@@ -1560,26 +1574,28 @@ function renderReleves(){
 async function saveTxField(id, field, el) {
   const raw = el.innerText.trim();
   if(raw === (el._orig||'').trim()) return;
-  const val = parseFloat(raw.replace(',','.')) || 0;
+  const val = parseFloat(raw.replace(/\s/g,'').replace(',','.')) || 0;
+  if(val <= 0) { el.innerText = el._orig||''; return; }
   el.style.background = 'rgba(245,200,66,.15)';
   try {
-    // Déterminer le nouveau type selon débit/crédit saisi
     const t = allTransactions.find(x => x.id === id);
     if(!t) return;
-    let patch = {};
-    if(field === 'debit' && val > 0) {
-      patch = { montant: val, type_mouvement: 'debit' };
-      t.montant = val; t.type_mouvement = 'debit';
-    } else if(field === 'credit' && val > 0) {
-      patch = { montant: val, type_mouvement: 'credit' };
-      t.montant = val; t.type_mouvement = 'credit';
-    } else { el.innerText = el._orig; el.style.background=''; return; }
+    // Mettre à jour le type selon le champ modifié
+    const newType = field === 'debit' ? 'debit' : 'credit';
+    t.montant = val; t.type_mouvement = newType;
+    await api('PATCH', `/api/transactions/${id}`, { montant: val, type_mouvement: newType });
 
-    await api('PATCH', `/api/transactions/${id}`, patch);
-
-    // Mettre à jour le badge type dans le DOM
+    // Vider l'autre colonne dans le DOM
+    const row = document.getElementById(`tx-row-${id}`);
+    if(row) {
+      const spans = row.querySelectorAll('[contenteditable]');
+      // spans[0] = débit, spans[1] = crédit
+      if(field === 'debit' && spans[1])  spans[1].innerText = '';
+      if(field === 'credit' && spans[0]) spans[0].innerText = '';
+    }
+    // Mettre à jour le badge type
     const typeEl = document.getElementById(`tx-type-${id}`);
-    if(typeEl) typeEl.innerHTML = `<span class="status-badge ${t.type_mouvement==='credit'?'done':'pending'}">${t.type_mouvement==='credit'?'Crédit':'Débit'}</span>`;
+    if(typeEl) typeEl.innerHTML = `<span class="status-badge ${newType==='credit'?'done':'pending'}">${newType==='credit'?'Crédit':'Débit'}</span>`;
 
     el.style.background = 'rgba(52,211,153,.1)';
     setTimeout(() => { el.style.background=''; }, 1200);
@@ -3133,7 +3149,7 @@ function getCompteBancaire(lib) {
   // 1. Achats carte → 3497000000 (avances/acomptes sur achats carte)
   if (/ACHAT CARTE|\bCARTE\b/.test(l))                                           return { cpte: '3497000000', tva: 0 };
   // 2. TVA → 6147000000 + TVA 10%
-  if (/\bTVA\b/.test(l))                                                          return { cpte: '6147000000', tva: 10 };
+  if (/\bTVA\b|TAXE SUR LA VALEUR AJOUTEE/.test(l))                               return { cpte: '6147000000', tva: 10 };
   // 3. Frais bancaires → 6147000000 + TVA 10%
   if (/OPERATION AU DEBIT REF|ARRETE DU COMPTE|COMMISSION|FRAIS/.test(l))        return { cpte: '6147000000', tva: 10 };
   // 4. CNSS → 4441000000
@@ -3330,6 +3346,45 @@ function renderECRITPreview(){
   // Afficher/masquer bouton reset
   const btnReset = document.getElementById('btn-reset-ecrit');
   if(btnReset) btnReset.style.display = Object.keys(ecritOverrides).length > 0 ? 'inline-flex' : 'none';
+}
+
+
+function filterECRIT() {
+  const f = {
+    journal:      (document.getElementById('f-journal')?.value||'').toLowerCase(),
+    date:         (document.getElementById('f-date')?.value||'').toLowerCase(),
+    compte:       (document.getElementById('f-compte')?.value||'').toLowerCase(),
+    contrepartie: (document.getElementById('f-contrepartie')?.value||'').toLowerCase(),
+    libelle:      (document.getElementById('f-libelle')?.value||'').toLowerCase(),
+    piece:        (document.getElementById('f-piece')?.value||'').toLowerCase(),
+    lettrage:     (document.getElementById('f-lettrage')?.value||'').toLowerCase(),
+    debit:        (document.getElementById('f-debit')?.value||'').toLowerCase(),
+    credit:       (document.getElementById('f-credit')?.value||'').toLowerCase(),
+  };
+  const rows = document.querySelectorAll('#tbody-ecrit tr');
+  rows.forEach(row => {
+    const cells = row.querySelectorAll('td');
+    if(cells.length < 9) { row.style.display=''; return; }
+    const vals = [0,1,2,3,4,5,6,7,8].map(i => (cells[i]?.innerText||'').toLowerCase());
+    const match = (
+      (!f.journal      || vals[0].includes(f.journal)) &&
+      (!f.date         || vals[1].includes(f.date)) &&
+      (!f.compte       || vals[2].includes(f.compte)) &&
+      (!f.contrepartie || vals[3].includes(f.contrepartie)) &&
+      (!f.libelle      || vals[4].includes(f.libelle)) &&
+      (!f.piece        || vals[5].includes(f.piece)) &&
+      (!f.lettrage     || vals[6].includes(f.lettrage)) &&
+      (!f.debit        || vals[7].includes(f.debit)) &&
+      (!f.credit       || vals[8].includes(f.credit))
+    );
+    row.style.display = match ? '' : 'none';
+  });
+}
+
+function clearECRITFilters() {
+  ['f-journal','f-date','f-compte','f-contrepartie','f-libelle','f-piece','f-lettrage','f-debit','f-credit']
+    .forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
+  document.querySelectorAll('#tbody-ecrit tr').forEach(r => r.style.display='');
 }
 
 function exportECRIT(){
