@@ -1805,31 +1805,38 @@ function buildAnalyseTVA() {
   if(co && !document.getElementById('atva-societe').value) document.getElementById('atva-societe').value = co.name;
 
   // ── Régime encaissement : filtrer sur DATE DE PAIEMENT ──────────────────
-  // Construire un index dossier_id → date de paiement (première transaction débit ou crédit)
-  const dossierDatePaie = {};
+  // Pour les ventes : date du premier virement REÇU (credit) dans le dossier
+  // Pour les achats : date du premier virement ÉMIS (debit) dans le dossier
+  const dossierDateCredit = {}; // encaissement ventes
+  const dossierDateDebit  = {}; // paiement achats
   (allTransactions || []).forEach(t => {
     if(!t.dossier_id || !t.date_operation) return;
-    if(!dossierDatePaie[t.dossier_id]) {
-      dossierDatePaie[t.dossier_id] = t.date_operation;
+    if(t.type_mouvement === 'credit') {
+      if(!dossierDateCredit[t.dossier_id] || t.date_operation < dossierDateCredit[t.dossier_id])
+        dossierDateCredit[t.dossier_id] = t.date_operation;
     } else {
-      // Garder la date la plus ancienne du dossier
-      if(t.date_operation < dossierDatePaie[t.dossier_id]) dossierDatePaie[t.dossier_id] = t.date_operation;
+      if(!dossierDateDebit[t.dossier_id] || t.date_operation < dossierDateDebit[t.dossier_id])
+        dossierDateDebit[t.dossier_id] = t.date_operation;
     }
   });
 
+  // Date de paiement selon le type de facture
+  const getDatePaie = f => {
+    if(!f.dossier_id) return null;
+    if(f.type_facture === 'vente') return dossierDateCredit[f.dossier_id] || null;
+    return dossierDateDebit[f.dossier_id] || null;
+  };
+
   // Filtrer une facture selon la date de paiement (régime encaissement)
   const filtreEncaissement = f => {
-    if(!f.dossier_id) return false; // non rapprochée → non encaissée/payée
-    const datePaie = dossierDatePaie[f.dossier_id];
+    if(!f.dossier_id) return false;
+    const datePaie = getDatePaie(f);
     if(!datePaie) return false;
     const d = new Date(datePaie);
     if(d.getFullYear() !== annee) return false;
     if(mois && !mois.includes(d.getMonth()+1)) return false;
     return true;
   };
-
-  // Date de paiement d'une facture (pour affichage)
-  const getDatePaie = f => f.dossier_id ? (dossierDatePaie[f.dossier_id] || f.date_facture) : f.date_facture;
 
   // Filtre transactions bancaires (frais) sur date opération
   const filtreT = t => {
