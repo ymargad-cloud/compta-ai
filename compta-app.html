@@ -1827,16 +1827,22 @@ function buildAnalyseTVA() {
 
   // Filtre période sur une date Excel (nombre de jours depuis 1900)
   // ou date ISO string
+  const parseDate = (dateVal) => {
+    if(!dateVal) return null;
+    if(typeof dateVal === 'number') return new Date(Math.round((dateVal - 25569) * 864e5));
+    const s = String(dateVal).trim();
+    // Format DD/MM/YYYY
+    const m1 = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if(m1) return new Date(+m1[3], +m1[2]-1, +m1[1]);
+    // Format YYYY-MM-DD
+    const m2 = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if(m2) return new Date(+m2[1], +m2[2]-1, +m2[3]);
+    return new Date(s);
+  };
+
   const inPeriode = (dateVal) => {
-    if(!dateVal) return false;
-    let d;
-    if(typeof dateVal === 'number') {
-      // Date Excel sérialisée
-      d = new Date(Math.round((dateVal - 25569) * 864e5));
-    } else {
-      d = new Date(dateVal);
-    }
-    if(isNaN(d)) return false;
+    const d = parseDate(dateVal);
+    if(!d || isNaN(d)) return false;
     if(d.getFullYear() !== annee) return false;
     if(mois && !mois.includes(d.getMonth()+1)) return false;
     return true;
