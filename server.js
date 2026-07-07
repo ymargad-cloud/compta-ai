@@ -600,6 +600,20 @@ const handler = async (req, res) => {
     return send(res, 200, { ok: true });
   }
 
+  // PATCH /api/transactions/:id — modifier montant et type_mouvement
+  if (req.method === 'PATCH' && /^\/api\/transactions\/[^/]+$/.test(url)) {
+    const user = await getUser(req);
+    if (!user) return send(res, 401, { error: 'Non authentifié' });
+    const id = url.split('/')[3];
+    const body = await parseBody(req);
+    const ALLOWED = ['montant','type_mouvement','libelle','date_operation','solde'];
+    const patch = {};
+    for(const k of ALLOWED) { if(body[k] !== undefined) patch[k] = body[k]; }
+    if(!Object.keys(patch).length) return send(res, 400, { error: 'Aucun champ valide' });
+    await supa('PATCH', `transactions?id=eq.${id}`, { body: patch });
+    return send(res, 200, { ok: true });
+  }
+
   // PATCH /api/releves-dossier/:id  (alias: /api/transactions-dossier/:id)
   if (req.method === 'PATCH' && (url.startsWith('/api/releves-dossier/') || url.startsWith('/api/transactions-dossier/'))) {
     const user = await getUser(req);

@@ -1538,15 +1538,58 @@ async function saveFactureField(id, field, el) {
 function renderReleves(){
   const tbody=document.getElementById('tbody-releves');
   if(!allTransactions.length){tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:40px">Aucune transaction</td></tr>';return;}
-  tbody.innerHTML=allTransactions.map(t=>`<tr>
-    <td style="font-family:var(--mono);font-size:12px">${t.date_operation||'—'}</td>
-    <td>${t.libelle||'—'}</td>
-    <td><span class="status-badge ${t.type_mouvement==='credit'?'done':'pending'}">${t.type_mouvement==='credit'?'Crédit':'Débit'}</span></td>
-    <td class="amount neg">${t.type_mouvement==='debit'?fmtAmt(t.montant):'—'}</td>
-    <td class="amount pos">${t.type_mouvement==='credit'?fmtAmt(t.montant):'—'}</td>
-    <td class="amount" style="font-family:var(--mono)">${fmtAmt(t.solde)}</td>
-    <td><button onclick="deleteTransaction('${t.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px;padding:2px 6px;border-radius:4px;transition:color .15s" title="Supprimer" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--muted)'">🗑</button></td>
-  </tr>`).join('');
+  const editTx=(tId,field,val,cls='')=>`<span contenteditable="true" spellcheck="false"
+    style="outline:none;min-width:20px;cursor:text;padding:2px 4px;border-radius:3px;transition:background .15s;${cls}"
+    title="Cliquez pour modifier"
+    onblur="saveTxField('${tId}','${field}',this)"
+    onfocus="this._orig=this.innerText">${val}</span>`;
+  tbody.innerHTML=allTransactions.map(t=>{
+    const isCredit=t.type_mouvement==='credit';
+    return `<tr id="tx-row-${t.id}">
+      <td style="font-family:var(--mono);font-size:12px">${t.date_operation||'—'}</td>
+      <td>${t.libelle||'—'}</td>
+      <td id="tx-type-${t.id}"><span class="status-badge ${isCredit?'done':'pending'}">${isCredit?'Crédit':'Débit'}</span></td>
+      <td class="amount neg">${editTx(t.id,'debit',isCredit?'':+(t.montant||0).toFixed(2),'font-family:var(--mono);font-size:12px;color:var(--danger);min-width:60px;display:inline-block;text-align:right')}</td>
+      <td class="amount pos">${editTx(t.id,'credit',isCredit?+(t.montant||0).toFixed(2):'','font-family:var(--mono);font-size:12px;color:var(--success);min-width:60px;display:inline-block;text-align:right')}</td>
+      <td class="amount" style="font-family:var(--mono)">${fmtAmt(t.solde)}</td>
+      <td><button onclick="deleteTransaction('${t.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px;padding:2px 6px;border-radius:4px;transition:color .15s" title="Supprimer" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--muted)'">🗑</button></td>
+    </tr>`;
+  }).join('');
+}
+
+async function saveTxField(id, field, el) {
+  const raw = el.innerText.trim();
+  if(raw === (el._orig||'').trim()) return;
+  const val = parseFloat(raw.replace(',','.')) || 0;
+  el.style.background = 'rgba(245,200,66,.15)';
+  try {
+    // Déterminer le nouveau type selon débit/crédit saisi
+    const t = allTransactions.find(x => x.id === id);
+    if(!t) return;
+    let patch = {};
+    if(field === 'debit' && val > 0) {
+      patch = { montant: val, type_mouvement: 'debit' };
+      t.montant = val; t.type_mouvement = 'debit';
+    } else if(field === 'credit' && val > 0) {
+      patch = { montant: val, type_mouvement: 'credit' };
+      t.montant = val; t.type_mouvement = 'credit';
+    } else { el.innerText = el._orig; el.style.background=''; return; }
+
+    await api('PATCH', `/api/transactions/${id}`, patch);
+
+    // Mettre à jour le badge type dans le DOM
+    const typeEl = document.getElementById(`tx-type-${id}`);
+    if(typeEl) typeEl.innerHTML = `<span class="status-badge ${t.type_mouvement==='credit'?'done':'pending'}">${t.type_mouvement==='credit'?'Crédit':'Débit'}</span>`;
+
+    el.style.background = 'rgba(52,211,153,.1)';
+    setTimeout(() => { el.style.background=''; }, 1200);
+    updateDashboard(); renderECRITPreview();
+    toast('Transaction mise à jour ✓','success');
+  } catch(e) {
+    el.innerText = el._orig||''; el.style.background='rgba(248,113,113,.1)';
+    setTimeout(() => el.style.background='', 1200);
+    toast('Erreur: '+e.message,'error');
+  }
 }
 
 function renderTVADeclarations(){
@@ -3084,14 +3127,18 @@ const PLAN_COMPTES = {
 function getCompteCharge(cat){ return PLAN_COMPTES.charges[cat] || PLAN_COMPTES.charges['Autre']; }
 function excelDate(d){if(!d)return'';const dt=new Date(d);if(isNaN(dt))return d;return String(dt.getDate()).padStart(2,'0')+'/'+String(dt.getMonth()+1).padStart(2,'0')+'/'+dt.getFullYear();}
 // Détection des libellés bancaires spéciaux
-// Priorité : frais bancaires > CNSS > DGI
+// Priorité : CARTE > TVA > frais bancaires > CNSS > DGI
 function getCompteBancaire(lib) {
   const l = lib.toUpperCase();
-  // 1. Frais bancaires en priorité absolue → 6147000000 + TVA 10%
+  // 1. Achats carte → 3497000000 (avances/acomptes sur achats carte)
+  if (/ACHAT CARTE|\bCARTE\b/.test(l))                                           return { cpte: '3497000000', tva: 0 };
+  // 2. TVA → 6147000000 + TVA 10%
+  if (/\bTVA\b/.test(l))                                                          return { cpte: '6147000000', tva: 10 };
+  // 3. Frais bancaires → 6147000000 + TVA 10%
   if (/OPERATION AU DEBIT REF|ARRETE DU COMPTE|COMMISSION|FRAIS/.test(l))        return { cpte: '6147000000', tva: 10 };
-  // 2. CNSS → 4441000000
+  // 4. CNSS → 4441000000
   if (/\bCNSS\b/.test(l))                                                        return { cpte: '4441000000', tva: 0 };
-  // 3. DGI → 4456000000
+  // 5. DGI → 4456000000
   if (/\bDGI\b|DIRECTION GENERALE.*IMPOTS/.test(l))                              return { cpte: '4456000000', tva: 0 };
   return null;
 }
