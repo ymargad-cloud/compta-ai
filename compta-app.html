@@ -874,7 +874,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
               </select>
             </div>
             <div style="display:flex;align-items:flex-end">
-              <button class="btn btn-primary" style="width:100%" onclick="buildTVADeductionsTable()">🔄 Générer le tableau</button>
+              <div style="display:flex;gap:6px">
+              <button class="btn btn-primary" style="flex:1" onclick="buildTVADeductionsTable()">🔄 Générer</button>
+              <button class="btn btn-ghost" onclick="_clearDedStorage();buildTVADeductionsTable();toast('Réinitialisé','info')" title="Supprimer les modifications sauvegardées">↺</button>
+            </div>
             </div>
           </div>
         </div>
@@ -1260,6 +1263,8 @@ async function selectCompany(id) {
   document.getElementById('topbar-company').textContent = name;
   const btnDel = document.getElementById('btn-delete-company');
 
+  // Charger les overrides ECRIT depuis localStorage pour cette société
+  ecritOverrides = _loadEcritOverrides();
   // Initialiser les selects d'année avec l'année courante
   const currentYear = new Date().getFullYear();
   ['atva-annee','tva-ded-annee','revue-exercice'].forEach(selId => {
@@ -1603,6 +1608,8 @@ async function extractWithAI(item){
   let prompt;
   if(cat === 'releves'){
     prompt = `Tu es expert en comptabilité marocaine. Analyse ce relevé bancaire. Réponds UNIQUEMENT en JSON valide sans markdown.
+IMPORTANT : utilise la DATE D'OPÉRATION (et NON la date valeur) pour le champ date_operation. La date d'opération est la date à laquelle l'opération a été effectuée (souvent à gauche dans le relevé), la date valeur est une date comptable postérieure à ignorer.
+Exclure les lignes dont le libellé est SOLDE, REPORT, SOLDE REPORTE, REPORT DE SOLDE, SOLDE INITIAL ou SOLDE FINAL.
 {"type":"releve_bancaire","banque":"","periode_debut":"YYYY-MM-DD","periode_fin":"YYYY-MM-DD","solde_initial":0,"solde_final":0,"transactions":[{"date_operation":"YYYY-MM-DD","libelle":"","type_mouvement":"debit|credit","montant":0,"solde":0}]}`;
   } else if(cat === 'ventes'){
     prompt = `Tu es expert en comptabilité marocaine. Analyse cette facture de VENTE (émise par notre société à un client). Réponds UNIQUEMENT en JSON valide sans markdown.
@@ -1613,7 +1620,7 @@ async function extractWithAI(item){
   } else {
     prompt = `Tu es expert en comptabilité marocaine. Analyse ce document. Réponds UNIQUEMENT en JSON valide sans markdown.
 Si FACTURE ACHAT: {"type":"facture","numero":"","date_facture":"YYYY-MM-DD","fournisseur":"","fournisseur_ice":"","categorie":"Fournitures|Services|Transport|Loyer|Télécommunications|Restauration|Honoraires|Energie|Autre","description":"","montant_ht":0,"taux_tva":20,"montant_tva":0,"montant_ttc":0,"devise":"MAD"}
-Si RELEVÉ BANCAIRE: {"type":"releve_bancaire","banque":"","periode_debut":"YYYY-MM-DD","periode_fin":"YYYY-MM-DD","solde_initial":0,"solde_final":0,"transactions":[{"date_operation":"YYYY-MM-DD","libelle":"","type_mouvement":"debit|credit","montant":0,"solde":0}]}
+Si RELEVÉ BANCAIRE: utilise la DATE D'OPÉRATION (pas la date valeur). Exclure lignes SOLDE/REPORT. {"type":"releve_bancaire","banque":"","periode_debut":"YYYY-MM-DD","periode_fin":"YYYY-MM-DD","solde_initial":0,"solde_final":0,"transactions":[{"date_operation":"YYYY-MM-DD","libelle":"","type_mouvement":"debit|credit","montant":0,"solde":0}]}
 Si DÉCLARATION TVA: {"type":"declaration_tva","periode":"T1 2026","raison_sociale":"","identifiant_fiscal":"","ligne_132_tva_exigible":0,"ligne_182_total_deductions":0,"ligne_170_credit_precedent":0,"ligne_200_tva_due":0,"ligne_201_credit":0,"montant_total":0,"devise":"MAD"}
 Si autre: {"type":"autre"}`;
   }
@@ -2063,19 +2070,28 @@ function runRapprochement(){
 
 // ===== ANALYSE TVA =====
 function getECRITRows() {
-  // Retourner les lignes ECRIT avec les overrides manuels appliqués (version la plus récente)
+  // Retourner les lignes ECRIT avec les overrides manuels appliqués
   const baseRows = buildECRITRows();
-  return baseRows.map((r, i) => {
+  const rows = baseRows.map((r, i) => {
     const ov = ecritOverrides[i];
     if(!ov) return r;
     const pf = s => s==='' ? null : parseFloat(String(s).replace(/[\s\u00a0]/g,'').replace(',','.')) || null;
     return [
-      ov.journal!==undefined ? ov.journal : r[0], r[1],
+      ov.journal!==undefined ? ov.journal : r[0],
+      ov.date!==undefined    ? ov.date    : r[1],
       ov.cpte!==undefined    ? ov.cpte    : r[2], r[3],
       ov.lib!==undefined     ? ov.lib     : r[4], r[5], r[6],
       ov.debit!==undefined   ? pf(ov.debit)  : r[7],
       ov.credit!==undefined  ? pf(ov.credit) : r[8],
     ];
+  });
+  // Éliminer les doublons (même journal+date+compte+libellé+débit+crédit)
+  const seen = new Set();
+  return rows.filter(r => {
+    const key = [r[0], r[1], r[2], r[4], r[7]??'', r[8]??''].join('|');
+    if(seen.has(key)) return false;
+    seen.add(key);
+    return true;
   });
 }
 
@@ -2462,6 +2478,19 @@ function buildTVADeductionsTable() {
   });
 
   const tbody = document.getElementById('tbody-tva-ded');
+  // Restaurer les modifications depuis localStorage si disponible
+  const stored = _loadDedFromStorage();
+  if(stored && stored.length === dedLines.length) {
+    // Fusionner : appliquer les overrides stockés sur les nouvelles lignes de base
+    stored.forEach((s, i) => {
+      if(i < dedLines.length) {
+        // Champs modifiables manuellement
+        ['num','desc','ht','tva','ttc','if_frs','frs','ice','taux','dateFac','datePaie','mode','_deleted'].forEach(f => {
+          if(s[f] !== undefined) dedLines[i][f] = s[f];
+        });
+      }
+    });
+  }
   window._dedLines = dedLines; // stocker pour export et édition
 
   const renderDedTable = () => {
@@ -2513,6 +2542,28 @@ function buildTVADeductionsTable() {
   renderDedTable();
 }
 
+function _dedStorageKey() {
+  const annee    = document.getElementById('tva-ded-annee')?.value || '';
+  const periode  = document.getElementById('tva-ded-periode')?.value || '0';
+  return `ded_tva_${currentCompanyId}_${annee}_${periode}`;
+}
+
+function _saveDedToStorage() {
+  if(!window._dedLines) return;
+  try { localStorage.setItem(_dedStorageKey(), JSON.stringify(window._dedLines)); } catch(e) {}
+}
+
+function _loadDedFromStorage() {
+  try {
+    const raw = localStorage.getItem(_dedStorageKey());
+    return raw ? JSON.parse(raw) : null;
+  } catch(e) { return null; }
+}
+
+function _clearDedStorage() {
+  try { localStorage.removeItem(_dedStorageKey()); } catch(e) {}
+}
+
 function saveDedLine(el) {
   const idx   = parseInt(el.dataset.idx);
   const field = el.dataset.field;
@@ -2527,11 +2578,13 @@ function saveDedLine(el) {
   }
   el.style.background = 'rgba(245,200,66,.15)';
   setTimeout(() => el.style.background='', 1000);
+  _saveDedToStorage(); // persister immédiatement
 }
 
 function deleteDedLine(idx) {
   if(!window._dedLines) return;
   window._dedLines[idx]._deleted = true;
+  _saveDedToStorage();
   if(window._renderDedTable) window._renderDedTable();
 }
 
@@ -3499,7 +3552,7 @@ function getCompteBancaire(lib) {
   // 4. TVA → 6147000000 + TVA 10%
   if (/\bTVA\b|TAXE SUR LA VALEUR AJOUTEE|TAXE SUR VALEUR AJOUTEE/.test(l))       return { cpte: '6147000000', tva: 10 };
   // 5. Frais bancaires → 6147000000 + TVA 10%
-  if (/OPERATION AU DEBIT REF|ARRETE DU COMPTE|COMMISSION|FRAIS/.test(l))        return { cpte: '6147000000', tva: 10 };
+  if (/OPERATION AU DEBIT REF|ARRETE DU COMPTE|COMMISSION|FRAIS|PACKAGE/.test(l)) return { cpte: '6147000000', tva: 10 };
   return null;
 }
 
@@ -3598,14 +3651,36 @@ function buildECRITRows(){
 // Stocke les modifications manuelles sur les lignes ECRIT : { rowIndex: { cpte, journal, lib, debit, credit } }
 let ecritOverrides = {};
 
-function resetEcritOverrides() { ecritOverrides = {}; renderECRITPreview(); toast('Modifications réinitialisées','info'); }
+function _ecritStorageKey() {
+  return `ecrit_overrides_${currentCompanyId || 'default'}`;
+}
+
+function _saveEcritOverrides() {
+  try { localStorage.setItem(_ecritStorageKey(), JSON.stringify(ecritOverrides)); } catch(e) {}
+}
+
+function _loadEcritOverrides() {
+  try {
+    const raw = localStorage.getItem(_ecritStorageKey());
+    return raw ? JSON.parse(raw) : {};
+  } catch(e) { return {}; }
+}
+
+function resetEcritOverrides() {
+  ecritOverrides = {};
+  try { localStorage.removeItem(_ecritStorageKey()); } catch(e) {}
+  renderECRITPreview();
+  toast('Modifications réinitialisées','info');
+}
 
 function onEcritEdit(rowIdx, field, el) {
   if(!ecritOverrides[rowIdx]) ecritOverrides[rowIdx] = {};
   ecritOverrides[rowIdx][field] = el.innerText.trim();
-  // Feedback visuel : cellule modifiée
+  // Feedback visuel
   el.style.background = 'rgba(245,200,66,.12)';
   el.style.borderRadius = '4px';
+  // Persister immédiatement
+  _saveEcritOverrides();
 }
 
 function renderECRITPreview(){
@@ -3654,7 +3729,12 @@ function renderECRITPreview(){
           style="${editStyle};background:rgba(79,142,247,.1);color:${col};padding:2px 8px;border-radius:6px;font-family:var(--mono);font-size:11px;font-weight:600;display:inline-block"
         >${cj}</span>
       </td>
-      <td style="font-family:var(--mono);font-size:12px;color:var(--muted)">${date}</td>
+      <td>
+        <span contenteditable="true" spellcheck="false" ${editHint}
+          onblur="onEcritEdit(${i},'date',this)"
+          style="${editStyle};font-family:var(--mono);font-size:12px;color:var(--muted);display:inline-block;min-width:80px"
+        >${date}</span>
+      </td>
       <td>
         <span contenteditable="true" spellcheck="false" ${editHint}
           onblur="onEcritEdit(${i},'cpte',this)"
@@ -3737,7 +3817,7 @@ function exportECRIT(){
   const rows=baseRows.map((r,i)=>{
     const ov=ecritOverrides[i];if(!ov)return r;
     const pf=s=>s===''?null:parseFloat(String(s).replace(/[\s ]/g,'').replace(',','.'))||null;
-    return[ov.journal!==undefined?ov.journal:r[0],r[1],ov.cpte!==undefined?ov.cpte:r[2],r[3],ov.lib!==undefined?ov.lib:r[4],r[5],r[6],ov.debit!==undefined?pf(ov.debit):r[7],ov.credit!==undefined?pf(ov.credit):r[8]];
+    return[ov.journal!==undefined?ov.journal:r[0],ov.date!==undefined?ov.date:r[1],ov.cpte!==undefined?ov.cpte:r[2],r[3],ov.lib!==undefined?ov.lib:r[4],r[5],r[6],ov.debit!==undefined?pf(ov.debit):r[7],ov.credit!==undefined?pf(ov.credit):r[8]];
   });
   const wb=XLSX.utils.book_new();
   const header=[['Code journal','Date écriture',"n° de compte",'Contrepartie',"Libéllé d'écriture",'N° pièce','Lettrage ','Débit','Crédit']];
