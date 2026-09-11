@@ -585,7 +585,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
       <div class="page" id="page-factures">
         <div class="card">
           <div class="table-header"><h3>Factures</h3><input class="search-input" placeholder="Rechercher..." id="search-factures" oninput="filterTable('factures',this.value)"/><button class="btn btn-success" onclick="exportTable('factures')">CSV</button></div>
-          <div style="overflow-x:auto"><table class="data-table"><thead><tr><th>Date</th><th>Fournisseur</th><th>N°</th><th>Catégorie</th><th>HT</th><th>TVA</th><th>TTC</th><th>Statut</th><th></th></tr></thead><tbody id="tbody-factures"><tr><td colspan="9" style="text-align:center;color:var(--muted);padding:40px">Aucune facture</td></tr></tbody></table></div>
+          <div style="overflow-x:auto"><table class="data-table"><thead><tr><th style="width:32px"><input type="checkbox" id="cb-all-factures" onchange="document.querySelectorAll('.facture-cb').forEach(cb=>cb.checked=this.checked)" style="cursor:pointer;accent-color:var(--accent2)" title="Tout sélectionner"/></th><th>Date</th><th>Fournisseur</th><th>N°</th><th>Catégorie</th><th>HT</th><th>TVA</th><th>TTC</th><th>Statut</th><th><button onclick="deleteSelectedFactures()" style="background:var(--danger);color:#fff;border:none;padding:3px 8px;border-radius:5px;font-size:10px;cursor:pointer" title="Supprimer la sélection">🗑 Sélection</button></th></tr></thead><tbody id="tbody-factures"><tr><td colspan="10" style="text-align:center;color:var(--muted);padding:40px">Aucune facture</td></tr></tbody></table></div>
         </div>
       </div>
 
@@ -1674,19 +1674,29 @@ async function loadTVADeclarations(){
 // ===== TABLES =====
 function renderFactures(){
   const tbody=document.getElementById('tbody-factures');
-  if(!allFactures.length){tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:40px">Aucune facture</td></tr>';return;}
+
+  // ── Déduplication : même date+fournisseur+N°+catégorie+HT+TVA+TTC ──────────
+  const seen = new Set();
+  const unique = allFactures.filter(f => {
+    const key = [f.date_facture, f.fournisseur, f.numero, f.categorie,
+      f.montant_ht, f.montant_tva, f.montant_ttc].join('|');
+    if(seen.has(key)) return false;
+    seen.add(key); return true;
+  });
+
+  if(!unique.length){tbody.innerHTML='<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:40px">Aucune facture</td></tr>';return;}
 
   const editCell = (fId, field, val, cls='') => {
     const style = `outline:none;min-width:20px;cursor:text;padding:2px 4px;border-radius:3px;transition:background .15s;${cls}`;
     return `<span contenteditable="true" spellcheck="false"
-      style="${style}"
-      title="Cliquez pour modifier"
+      style="${style}" title="Cliquez pour modifier"
       onblur="saveFactureField('${fId}','${field}',this)"
       onfocus="this._orig=this.innerText"
     >${val}</span>`;
   };
 
-  tbody.innerHTML=allFactures.map(f=>`<tr id="facture-row-${f.id}">
+  tbody.innerHTML = unique.map(f=>`<tr id="facture-row-${f.id}">
+    <td style="width:32px;text-align:center"><input type="checkbox" class="facture-cb" data-id="${f.id}" style="cursor:pointer;accent-color:var(--accent2)"/></td>
     <td style="font-family:var(--mono);font-size:12px">${f.date_facture||'—'}</td>
     <td><div style="font-weight:500">${f.fournisseur||'—'}</div><div style="font-size:11px;color:var(--muted)">${f.fournisseur_ice||''}</div></td>
     <td style="font-family:var(--mono);font-size:11px">${editCell(f.id,'numero',f.numero||'','font-family:var(--mono);font-size:11px')}</td>
@@ -1883,6 +1893,26 @@ async function deleteFacture(id){
     renderECRITPreview();
     toast('Facture supprimée','info');
   } catch(e){ toast('Erreur: '+e.message,'error'); }
+}
+
+async function deleteSelectedFactures(){
+  const checked = [...document.querySelectorAll('.facture-cb:checked')];
+  if(!checked.length){ toast('Aucune facture sélectionnée','info'); return; }
+  if(!confirm(`Supprimer ${checked.length} facture${checked.length>1?'s':''} ? Cette action est irréversible.`)) return;
+  let deleted = 0;
+  for(const cb of checked){
+    try {
+      await api('DELETE', `/api/factures/${cb.dataset.id}`);
+      allFactures = allFactures.filter(f => f.id !== cb.dataset.id);
+      deleted++;
+    } catch(e){ toast('Erreur sur '+cb.dataset.id+': '+e.message,'error'); }
+  }
+  renderFactures();
+  updateDashboard();
+  renderECRITPreview();
+  const cbAll = document.getElementById('cb-all-factures');
+  if(cbAll) cbAll.checked = false;
+  toast(`${deleted} facture${deleted>1?'s':''} supprimée${deleted>1?'s':''}`, 'info');
 }
 
 async function deleteTransaction(id){
