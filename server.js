@@ -221,7 +221,7 @@ const handler = async (req, res) => {
     const id = url.split('/')[3];
     const body = await parseBody(req);
     // Champs autorisés à être modifiés
-    const ALLOWED = ['numero','montant_ht','montant_tva','montant_ttc','taux_tva','description','categorie','date_facture','statut'];
+    const ALLOWED = ['numero','montant_ht','montant_tva','montant_ttc','taux_tva','description','categorie','date_facture','statut','fournisseur','fournisseur_ice'];
     const patch = {};
     for(const k of ALLOWED) { if(body[k] !== undefined) patch[k] = body[k]; }
     if(!Object.keys(patch).length) return send(res, 400, { error: 'Aucun champ valide' });

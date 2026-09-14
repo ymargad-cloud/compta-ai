@@ -1697,8 +1697,8 @@ function renderFactures(){
 
   tbody.innerHTML = unique.map(f=>`<tr id="facture-row-${f.id}">
     <td style="width:32px;text-align:center"><input type="checkbox" class="facture-cb" data-id="${f.id}" style="cursor:pointer;accent-color:var(--accent2)"/></td>
-    <td style="font-family:var(--mono);font-size:12px">${f.date_facture||'—'}</td>
-    <td><div style="font-weight:500">${f.fournisseur||'—'}</div><div style="font-size:11px;color:var(--muted)">${f.fournisseur_ice||''}</div></td>
+    <td>${editCell(f.id,'date_facture',f.date_facture||'','font-family:var(--mono);font-size:12px;display:inline-block;min-width:80px')}</td>
+    <td><div style="font-weight:500">${editCell(f.id,'fournisseur',f.fournisseur||'','font-size:12px;display:inline-block;min-width:100px')}</div><div style="font-size:11px;color:var(--muted)">${f.fournisseur_ice||''}</div></td>
     <td style="font-family:var(--mono);font-size:11px">${editCell(f.id,'numero',f.numero||'','font-family:var(--mono);font-size:11px')}</td>
     <td><span style="background:rgba(79,142,247,.1);color:var(--accent);padding:2px 8px;border-radius:6px;font-size:11px">${f.categorie||'—'}</span></td>
     <td class="amount">${editCell(f.id,'montant_ht',f.montant_ht!=null?Number(f.montant_ht).toFixed(2):'','font-family:var(--mono);font-size:12px;color:var(--text)')}</td>
@@ -1780,8 +1780,8 @@ function renderReleves(){
     const isCredit=t.type_mouvement==='credit';
     return `<tr id="tx-row-${t.id}">
       <td style="width:32px;text-align:center"><input type="checkbox" class="releve-cb" data-id="${t.id}" style="cursor:pointer;accent-color:var(--accent2)"/></td>
-      <td style="font-family:var(--mono);font-size:12px">${t.date_operation||'—'}</td>
-      <td>${t.libelle||'—'}</td>
+      <td>${editTx(t.id,'date_operation',t.date_operation||'','font-family:var(--mono);font-size:12px;display:inline-block;min-width:80px')}</td>
+      <td>${editTx(t.id,'libelle',t.libelle||'','font-size:12px;display:inline-block;min-width:120px')}</td>
       <td id="tx-type-${t.id}"><span class="status-badge ${isCredit?'done':'pending'}">${isCredit?'Crédit':'Débit'}</span></td>
       <td class="amount neg">${editTx(t.id,'debit',isCredit?'':+(t.montant||0).toFixed(2),'font-family:var(--mono);font-size:12px;color:var(--danger);min-width:60px;display:inline-block;text-align:right')}</td>
       <td class="amount pos">${editTx(t.id,'credit',isCredit?+(t.montant||0).toFixed(2):'','font-family:var(--mono);font-size:12px;color:var(--success);min-width:60px;display:inline-block;text-align:right')}</td>
@@ -1794,29 +1794,37 @@ function renderReleves(){
 async function saveTxField(id, field, el) {
   const raw = el.innerText.trim();
   if(raw === (el._orig||'').trim()) return;
-  const val = parseFloat(raw.replace(/\s/g,'').replace(',','.')) || 0;
-  if(val <= 0) { el.innerText = el._orig||''; return; }
   el.style.background = 'rgba(245,200,66,.15)';
   try {
     const t = allTransactions.find(x => x.id === id);
     if(!t) return;
-    // Mettre à jour le type selon le champ modifié
-    const newType = field === 'debit' ? 'debit' : 'credit';
-    t.montant = val; t.type_mouvement = newType;
-    await api('PATCH', `/api/transactions/${id}`, { montant: val, type_mouvement: newType });
+    let patch = {};
 
-    // Vider l'autre colonne dans le DOM
-    const row = document.getElementById(`tx-row-${id}`);
-    if(row) {
-      const spans = row.querySelectorAll('[contenteditable]');
-      // spans[0] = débit, spans[1] = crédit
-      if(field === 'debit' && spans[1])  spans[1].innerText = '';
-      if(field === 'credit' && spans[0]) spans[0].innerText = '';
+    if(field === 'date_operation') {
+      t.date_operation = raw;
+      patch = { date_operation: raw };
+    } else if(field === 'libelle') {
+      t.libelle = raw;
+      patch = { libelle: raw };
+    } else if(field === 'debit' || field === 'credit') {
+      const val = parseFloat(raw.replace(/\s/g,'').replace(',','.')) || 0;
+      if(val <= 0) { el.innerText = el._orig||''; el.style.background=''; return; }
+      const newType = field === 'debit' ? 'debit' : 'credit';
+      t.montant = val; t.type_mouvement = newType;
+      patch = { montant: val, type_mouvement: newType };
+      // Vider l'autre colonne dans le DOM
+      const row = document.getElementById(`tx-row-${id}`);
+      if(row) {
+        const spans = row.querySelectorAll('[contenteditable]');
+        // spans[0]=date, spans[1]=libelle, spans[2]=debit, spans[3]=credit
+        if(field === 'debit'  && spans[3]) spans[3].innerText = '';
+        if(field === 'credit' && spans[2]) spans[2].innerText = '';
+      }
+      const typeEl = document.getElementById(`tx-type-${id}`);
+      if(typeEl) typeEl.innerHTML = `<span class="status-badge ${newType==='credit'?'done':'pending'}">${newType==='credit'?'Crédit':'Débit'}</span>`;
     }
-    // Mettre à jour le badge type
-    const typeEl = document.getElementById(`tx-type-${id}`);
-    if(typeEl) typeEl.innerHTML = `<span class="status-badge ${newType==='credit'?'done':'pending'}">${newType==='credit'?'Crédit':'Débit'}</span>`;
 
+    await api('PATCH', `/api/transactions/${id}`, patch);
     el.style.background = 'rgba(52,211,153,.1)';
     setTimeout(() => { el.style.background=''; }, 1200);
     updateDashboard(); renderECRITPreview();
