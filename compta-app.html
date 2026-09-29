@@ -413,6 +413,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 17v-2m3 2v-4m3 4v-6M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
         Analyse TVA
       </div>
+      <div class="nav-item" id="nav-ras-tva" onclick="showPage('ras-tva')">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        RAS TVA
+      </div>
       <div class="nav-item" id="nav-revue-comptes" onclick="showPage('revue-comptes')">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
         Revue des comptes
@@ -585,7 +589,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
       <div class="page" id="page-factures">
         <div class="card">
           <div class="table-header"><h3>Factures</h3><input class="search-input" placeholder="Rechercher..." id="search-factures" oninput="filterTable('factures',this.value)"/><button class="btn btn-success" onclick="exportTable('factures')">CSV</button></div>
-          <div style="overflow-x:auto"><table class="data-table"><thead><tr><th style="width:32px"><input type="checkbox" id="cb-all-factures" onchange="document.querySelectorAll('.facture-cb').forEach(cb=>cb.checked=this.checked)" style="cursor:pointer;accent-color:var(--accent2)" title="Tout sélectionner"/></th><th>Date</th><th>Fournisseur</th><th>N°</th><th>Catégorie</th><th>HT</th><th>TVA</th><th>TTC</th><th>Statut</th><th><button onclick="deleteSelectedFactures()" style="background:var(--danger);color:#fff;border:none;padding:3px 8px;border-radius:5px;font-size:10px;cursor:pointer" title="Supprimer la sélection">🗑 Sélection</button></th></tr></thead><tbody id="tbody-factures"><tr><td colspan="10" style="text-align:center;color:var(--muted);padding:40px">Aucune facture</td></tr></tbody></table></div>
+          <div style="overflow-x:auto"><table class="data-table"><thead><tr><th style="width:32px"><input type="checkbox" id="cb-all-factures" onchange="document.querySelectorAll('.facture-cb').forEach(cb=>cb.checked=this.checked)" style="cursor:pointer;accent-color:var(--accent2)" title="Tout sélectionner"/></th><th>Date</th><th>Fournisseur</th><th>N°</th><th>Catégorie</th><th>HT</th><th>TVA</th><th>TTC</th><th>Statut</th><th title="Retenue à la source TVA (75%)">RAS TVA</th><th><button onclick="deleteSelectedFactures()" style="background:var(--danger);color:#fff;border:none;padding:3px 8px;border-radius:5px;font-size:10px;cursor:pointer" title="Supprimer la sélection">🗑 Sélection</button></th></tr></thead><tbody id="tbody-factures"><tr><td colspan="11" style="text-align:center;color:var(--muted);padding:40px">Aucune facture</td></tr></tbody></table></div>
         </div>
       </div>
 
@@ -798,6 +802,96 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
                 <div style="font-family:var(--display);font-size:24px" id="atva-res-final">—</div>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RAS TVA -->
+      <div class="page" id="page-ras-tva">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+          <div>
+            <div style="font-family:var(--display);font-size:16px;font-weight:700">RAS TVA</div>
+            <div style="color:var(--muted);font-size:12px;margin-top:4px">Retenue à la source sur TVA — 75% de la TVA facturée</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-ghost" onclick="exportRasTVAXLS()">↓ XLS</button>
+            <button class="btn btn-ghost" onclick="exportRasTVAXML()">↓ XML</button>
+            <button class="btn btn-primary" onclick="buildRasTVA()">🔄 Générer</button>
+          </div>
+        </div>
+
+        <!-- Paramètres -->
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-head"><h3>⚙ Paramètres</h3></div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr) repeat(2,1fr);gap:14px;padding:16px">
+            <div class="form-group"><label>Identifiant Fiscal</label><input class="form-input" id="ras-if" placeholder="IF société"/></div>
+            <div class="form-group"><label>Année</label>
+              <select class="form-input" id="ras-annee">
+                <option value="2024">2024</option><option value="2025">2025</option>
+                <option value="2026" selected>2026</option><option value="2027">2027</option>
+              </select>
+            </div>
+            <div class="form-group"><label>Période</label>
+              <select class="form-input" id="ras-periode">
+                <option value="0">Annuel</option>
+                <optgroup label="── Mensuel ──">
+                  <option value="M1">Janvier</option><option value="M2">Février</option><option value="M3">Mars</option>
+                  <option value="M4">Avril</option><option value="M5">Mai</option><option value="M6">Juin</option>
+                  <option value="M7">Juillet</option><option value="M8">Août</option><option value="M9">Septembre</option>
+                  <option value="M10">Octobre</option><option value="M11">Novembre</option><option value="M12">Décembre</option>
+                </optgroup>
+                <optgroup label="── Trimestriel ──">
+                  <option value="T1">T1 — Jan/Fév/Mar</option><option value="T2">T2 — Avr/Mai/Jun</option>
+                  <option value="T3">T3 — Jul/Aoû/Sep</option><option value="T4">T4 — Oct/Nov/Déc</option>
+                </optgroup>
+              </select>
+            </div>
+            <div class="form-group"><label>Régime</label>
+              <select class="form-input" id="ras-regime">
+                <option value="1" selected>1 – Mensuel</option>
+                <option value="2">2 – Trimestriel</option>
+              </select>
+            </div>
+            <div class="form-group"><label>Type client</label>
+              <select class="form-input" id="ras-type-client">
+                <option value="5" selected>Entreprise privée (5)</option>
+                <option value="1">Etat (1)</option>
+                <option value="2">Collectivités territoriales (2)</option>
+                <option value="3">Entreprise publique (3)</option>
+                <option value="4">Autre organisme public (4)</option>
+              </select>
+            </div>
+            <div class="form-group"><label>Nature opération</label>
+              <select class="form-input" id="ras-nat-op">
+                <option value="6" selected>Vente de services (6)</option>
+                <option value="4">Vente de biens d'équipement (4)</option>
+                <option value="5">Vente de travaux (5)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tableau -->
+        <div class="card" id="ras-content" style="display:none">
+          <div class="card-head">
+            <h3>📋 Retenues à la source</h3>
+            <span id="ras-count" style="font-size:11px;color:var(--muted);font-family:var(--mono)">0 ligne</span>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="data-table" id="table-ras">
+              <thead><tr>
+                <th>N°</th><th>Type client</th><th>IF Client</th><th>ICE Client</th>
+                <th>Nom client</th><th>N° Facture</th><th>Date opération</th>
+                <th>Date paiement</th><th>HT</th><th>Taux TVA</th>
+                <th>Montant TVA</th><th>Taux RAS</th><th style="color:var(--danger)">Montant RAS</th>
+              </tr></thead>
+              <tbody id="tbody-ras"></tbody>
+            </table>
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:24px;padding:10px 16px;background:var(--bg3);border-top:1px solid var(--border);font-weight:600;font-size:12px;font-family:var(--mono)">
+            <span>Total HT : <strong id="ras-total-ht">—</strong></span>
+            <span>Total TVA : <strong id="ras-total-tva">—</strong></span>
+            <span style="color:var(--danger)">Total RAS (75%) : <strong id="ras-total-ras">—</strong></span>
           </div>
         </div>
       </div>
@@ -1332,13 +1426,13 @@ async function createCompany() {
 }
 
 // ===== NAVIGATION =====
-const pageTitles={dashboard:'Tableau de bord',upload:'Upload & traitement',dossiers:'Dossiers',factures:'Factures',releves:'Relevés bancaires',tva:'Déclarations TVA',rapprochement:'Rapprochement',export:'Export','tva-deductions':'Déductions TVA','analyse-tva':'Analyse TVA','revue-comptes':'Revue des comptes',users:'Utilisateurs',portail:'Portail clients',profil:'Mon profil'};
+const pageTitles={dashboard:'Tableau de bord',upload:'Upload & traitement',dossiers:'Dossiers',factures:'Factures',releves:'Relevés bancaires',tva:'Déclarations TVA',rapprochement:'Rapprochement',export:'Export','tva-deductions':'Déductions TVA','analyse-tva':'Analyse TVA','ras-tva':'RAS TVA','revue-comptes':'Revue des comptes',users:'Utilisateurs',portail:'Portail clients',profil:'Mon profil'};
 // Correction automatique : déplacer les pages mal imbriquées dans page-export
 function fixPageNesting() {
   const pageExport = document.getElementById('page-export');
   if(!pageExport) return;
   const parent = pageExport.parentElement;
-  ['page-analyse-tva','page-tva-deductions','page-revue-comptes','page-users','page-portail','page-profil'].forEach(id => {
+  ['page-analyse-tva','page-tva-deductions','page-ras-tva','page-revue-comptes','page-users','page-portail','page-profil'].forEach(id => {
     const el = document.getElementById(id);
     if(el && el.parentElement.id === 'page-export') {
       parent.appendChild(el);
@@ -1399,6 +1493,14 @@ function showPage(id) {
     const co = allCompanies.find(c => c.id === currentCompanyId);
     if(societeEl && co && !societeEl.value) societeEl.value = co.name;
     buildAnalyseTVA();
+  }
+  if(id==='ras-tva' && currentCompanyId) {
+    const anneeEl = document.getElementById('ras-annee');
+    if(anneeEl && !anneeEl.value) anneeEl.value = new Date().getFullYear();
+    const co = allCompanies.find(c => c.id === currentCompanyId);
+    const ifEl = document.getElementById('ras-if');
+    if(ifEl && co && !ifEl.value) ifEl.value = co.if_fiscal || '';
+    buildRasTVA();
   }
 }
 
@@ -1705,6 +1807,9 @@ function renderFactures(){
     <td class="amount">${editCell(f.id,'montant_tva',f.montant_tva!=null?Number(f.montant_tva).toFixed(2):'','font-family:var(--mono);font-size:12px;color:var(--warn)')}</td>
     <td class="amount">${editCell(f.id,'montant_ttc',f.montant_ttc!=null?Number(f.montant_ttc).toFixed(2):'','font-family:var(--mono);font-size:12px;color:var(--success)')}</td>
     <td><span class="status-badge done">${f.statut||'a_valider'}</span></td>
+    <td style="text-align:center">
+      ${f.type_facture==='vente' ? `<input type="checkbox" class="ras-cb" data-id="${f.id}" ${f.ras_tva?'checked':''} onchange="toggleRasTva('${f.id}',this.checked)" style="cursor:pointer;accent-color:var(--danger)" title="Retenue à la source TVA 75%"/>` : '<span style="color:var(--muted);font-size:10px">—</span>'}
+    </td>
     <td><button onclick="deleteFacture('${f.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px;padding:2px 6px;border-radius:4px;transition:color .15s" title="Supprimer" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--muted)'">🗑</button></td>
   </tr>`).join('');
 }
@@ -2132,6 +2237,225 @@ function runRapprochement(){
   const pct=allFactures.length?Math.round(matched/allFactures.length*100):0;
   document.getElementById('rappr-status').textContent=`${matched}/${allFactures.length} rapprochements réussis`;
   toast(`Rapprochement: ${pct}% de matching`,pct>60?'success':'info');
+}
+
+// ===== RAS TVA =====
+async function toggleRasTva(id, checked) {
+  try {
+    await api('PATCH', `/api/factures/${id}`, { ras_tva: checked });
+    const f = allFactures.find(x => x.id === id);
+    if(f) f.ras_tva = checked;
+    toast(checked ? 'RAS TVA activée ✓' : 'RAS TVA désactivée', 'info');
+  } catch(e) { toast('Erreur: ' + e.message, 'error'); }
+}
+
+function buildRasTVA() {
+  const annee    = parseInt(document.getElementById('ras-annee').value);
+  const periodeV = document.getElementById('ras-periode').value;
+  const mois     = periodeMois(periodeV);
+  const ifSoc    = document.getElementById('ras-if').value;
+  const typeClt  = document.getElementById('ras-type-client').value;
+  const natOp    = document.getElementById('ras-nat-op').value;
+
+  // Pré-remplir IF depuis la société active
+  const co = allCompanies.find(c => c.id === currentCompanyId);
+  if(co && !ifSoc) document.getElementById('ras-if').value = co.if_fiscal || '';
+
+  // Factures de vente cochées RAS TVA, filtrées sur la date de facturation
+  const factures = allFactures.filter(f => {
+    if(!f.ras_tva) return false;
+    if(f.type_facture !== 'vente') return false;
+    if(!f.date_facture) return false;
+    const d = new Date(f.date_facture);
+    if(d.getFullYear() !== annee) return false;
+    if(mois && !mois.includes(d.getMonth()+1)) return false;
+    return true;
+  });
+
+  const fmtA = v => v!=null ? Number(v).toLocaleString('fr-MA',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
+  const typeCltLabels = {'1':'Etat','2':'Collectivités territoriales','3':'Entreprise publique','4':'Autre organisme public','5':'Entreprise privée'};
+  const natOpLabels   = {'4':'Vente de biens d\'équipement','5':'Vente de travaux','6':'Vente de services'};
+
+  let totalHT=0, totalTVA=0, totalRAS=0;
+  const tbody = document.getElementById('tbody-ras');
+
+  if(!factures.length) {
+    tbody.innerHTML = '<tr><td colspan="13" style="text-align:center;color:var(--muted);padding:30px">Aucune facture de vente avec RAS TVA cochée sur cette période</td></tr>';
+    document.getElementById('ras-count').textContent = '0 ligne';
+    ['ras-total-ht','ras-total-tva','ras-total-ras'].forEach(id => document.getElementById(id).textContent='—');
+    document.getElementById('ras-content').style.display = 'block';
+    return;
+  }
+
+  // Chercher la date de paiement depuis les transactions ECRIT (encaissement client 3421 crédit)
+  const ecritRows = typeof getECRITRows === 'function' ? getECRITRows() : [];
+  const getDatePaiement = (f) => {
+    // Chercher dans ECRIT ligne banque 3421 crédit avec montant TTC proche
+    const ttc = +f.montant_ttc || 0;
+    const row = ecritRows.find(r =>
+      r[0] === JOURNAUX.BANQUE &&
+      String(r[2]).startsWith('3421') &&
+      r[8] != null && Math.abs(+r[8] - ttc) < 1
+    );
+    return row ? row[1] : (f._datePaie || '');
+  };
+
+  window._rasFactures = factures.map(f => {
+    const ht  = +f.montant_ht  || 0;
+    const tva = +f.montant_tva || 0;
+    const taux = +f.taux_tva || 20;
+    const ras = Math.round(tva * 0.75 * 100) / 100;
+    const datePaie = getDatePaiement(f);
+    return { f, ht, tva, taux, ras, datePaie, typeClt, natOp };
+  });
+
+  const ec = (val, style='') =>
+    `<span contenteditable="true" spellcheck="false"
+      style="outline:none;cursor:text;padding:2px 4px;border-radius:3px;transition:background .15s;${style}"
+      onfocus="this._orig=this.innerText">${val}</span>`;
+
+  tbody.innerHTML = window._rasFactures.map((item, i) => {
+    const { f, ht, tva, taux, ras, datePaie } = item;
+    totalHT += ht; totalTVA += tva; totalRAS += ras;
+    return `<tr>
+      <td style="font-family:var(--mono);font-size:11px">${i+1}</td>
+      <td style="font-size:11px">${typeCltLabels[typeClt]||typeClt}</td>
+      <td style="font-family:var(--mono);font-size:11px">${f.fournisseur_ice?.replace(/\D/g,'').substring(0,8)||''}</td>
+      <td style="font-family:var(--mono);font-size:10px">${f.fournisseur_ice||''}</td>
+      <td style="font-size:12px;font-weight:500">${f.fournisseur||'—'}</td>
+      <td style="font-family:var(--mono);font-size:11px">${f.numero||'—'}</td>
+      <td style="font-family:var(--mono);font-size:11px">${f.date_facture||'—'}</td>
+      <td style="font-family:var(--mono);font-size:11px">${ec(datePaie,'font-family:var(--mono);font-size:11px;min-width:80px;display:inline-block')}</td>
+      <td class="amount" style="font-family:var(--mono)">${fmtA(ht)}</td>
+      <td style="font-family:var(--mono);font-size:11px;text-align:center">${taux}%</td>
+      <td class="amount" style="font-family:var(--mono)">${fmtA(tva)}</td>
+      <td style="font-family:var(--mono);font-size:11px;text-align:center">75%</td>
+      <td class="amount" style="font-family:var(--mono);color:var(--danger);font-weight:600">${fmtA(ras)}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('ras-count').textContent = `${factures.length} ligne${factures.length>1?'s':''}`;
+  document.getElementById('ras-total-ht').textContent  = fmtA(totalHT) + ' MAD';
+  document.getElementById('ras-total-tva').textContent = fmtA(totalTVA) + ' MAD';
+  document.getElementById('ras-total-ras').textContent = fmtA(totalRAS) + ' MAD';
+  document.getElementById('ras-content').style.display = 'block';
+}
+
+function exportRasTVAXLS() {
+  if(!window._rasFactures || !window._rasFactures.length) { buildRasTVA(); if(!window._rasFactures?.length) return; }
+  const annee    = document.getElementById('ras-annee').value;
+  const periodeV = document.getElementById('ras-periode').value;
+  const ifSoc    = document.getElementById('ras-if').value;
+  const regime   = document.getElementById('ras-regime').value;
+  const typeClt  = document.getElementById('ras-type-client').value;
+  const natOp    = document.getElementById('ras-nat-op').value;
+  let periodeDGI = periodeV.startsWith('M') ? parseInt(periodeV.slice(1)) : periodeV.startsWith('T') ? parseInt(periodeV.slice(1)) : 0;
+
+  const typeCltLabels = {'1':'Etat','2':'Collectivités territoriales','3':'Entreprise publique','4':'Autre organisme public','5':'Entreprise de droit privé'};
+  const natOpLabels   = {'4':'Vente de biens d\'équipement','5':'Vente de travaux','6':'Vente de services'};
+
+  const wb = XLSX.utils.book_new();
+  const data = [];
+
+  // En-tête
+  data.push(['RAISON SOCIAL', '', '', '', '', '', '', '', '', '', '', '', '', '', '']);
+  data.push(['identifiantFiscal', ifSoc, '', '', `Déclaration ${+regime===1?'Mensuelle':'Trimestrielle'}`, '', '', '', '', '', '', '', '', '', '']);
+  data.push(['ANNEE', annee, '', '', `MOIS ${periodeDGI} /${annee}`, '', '', '', '', '', '', '', '', '', '']);
+  data.push(['REGIME', regime, '', '', '', '', '', '', '', '', '', '', '', '', '']);
+  data.push(['PERIODE', periodeDGI, '', '', '', '', "Relevé détaillé de la retenue à la source sur TVA", '', '', '', '', '', '', '', '']);
+  data.push(['','','','','','', '(Article 112-II du Code Général des Impôts)', '', '', '', '', '', '', '', '']);
+  data.push([]);
+  data.push([]);
+  data.push([]);
+  data.push(['', '', '', '', '', '', '', '', 'AUTO', '', 'AUTO', '', 'AUTO', 'AUTO', 'AUTO']);
+  data.push(['Type de client','if','ice','Nature de l\'opération','nom','numFacture','date Operation','date Paiement','M_HT','tauxTva','Montant TVA','taux Retenu','Montant RAS','refTypClt','refNatOpt']);
+
+  let totHT=0, totTVA=0, totRAS=0;
+  window._rasFactures.forEach(item => {
+    const { f, ht, tva, taux, ras, datePaie } = item;
+    totHT+=ht; totTVA+=tva; totRAS+=ras;
+    const dateOp  = f.date_facture ? new Date(f.date_facture) : null;
+    const datePaieDate = datePaie ? (datePaie.includes('/') ? (() => { const p=datePaie.split('/'); return new Date(+p[2],+p[1]-1,+p[0]); })() : new Date(datePaie)) : null;
+    data.push([
+      typeCltLabels[typeClt]||typeClt,
+      f.fournisseur_ice?.replace(/\D/g,'').substring(0,8)||'',
+      f.fournisseur_ice||'',
+      natOpLabels[natOp]||natOp,
+      (f.fournisseur||'').toUpperCase(),
+      f.numero||'',
+      dateOp,
+      datePaieDate,
+      ht, taux, tva, 75, ras,
+      +typeClt, +natOp,
+    ]);
+  });
+  data.push([`TOTAL : ${window._rasFactures.length}`, '', '', '', '', '', '', '', totHT, '', totTVA, '', totRAS, '', '']);
+
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  ws['!cols'] = [{wch:25},{wch:12},{wch:18},{wch:20},{wch:25},{wch:12},{wch:14},{wch:14},{wch:12},{wch:8},{wch:14},{wch:10},{wch:14},{wch:10},{wch:10}];
+  XLSX.utils.book_append_sheet(wb, ws, 'EDI RAS');
+  XLSX.writeFile(wb, `RAS_TVA_${ifSoc}_${annee}_${periodeDGI}.xls`, {bookType:'biff8'});
+  toast('Export XLS RAS TVA généré ✓', 'success');
+}
+
+function exportRasTVAXML() {
+  if(!window._rasFactures || !window._rasFactures.length) { buildRasTVA(); if(!window._rasFactures?.length) return; }
+  const annee    = document.getElementById('ras-annee').value;
+  const periodeV = document.getElementById('ras-periode').value;
+  const ifSoc    = document.getElementById('ras-if').value;
+  const regime   = document.getElementById('ras-regime').value;
+  const typeClt  = document.getElementById('ras-type-client').value;
+  const natOp    = document.getElementById('ras-nat-op').value;
+  let periodeDGI = periodeV.startsWith('M') ? parseInt(periodeV.slice(1)) : periodeV.startsWith('T') ? parseInt(periodeV.slice(1)) : 0;
+
+  const fmtDate = d => {
+    if(!d) return '';
+    const m1 = String(d).match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if(m1) return `${m1[3]}-${m1[2]}-${m1[1]}`;
+    const m2 = String(d).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if(m2) return `${m2[1]}-${m2[2]}-${m2[3]}`;
+    const dt = new Date(d); if(isNaN(dt)) return '';
+    return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+  };
+
+  const lignes = window._rasFactures.map(item => {
+    const { f, ht, tva, taux, ras, datePaie } = item;
+    const ifClt = f.fournisseur_ice?.replace(/\D/g,'').substring(0,8)||'';
+    return `\t\t<rrs>
+\t\t\t<refTypClt>${typeClt}</refTypClt>
+\t\t\t<refNatOpt>${natOp}</refNatOpt>
+\t\t\t<numFacture>${f.numero||''}</numFacture>
+\t\t\t<dateOperation>${fmtDate(f.date_facture)}</dateOperation>
+\t\t\t<datePaiement>${fmtDate(datePaie)}</datePaiement>
+\t\t\t<montantHt>${ht}</montantHt>
+\t\t\t<tauxTva>${taux}</tauxTva>
+\t\t\t<tauxRetenu>75</tauxRetenu>
+\t\t\t<refF>
+\t\t\t\t<if>${ifClt}</if>
+\t\t\t\t<nom>${(f.fournisseur||'').toUpperCase()}</nom>
+\t\t\t\t<ice>${f.fournisseur_ice||''}</ice>
+\t\t\t</refF>
+\t\t</rrs>`;
+  }).join('\n');
+
+  const xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<DeclarationReleveRetenueSource>
+\t<identifiantFiscal>${ifSoc}</identifiantFiscal>
+\t<annee>${annee}</annee>
+\t<periode>${periodeDGI}</periode>
+\t<regime>${regime}</regime>
+\t<releveRetenuSources>
+${lignes}
+\t</releveRetenuSources>
+</DeclarationReleveRetenueSource>`;
+
+  const blob = new Blob([xml], { type:'application/xml;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `RAS_TVA_${ifSoc}_${annee}_${periodeDGI}.xml`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('Export XML RAS TVA généré ✓', 'success');
 }
 
 // ===== ANALYSE TVA =====
