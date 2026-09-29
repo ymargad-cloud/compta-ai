@@ -679,7 +679,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
             <input class="search-input" id="f-credit"       placeholder="Crédit"        oninput="filterECRIT()" style="font-size:11px;padding:5px 8px"/>
             <button class="btn btn-ghost" onclick="clearECRITFilters()" style="font-size:10px;padding:5px 8px">✕ Effacer</button>
           </div>
-          <div style="overflow-x:auto"><table class="data-table" id="table-ecrit"><thead><tr><th>Code journal</th><th>Date écriture</th><th>N° de compte</th><th>Contrepartie</th><th>Libellé</th><th>N° pièce</th><th>Lettrage</th><th>Débit</th><th>Crédit</th><th title="Lignes modifiées"><button onclick="resetEcritOverrides()" class="btn btn-ghost" style="font-size:9px;padding:2px 6px;display:none" id="btn-reset-ecrit">↺ Reset</button></th></tr></thead><tbody id="tbody-ecrit"><tr><td colspan="10" style="text-align:center;color:var(--muted);padding:30px">Importez des documents pour générer le lot comptable</td></tr></tbody></table></div>
+          <div style="overflow-x:auto"><table class="data-table" id="table-ecrit"><thead><tr><th>Code journal</th><th>Date écriture</th><th>N° de compte</th><th>Contrepartie</th><th>Libellé</th><th>N° pièce</th><th>Lettrage</th><th>Débit</th><th>Crédit</th><th title="IA">🤖</th><th title="Lignes modifiées"><button onclick="resetEcritOverrides()" class="btn btn-ghost" style="font-size:9px;padding:2px 6px;display:none" id="btn-reset-ecrit">↺ Reset</button></th></tr></thead><tbody id="tbody-ecrit"><tr><td colspan="10" style="text-align:center;color:var(--muted);padding:30px">Importez des documents pour générer le lot comptable</td></tr></tbody></table></div>
         </div>
       </div>
 
@@ -4195,6 +4195,13 @@ function renderECRITPreview(){
         >${fmtMt(credit)}</span>
       </td>
       <td>
+        <button onclick="suggestCompteIA(${i}, '${cj}', '${(lib||'').replace(/'/g,"\'").replace(/`/g,'')}')"
+          style="background:none;border:none;cursor:pointer;font-size:14px;padding:2px 4px;border-radius:4px;opacity:.5;transition:opacity .15s"
+          title="Suggérer un compte via IA"
+          onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.5"
+          id="ai-btn-${i}">🤖</button>
+      </td>
+      <td>
         ${modified ? `<span title="Ligne modifiée" style="color:var(--gold);font-size:13px;cursor:pointer" onclick="delete ecritOverrides[${i}];renderECRITPreview()">✎</span>` : ''}
       </td>
     </tr>`;
@@ -4204,6 +4211,177 @@ function renderECRITPreview(){
   if(btnReset) btnReset.style.display = Object.keys(ecritOverrides).length > 0 ? 'inline-flex' : 'none';
 }
 
+
+// ===== AGENT IA — SUGGESTION DE COMPTE CGNC =====
+const CGNC_PROMPT = `Tu es expert-comptable marocain certifié (DPLE), spécialiste du Plan Comptable Général des Entreprises (CGNC) et de la comptabilité marocaine.
+On te donne une ligne comptable avec son libellé, son journal et son sens (débit/crédit).
+Tu dois proposer le numéro de compte CGNC le plus adapté (10 chiffres), en suivant le plan comptable marocain.
+
+Règles importantes :
+- Comptes de charges : 6xxxxx (achats 611x, loyers 6132, honoraires 6141, publicité 6146, frais bancaires 6147, télécoms 6148, déplacements 6152, formation 6161...)
+- Comptes de produits : 7xxxxx (CA services 7111, CA biens 7121, produits financiers 7381...)
+- Tiers fournisseurs : 4411000000
+- Tiers clients : 3421000000
+- État (TVA) : 3455 (récupérable), 4455 (exigible), 4456 (IS/DGI)
+- Personnel : 4441 (CNSS), 4441 (IGR), 4432 (salaires)
+- Banque : 5141000000
+- Caisse : 5161000000
+- Immobilisations : 21xx à 24xx
+- Stocks : 31xx à 35xx
+
+Réponds UNIQUEMENT en JSON valide, sans markdown, sans explication :
+{"compte":"XXXXXXXXXX","libelle_norm":"LIBELLE NORMALISE EN MAJUSCULES","justification":"courte justification en français","confiance":"haute|moyenne|faible"}`;
+
+async function suggestCompteIA(rowIdx, journal, libelle) {
+  const btn = document.getElementById(`ai-btn-${rowIdx}`);
+  if(!btn) return;
+
+  // Récupérer la ligne complète pour le contexte
+  const rows = getECRITRows();
+  const row  = rows[rowIdx];
+  if(!row) return;
+
+  const debit  = row[7];
+  const credit = row[8];
+  const sens   = debit > 0 ? 'débit' : 'crédit';
+  const montant = debit > 0 ? debit : (credit > 0 ? credit : 0);
+  const compteActuel = row[2];
+
+  btn.textContent = '⏳';
+  btn.disabled = true;
+
+  try {
+    // Récupérer la clé API depuis Supabase settings
+    const settings = await api('GET', '/api/settings');
+    const apiKey   = (settings || []).find(s => s.key === 'CLAUDE_API_KEY')?.value || '';
+
+    if(!apiKey) { toast('Clé API Claude manquante dans les paramètres', 'error'); btn.textContent='🤖'; btn.disabled=false; return; }
+
+    const userMsg = `Journal : ${journal}
+Libellé : ${libelle}
+Compte actuel : ${compteActuel}
+Montant : ${montant} MAD (${sens})
+Propose le compte CGNC le plus adapté pour cette écriture.`;
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type':         'application/json',
+        'x-api-key':            apiKey,
+        'anthropic-version':    '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model:      'claude-haiku-4-5',
+        max_tokens: 256,
+        system:     CGNC_PROMPT,
+        messages:   [{ role: 'user', content: userMsg }],
+      })
+    });
+
+    const data = await response.json();
+    const raw  = data?.content?.[0]?.text || '';
+
+    // Parser le JSON retourné
+    let suggestion;
+    try {
+      const cleaned = raw.replace(/```json|```/g,'').trim();
+      suggestion = JSON.parse(cleaned);
+    } catch(e) {
+      toast('Réponse IA non parseable : ' + raw.substring(0,80), 'error');
+      btn.textContent='🤖'; btn.disabled=false; return;
+    }
+
+    // Afficher le popup de suggestion
+    showAISuggestion(rowIdx, suggestion, compteActuel, libelle);
+
+  } catch(e) {
+    toast('Erreur agent IA : ' + e.message, 'error');
+  } finally {
+    btn.textContent = '🤖';
+    btn.disabled = false;
+  }
+}
+
+function showAISuggestion(rowIdx, suggestion, compteActuel, libelle) {
+  // Supprimer un ancien popup s'il existe
+  document.getElementById('ai-popup')?.remove();
+
+  const confColors = { haute: 'var(--success)', moyenne: 'var(--warn)', faible: 'var(--danger)' };
+  const confColor  = confColors[suggestion.confiance] || 'var(--muted)';
+  const isSame     = suggestion.compte === compteActuel;
+
+  const popup = document.createElement('div');
+  popup.id = 'ai-popup';
+  popup.style.cssText = `
+    position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+    background:var(--card);border:1px solid var(--border);border-radius:14px;
+    padding:20px 24px;box-shadow:0 8px 32px rgba(0,0,0,.15);z-index:9999;
+    min-width:340px;max-width:480px;
+  `;
+
+  popup.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+      <span style="font-size:20px">🤖</span>
+      <div>
+        <div style="font-weight:700;font-size:13px;color:var(--text)">Suggestion agent IA</div>
+        <div style="font-size:11px;color:var(--muted)">${(libelle||'').substring(0,50)}</div>
+      </div>
+    </div>
+
+    <div style="background:var(--bg3);border-radius:8px;padding:12px 14px;margin-bottom:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <span style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px">Compte suggéré</span>
+        <span style="font-size:10px;font-family:var(--mono);color:${confColor};font-weight:600;border:1px solid ${confColor};border-radius:8px;padding:1px 6px">
+          confiance ${suggestion.confiance}
+        </span>
+      </div>
+      <div style="font-family:var(--mono);font-size:20px;font-weight:700;color:var(--accent2)">${suggestion.compte}</div>
+      <div style="font-size:12px;color:var(--text);margin-top:4px">${suggestion.libelle_norm || ''}</div>
+      ${!isSame ? `<div style="font-size:11px;color:var(--muted);margin-top:4px">Compte actuel : <span style="font-family:var(--mono)">${compteActuel}</span></div>` : ''}
+    </div>
+
+    <div style="font-size:11px;color:var(--muted);background:rgba(79,142,247,.05);border-left:3px solid var(--accent);padding:8px 10px;border-radius:0 6px 6px 0;margin-bottom:14px">
+      💡 ${suggestion.justification || ''}
+    </div>
+
+    <div style="display:flex;gap:8px">
+      ${!isSame ? `
+        <button onclick="applyAISuggestion(${rowIdx},'${suggestion.compte}','${(suggestion.libelle_norm||'').replace(/'/g,"\\'")}');document.getElementById('ai-popup').remove()"
+          class="btn btn-primary" style="flex:1">
+          ✓ Appliquer ce compte
+        </button>
+      ` : `
+        <div style="flex:1;text-align:center;font-size:12px;color:var(--success);padding:8px">✓ Compte déjà correct</div>
+      `}
+      <button onclick="document.getElementById('ai-popup').remove()" class="btn btn-ghost">Fermer</button>
+    </div>
+  `;
+
+  document.body.appendChild(popup);
+
+  // Fermer en cliquant à l'extérieur
+  setTimeout(() => {
+    document.addEventListener('click', function closePopup(e) {
+      if(!popup.contains(e.target)) {
+        popup.remove();
+        document.removeEventListener('click', closePopup);
+      }
+    });
+  }, 100);
+}
+
+function applyAISuggestion(rowIdx, compte, libelleNorm) {
+  // Appliquer le compte suggéré comme override ECRIT
+  if(!ecritOverrides[rowIdx]) ecritOverrides[rowIdx] = {};
+  ecritOverrides[rowIdx].cpte = compte;
+  if(libelleNorm) ecritOverrides[rowIdx].lib = libelleNorm;
+  _saveEcritOverrides();
+  renderECRITPreview();
+  toast(`Compte ${compte} appliqué ✓`, 'success');
+}
+
+// ===== FIN AGENT IA =====
 
 function filterECRIT() {
   const f = {
