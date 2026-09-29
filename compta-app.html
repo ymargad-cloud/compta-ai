@@ -389,8 +389,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
       <div class="nav-item" onclick="showPage('dossiers')">
         <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>Dossiers
       </div>
-      <div class="nav-item" onclick="showPage('factures')">
-        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Factures
+      <div class="nav-item" onclick="showPage('factures-achats')">
+        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="12" y2="17"/></svg>Factures Achats
+      </div>
+      <div class="nav-item" onclick="showPage('factures-ventes')">
+        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>Factures Ventes
       </div>
       <div class="nav-item" onclick="showPage('releves')">
         <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>Relevés bancaires
@@ -586,10 +589,19 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
       </div>
 
       <!-- FACTURES -->
-      <div class="page" id="page-factures">
+      <!-- FACTURES ACHATS -->
+      <div class="page" id="page-factures-achats">
         <div class="card">
-          <div class="table-header"><h3>Factures</h3><input class="search-input" placeholder="Rechercher..." id="search-factures" oninput="filterTable('factures',this.value)"/><button class="btn btn-success" onclick="exportTable('factures')">CSV</button></div>
-          <div style="overflow-x:auto"><table class="data-table"><thead><tr><th style="width:32px"><input type="checkbox" id="cb-all-factures" onchange="document.querySelectorAll('.facture-cb').forEach(cb=>cb.checked=this.checked)" style="cursor:pointer;accent-color:var(--accent2)" title="Tout sélectionner"/></th><th>Date</th><th>Fournisseur</th><th>N°</th><th>Catégorie</th><th>HT</th><th>TVA</th><th>TTC</th><th>Statut</th><th title="Retenue à la source TVA (75%)">RAS TVA</th><th><button onclick="deleteSelectedFactures()" style="background:var(--danger);color:#fff;border:none;padding:3px 8px;border-radius:5px;font-size:10px;cursor:pointer" title="Supprimer la sélection">🗑 Sélection</button></th></tr></thead><tbody id="tbody-factures"><tr><td colspan="11" style="text-align:center;color:var(--muted);padding:40px">Aucune facture</td></tr></tbody></table></div>
+          <div class="table-header"><h3>Factures Achats & Caisse</h3><input class="search-input" placeholder="Rechercher..." id="search-factures-achats" oninput="filterTable('factures-achats',this.value)"/><button class="btn btn-success" onclick="exportTable('factures-achats')">CSV</button></div>
+          <div style="overflow-x:auto"><table class="data-table"><thead><tr><th style="width:32px"><input type="checkbox" id="cb-all-factures-achats" onchange="document.querySelectorAll('.facture-cb-achats').forEach(cb=>cb.checked=this.checked)" style="cursor:pointer;accent-color:var(--accent2)" title="Tout sélectionner"/></th><th>Date</th><th>Fournisseur</th><th>N°</th><th>Catégorie</th><th>HT</th><th>TVA</th><th>TTC</th><th>Statut</th><th><button onclick="deleteSelectedFactures('achats')" style="background:var(--danger);color:#fff;border:none;padding:3px 8px;border-radius:5px;font-size:10px;cursor:pointer" title="Supprimer la sélection">🗑 Sélection</button></th></tr></thead><tbody id="tbody-factures-achats"><tr><td colspan="10" style="text-align:center;color:var(--muted);padding:40px">Aucune facture achat</td></tr></tbody></table></div>
+        </div>
+      </div>
+
+      <!-- FACTURES VENTES -->
+      <div class="page" id="page-factures-ventes">
+        <div class="card">
+          <div class="table-header"><h3>Factures Ventes</h3><input class="search-input" placeholder="Rechercher..." id="search-factures-ventes" oninput="filterTable('factures-ventes',this.value)"/><button class="btn btn-success" onclick="exportTable('factures-ventes')">CSV</button></div>
+          <div style="overflow-x:auto"><table class="data-table"><thead><tr><th style="width:32px"><input type="checkbox" id="cb-all-factures-ventes" onchange="document.querySelectorAll('.facture-cb-ventes').forEach(cb=>cb.checked=this.checked)" style="cursor:pointer;accent-color:var(--accent2)" title="Tout sélectionner"/></th><th>Date</th><th>Client</th><th>N°</th><th>Catégorie</th><th>HT</th><th>TVA</th><th>TTC</th><th>Statut</th><th title="Retenue à la source TVA (75%)">RAS TVA</th><th><button onclick="deleteSelectedFactures('ventes')" style="background:var(--danger);color:#fff;border:none;padding:3px 8px;border-radius:5px;font-size:10px;cursor:pointer" title="Supprimer la sélection">🗑 Sélection</button></th></tr></thead><tbody id="tbody-factures-ventes"><tr><td colspan="11" style="text-align:center;color:var(--muted);padding:40px">Aucune facture vente</td></tr></tbody></table></div>
         </div>
       </div>
 
@@ -1426,13 +1438,13 @@ async function createCompany() {
 }
 
 // ===== NAVIGATION =====
-const pageTitles={dashboard:'Tableau de bord',upload:'Upload & traitement',dossiers:'Dossiers',factures:'Factures',releves:'Relevés bancaires',tva:'Déclarations TVA',rapprochement:'Rapprochement',export:'Export','tva-deductions':'Déductions TVA','analyse-tva':'Analyse TVA','ras-tva':'RAS TVA','revue-comptes':'Revue des comptes',users:'Utilisateurs',portail:'Portail clients',profil:'Mon profil'};
+const pageTitles={dashboard:'Tableau de bord',upload:'Upload & traitement',dossiers:'Dossiers','factures-achats':'Factures Achats','factures-ventes':'Factures Ventes',releves:'Relevés bancaires',tva:'Déclarations TVA',rapprochement:'Rapprochement',export:'Export','tva-deductions':'Déductions TVA','analyse-tva':'Analyse TVA','ras-tva':'RAS TVA','revue-comptes':'Revue des comptes',users:'Utilisateurs',portail:'Portail clients',profil:'Mon profil'};
 // Correction automatique : déplacer les pages mal imbriquées dans page-export
 function fixPageNesting() {
   const pageExport = document.getElementById('page-export');
   if(!pageExport) return;
   const parent = pageExport.parentElement;
-  ['page-analyse-tva','page-tva-deductions','page-ras-tva','page-revue-comptes','page-users','page-portail','page-profil'].forEach(id => {
+  ['page-analyse-tva','page-tva-deductions','page-ras-tva','page-revue-comptes','page-users','page-portail','page-profil','page-factures-achats','page-factures-ventes'].forEach(id => {
     const el = document.getElementById(id);
     if(el && el.parentElement.id === 'page-export') {
       parent.appendChild(el);
@@ -1474,6 +1486,7 @@ function showPage(id) {
   if(id==='tva') renderTVAList();
   if(id==='dossiers') renderDossiers();
   if(id==='portail' && currentCompanyId) loadClientDocs();
+  if((id==='factures-achats' || id==='factures-ventes') && currentCompanyId) renderFactures();
   if(id==='tva-deductions' && currentCompanyId) {
     // Pré-remplir l'année courante
     const sel = document.getElementById('tva-ded-annee');
@@ -1775,9 +1788,7 @@ async function loadTVADeclarations(){
 
 // ===== TABLES =====
 function renderFactures(){
-  const tbody=document.getElementById('tbody-factures');
-
-  // ── Déduplication : même date+fournisseur+N°+catégorie+HT+TVA+TTC ──────────
+  // ── Déduplication ────────────────────────────────────────────────────────
   const seen = new Set();
   const unique = allFactures.filter(f => {
     const key = [f.date_facture, f.fournisseur, f.numero, f.categorie,
@@ -1786,32 +1797,62 @@ function renderFactures(){
     seen.add(key); return true;
   });
 
-  if(!unique.length){tbody.innerHTML='<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:40px">Aucune facture</td></tr>';return;}
+  // Séparer achats (achat + caisse) et ventes
+  const achats  = unique.filter(f => f.type_facture !== 'vente');
+  const ventes  = unique.filter(f => f.type_facture === 'vente');
 
   const editCell = (fId, field, val, cls='') => {
-    const style = `outline:none;min-width:20px;cursor:text;padding:2px 4px;border-radius:3px;transition:background .15s;${cls}`;
     return `<span contenteditable="true" spellcheck="false"
-      style="${style}" title="Cliquez pour modifier"
+      style="outline:none;min-width:20px;cursor:text;padding:2px 4px;border-radius:3px;transition:background .15s;${cls}"
+      title="Cliquez pour modifier"
       onblur="saveFactureField('${fId}','${field}',this)"
-      onfocus="this._orig=this.innerText"
-    >${val}</span>`;
+      onfocus="this._orig=this.innerText">${val}</span>`;
   };
 
-  tbody.innerHTML = unique.map(f=>`<tr id="facture-row-${f.id}">
-    <td style="width:32px;text-align:center"><input type="checkbox" class="facture-cb" data-id="${f.id}" style="cursor:pointer;accent-color:var(--accent2)"/></td>
-    <td>${editCell(f.id,'date_facture',f.date_facture||'','font-family:var(--mono);font-size:12px;display:inline-block;min-width:80px')}</td>
-    <td><div style="font-weight:500">${editCell(f.id,'fournisseur',f.fournisseur||'','font-size:12px;display:inline-block;min-width:100px')}</div><div style="font-size:11px;color:var(--muted)">${f.fournisseur_ice||''}</div></td>
-    <td style="font-family:var(--mono);font-size:11px">${editCell(f.id,'numero',f.numero||'','font-family:var(--mono);font-size:11px')}</td>
-    <td><span style="background:rgba(79,142,247,.1);color:var(--accent);padding:2px 8px;border-radius:6px;font-size:11px">${f.categorie||'—'}</span></td>
-    <td class="amount">${editCell(f.id,'montant_ht',f.montant_ht!=null?Number(f.montant_ht).toFixed(2):'','font-family:var(--mono);font-size:12px;color:var(--text)')}</td>
-    <td class="amount">${editCell(f.id,'montant_tva',f.montant_tva!=null?Number(f.montant_tva).toFixed(2):'','font-family:var(--mono);font-size:12px;color:var(--warn)')}</td>
-    <td class="amount">${editCell(f.id,'montant_ttc',f.montant_ttc!=null?Number(f.montant_ttc).toFixed(2):'','font-family:var(--mono);font-size:12px;color:var(--success)')}</td>
-    <td><span class="status-badge done">${f.statut||'a_valider'}</span></td>
-    <td style="text-align:center">
-      ${f.type_facture==='vente' ? `<input type="checkbox" class="ras-cb" data-id="${f.id}" ${f.ras_tva?'checked':''} onchange="toggleRasTva('${f.id}',this.checked)" style="cursor:pointer;accent-color:var(--danger)" title="Retenue à la source TVA 75%"/>` : '<span style="color:var(--muted);font-size:10px">—</span>'}
-    </td>
-    <td><button onclick="deleteFacture('${f.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px;padding:2px 6px;border-radius:4px;transition:color .15s" title="Supprimer" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--muted)'">🗑</button></td>
-  </tr>`).join('');
+  // ── Tableau Achats ───────────────────────────────────────────────────────
+  const tbodyA = document.getElementById('tbody-factures-achats');
+  if(tbodyA) {
+    if(!achats.length) {
+      tbodyA.innerHTML='<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:40px">Aucune facture achat</td></tr>';
+    } else {
+      tbodyA.innerHTML = achats.map(f=>`<tr id="facture-row-${f.id}">
+        <td style="width:32px;text-align:center"><input type="checkbox" class="facture-cb facture-cb-achats" data-id="${f.id}" style="cursor:pointer;accent-color:var(--accent2)"/></td>
+        <td>${editCell(f.id,'date_facture',f.date_facture||'','font-family:var(--mono);font-size:12px;display:inline-block;min-width:80px')}</td>
+        <td><div style="font-weight:500">${editCell(f.id,'fournisseur',f.fournisseur||'','font-size:12px;display:inline-block;min-width:100px')}</div><div style="font-size:11px;color:var(--muted)">${f.fournisseur_ice||''}</div></td>
+        <td style="font-family:var(--mono);font-size:11px">${editCell(f.id,'numero',f.numero||'','font-family:var(--mono);font-size:11px')}</td>
+        <td><span style="background:rgba(79,142,247,.1);color:var(--accent);padding:2px 8px;border-radius:6px;font-size:11px">${f.categorie||'—'}</span></td>
+        <td class="amount">${editCell(f.id,'montant_ht',f.montant_ht!=null?Number(f.montant_ht).toFixed(2):'','font-family:var(--mono);font-size:12px;color:var(--text)')}</td>
+        <td class="amount">${editCell(f.id,'montant_tva',f.montant_tva!=null?Number(f.montant_tva).toFixed(2):'','font-family:var(--mono);font-size:12px;color:var(--warn)')}</td>
+        <td class="amount">${editCell(f.id,'montant_ttc',f.montant_ttc!=null?Number(f.montant_ttc).toFixed(2):'','font-family:var(--mono);font-size:12px;color:var(--success)')}</td>
+        <td><span class="status-badge done">${f.statut||'a_valider'}</span></td>
+        <td><button onclick="deleteFacture('${f.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px;padding:2px 6px;border-radius:4px;transition:color .15s" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--muted)'">🗑</button></td>
+      </tr>`).join('');
+    }
+  }
+
+  // ── Tableau Ventes ───────────────────────────────────────────────────────
+  const tbodyV = document.getElementById('tbody-factures-ventes');
+  if(tbodyV) {
+    if(!ventes.length) {
+      tbodyV.innerHTML='<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:40px">Aucune facture vente</td></tr>';
+    } else {
+      tbodyV.innerHTML = ventes.map(f=>`<tr id="facture-row-${f.id}">
+        <td style="width:32px;text-align:center"><input type="checkbox" class="facture-cb facture-cb-ventes" data-id="${f.id}" style="cursor:pointer;accent-color:var(--accent2)"/></td>
+        <td>${editCell(f.id,'date_facture',f.date_facture||'','font-family:var(--mono);font-size:12px;display:inline-block;min-width:80px')}</td>
+        <td><div style="font-weight:500">${editCell(f.id,'fournisseur',f.fournisseur||'','font-size:12px;display:inline-block;min-width:100px')}</div><div style="font-size:11px;color:var(--muted)">${f.fournisseur_ice||''}</div></td>
+        <td style="font-family:var(--mono);font-size:11px">${editCell(f.id,'numero',f.numero||'','font-family:var(--mono);font-size:11px')}</td>
+        <td><span style="background:rgba(39,174,96,.1);color:var(--success);padding:2px 8px;border-radius:6px;font-size:11px">${f.categorie||'vente'}</span></td>
+        <td class="amount">${editCell(f.id,'montant_ht',f.montant_ht!=null?Number(f.montant_ht).toFixed(2):'','font-family:var(--mono);font-size:12px;color:var(--text)')}</td>
+        <td class="amount">${editCell(f.id,'montant_tva',f.montant_tva!=null?Number(f.montant_tva).toFixed(2):'','font-family:var(--mono);font-size:12px;color:var(--warn)')}</td>
+        <td class="amount">${editCell(f.id,'montant_ttc',f.montant_ttc!=null?Number(f.montant_ttc).toFixed(2):'','font-family:var(--mono);font-size:12px;color:var(--success)')}</td>
+        <td><span class="status-badge done">${f.statut||'a_valider'}</span></td>
+        <td style="text-align:center">
+          <input type="checkbox" class="ras-cb" data-id="${f.id}" ${f.ras_tva?'checked':''} onchange="toggleRasTva('${f.id}',this.checked)" style="cursor:pointer;accent-color:var(--danger)" title="Retenue à la source TVA 75%"/>
+        </td>
+        <td><button onclick="deleteFacture('${f.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px;padding:2px 6px;border-radius:4px;transition:color .15s" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--muted)'">🗑</button></td>
+      </tr>`).join('');
+    }
+  }
 }
 
 async function saveFactureField(id, field, el) {
@@ -2020,8 +2061,9 @@ async function deleteFacture(id){
   } catch(e){ toast('Erreur: '+e.message,'error'); }
 }
 
-async function deleteSelectedFactures(){
-  const checked = [...document.querySelectorAll('.facture-cb:checked')];
+async function deleteSelectedFactures(type='achats'){
+  const cls = type === 'ventes' ? '.facture-cb-ventes:checked' : '.facture-cb-achats:checked';
+  const checked = [...document.querySelectorAll(cls)];
   if(!checked.length){ toast('Aucune facture sélectionnée','info'); return; }
   if(!confirm(`Supprimer ${checked.length} facture${checked.length>1?'s':''} ? Cette action est irréversible.`)) return;
   let deleted = 0;
@@ -2035,7 +2077,7 @@ async function deleteSelectedFactures(){
   renderFactures();
   updateDashboard();
   renderECRITPreview();
-  const cbAll = document.getElementById('cb-all-factures');
+  const cbAll = document.getElementById(`cb-all-factures-${type}`);
   if(cbAll) cbAll.checked = false;
   toast(`${deleted} facture${deleted>1?'s':''} supprimée${deleted>1?'s':''}`, 'info');
 }
