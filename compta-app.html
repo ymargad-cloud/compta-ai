@@ -4253,7 +4253,7 @@ async function suggestCompteIA(rowIdx, journal, libelle) {
   try {
     // Récupérer la clé API depuis Supabase settings
     const settings = await api('GET', '/api/settings');
-    const apiKey   = (settings || []).find(s => s.key === 'CLAUDE_API_KEY')?.value || '';
+    const apiKey   = settings?.key || '';
 
     if(!apiKey) { toast('Clé API Claude manquante dans les paramètres', 'error'); btn.textContent='🤖'; btn.disabled=false; return; }
 
