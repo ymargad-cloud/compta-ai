@@ -836,6 +836,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
         <div class="card" style="margin-bottom:16px">
           <div class="card-head"><h3>⚙ Paramètres</h3></div>
           <div style="display:grid;grid-template-columns:repeat(4,1fr) repeat(2,1fr);gap:14px;padding:16px">
+            <div class="form-group"><label>Raison sociale</label><input class="form-input" id="ras-nom" placeholder="Nom société"/></div>
             <div class="form-group"><label>Identifiant Fiscal</label><input class="form-input" id="ras-if" placeholder="IF société"/></div>
             <div class="form-group"><label>Année</label>
               <select class="form-input" id="ras-annee">
@@ -1371,6 +1372,8 @@ async function selectCompany(id) {
 
   // Charger les overrides ECRIT depuis localStorage pour cette société
   ecritOverrides = _loadEcritOverrides();
+  // Pré-remplir les champs société dans tous les reportings
+  setTimeout(prefillReportingFields, 100);
   // Initialiser les selects d'année avec l'année courante
   const currentYear = new Date().getFullYear();
   ['atva-annee','tva-ded-annee','revue-exercice'].forEach(selId => {
@@ -1488,32 +1491,19 @@ function showPage(id) {
   if(id==='portail' && currentCompanyId) loadClientDocs();
   if((id==='factures-achats' || id==='factures-ventes') && currentCompanyId) renderFactures();
   if(id==='tva-deductions' && currentCompanyId) {
-    // Pré-remplir l'année courante
-    const sel = document.getElementById('tva-ded-annee');
-    if(sel) sel.value = new Date().getFullYear();
-    // Pré-remplir la raison sociale depuis la société active
-    const coOpt = document.getElementById('company-select')?.selectedOptions[0];
-    const raisonEl = document.getElementById('tva-ded-raison');
-    if(coOpt && raisonEl && !raisonEl.value) {
-      raisonEl.value = coOpt.text.split(' · ')[0];
-    }
+    prefillReportingFields();
     buildTVADeductionsTable();
   }
   if(id==='analyse-tva' && currentCompanyId) {
-    const anneeEl = document.getElementById('atva-annee');
-    if(anneeEl && !anneeEl.value) anneeEl.value = new Date().getFullYear();
-    const societeEl = document.getElementById('atva-societe');
-    const co = allCompanies.find(c => c.id === currentCompanyId);
-    if(societeEl && co && !societeEl.value) societeEl.value = co.name;
+    prefillReportingFields();
     buildAnalyseTVA();
   }
   if(id==='ras-tva' && currentCompanyId) {
-    const anneeEl = document.getElementById('ras-annee');
-    if(anneeEl && !anneeEl.value) anneeEl.value = new Date().getFullYear();
-    const co = allCompanies.find(c => c.id === currentCompanyId);
-    const ifEl = document.getElementById('ras-if');
-    if(ifEl && co && !ifEl.value) ifEl.value = co.if_fiscal || '';
+    prefillReportingFields();
     buildRasTVA();
+  }
+  if(id==='revue-comptes' && currentCompanyId) {
+    prefillReportingFields();
   }
 }
 
@@ -4211,6 +4201,42 @@ function renderECRITPreview(){
   if(btnReset) btnReset.style.display = Object.keys(ecritOverrides).length > 0 ? 'inline-flex' : 'none';
 }
 
+
+// ===== PREFILL SOCIÉTÉ DANS LES REPORTINGS =====
+function prefillReportingFields() {
+  const co = allCompanies.find(c => c.id === currentCompanyId);
+  if(!co) return;
+  const annee = new Date().getFullYear();
+  const name  = co.name || '';
+  const ifFis = co.if_fiscal || '';
+  const ice   = co.ice || '';
+
+  // Déductions TVA
+  const dedAnnee  = document.getElementById('tva-ded-annee');
+  const dedRaison = document.getElementById('tva-ded-raison');
+  const dedIF     = document.getElementById('tva-ded-if');
+  if(dedAnnee && !dedAnnee.value) dedAnnee.value = annee;
+  if(dedRaison) dedRaison.value = name;
+  if(dedIF)     dedIF.value     = ifFis;
+
+  // Analyse TVA
+  const atvaAnnee   = document.getElementById('atva-annee');
+  const atvaSociete = document.getElementById('atva-societe');
+  if(atvaAnnee && !atvaAnnee.value) atvaAnnee.value = annee;
+  if(atvaSociete) atvaSociete.value = name;
+
+  // RAS TVA
+  const rasAnnee = document.getElementById('ras-annee');
+  const rasIF    = document.getElementById('ras-if');
+  const rasNom   = document.getElementById('ras-nom');
+  if(rasAnnee && !rasAnnee.value) rasAnnee.value = annee;
+  if(rasIF)  rasIF.value  = ifFis;
+  if(rasNom) rasNom.value = name;
+
+  // Revue des comptes
+  const revueRaison = document.getElementById('revue-raison');
+  if(revueRaison) revueRaison.value = name;
+}
 
 // ===== AGENT IA — SUGGESTION DE COMPTE CGNC =====
 const CGNC_PROMPT = `Tu es expert-comptable marocain certifié (DPLE), spécialiste du Plan Comptable Général des Entreprises (CGNC) et de la comptabilité marocaine.
