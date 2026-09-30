@@ -420,6 +420,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
         RAS TVA
       </div>
+      <div class="nav-item" id="nav-balance-gl" onclick="showPage('balance-gl')">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3h18v18H3zM3 9h18M3 15h18M9 3v18"/></svg>
+        Balance & Grand Livre
+      </div>
       <div class="nav-item" id="nav-revue-comptes" onclick="showPage('revue-comptes')">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
         Revue des comptes
@@ -1019,7 +1023,104 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
         </div>
       </div>
 
-      <!-- REVUE DES COMPTES -->
+      <!-- BALANCE & GRAND LIVRE -->
+      <div class="page" id="page-balance-gl">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+          <div>
+            <div style="font-family:var(--display);font-size:16px;font-weight:700">Balance & Grand Livre</div>
+            <div style="color:var(--muted);font-size:12px;margin-top:4px">Générés depuis les écritures ECRIT de la société sélectionnée</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-ghost" onclick="exportBalanceXLS()">↓ Balance XLS</button>
+            <button class="btn btn-ghost" onclick="exportGrandLivreXLS()">↓ Grand Livre XLS</button>
+            <button class="btn btn-primary" onclick="buildBalanceGL()">🔄 Générer</button>
+          </div>
+        </div>
+
+        <!-- Paramètres -->
+        <div class="card" style="margin-bottom:14px">
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;padding:14px">
+            <div class="form-group"><label>Société</label><input class="form-input" id="gl-societe" readonly style="background:var(--bg3)"/></div>
+            <div class="form-group"><label>Exercice</label><input class="form-input" id="gl-exercice" placeholder="2026"/></div>
+            <div class="form-group"><label>Période</label>
+              <select class="form-input" id="gl-periode">
+                <option value="0">Annuel</option>
+                <optgroup label="── Mensuel ──">
+                  <option value="M1">Janvier</option><option value="M2">Février</option><option value="M3">Mars</option>
+                  <option value="M4">Avril</option><option value="M5">Mai</option><option value="M6">Juin</option>
+                  <option value="M7">Juillet</option><option value="M8">Août</option><option value="M9">Septembre</option>
+                  <option value="M10">Octobre</option><option value="M11">Novembre</option><option value="M12">Décembre</option>
+                </optgroup>
+                <optgroup label="── Trimestriel ──">
+                  <option value="T1">T1 Jan/Fév/Mar</option><option value="T2">T2 Avr/Mai/Jun</option>
+                  <option value="T3">T3 Jul/Aoû/Sep</option><option value="T4">T4 Oct/Nov/Déc</option>
+                </optgroup>
+              </select>
+            </div>
+            <div style="display:flex;align-items:flex-end">
+              <button class="btn btn-primary" style="width:100%" onclick="buildBalanceGL()">🔄 Générer</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Onglets -->
+        <div id="gl-content" style="display:none">
+          <div style="display:flex;gap:0;margin-bottom:0;border-bottom:2px solid var(--border)">
+            <button id="tab-balance" onclick="switchGLTab('balance')"
+              style="padding:8px 18px;border:none;border-bottom:2px solid var(--accent2);margin-bottom:-2px;background:none;font-weight:600;font-size:12px;color:var(--accent2);cursor:pointer">
+              ⚖ Balance Générale
+            </button>
+            <button id="tab-gl" onclick="switchGLTab('gl')"
+              style="padding:8px 18px;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;background:none;font-weight:500;font-size:12px;color:var(--muted);cursor:pointer">
+              📒 Grand Livre
+            </button>
+          </div>
+
+          <!-- Balance -->
+          <div id="panel-balance" class="card" style="border-radius:0 0 10px 10px;border-top:none">
+            <div style="padding:10px 14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border)">
+              <input class="search-input" id="search-balance" placeholder="Filtrer compte ou libellé..." oninput="filterBalance(this.value)" style="flex:1;max-width:300px"/>
+              <span id="balance-count" style="font-size:11px;color:var(--muted);font-family:var(--mono)"></span>
+            </div>
+            <div style="overflow-x:auto">
+              <table class="data-table">
+                <thead><tr>
+                  <th>N° Compte</th><th>Libellé</th>
+                  <th style="text-align:right">Débit Report</th><th style="text-align:right">Crédit Report</th>
+                  <th style="text-align:right">Mvt Débit</th><th style="text-align:right">Mvt Crédit</th>
+                  <th style="text-align:right;color:var(--accent)">Solde Débit</th>
+                  <th style="text-align:right;color:var(--success)">Solde Crédit</th>
+                </tr></thead>
+                <tbody id="tbody-balance"></tbody>
+                <tfoot id="tfoot-balance" style="font-weight:700;background:var(--bg3)"></tfoot>
+              </table>
+            </div>
+          </div>
+
+          <!-- Grand Livre -->
+          <div id="panel-gl" class="card" style="border-radius:0 0 10px 10px;border-top:none;display:none">
+            <div style="padding:10px 14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);flex-wrap:wrap">
+              <input class="search-input" id="search-gl" placeholder="Filtrer libellé, journal..." oninput="filterGL()" style="flex:1;min-width:160px;max-width:280px"/>
+              <select class="form-input" id="filter-gl-compte" onchange="filterGL()" style="font-size:11px;max-width:180px">
+                <option value="">Tous les comptes</option>
+              </select>
+              <span id="gl-count" style="font-size:11px;color:var(--muted);font-family:var(--mono)"></span>
+            </div>
+            <div style="overflow-x:auto;max-height:600px;overflow-y:auto">
+              <table class="data-table">
+                <thead style="position:sticky;top:0;z-index:10"><tr>
+                  <th>Date</th><th>Journal</th><th>Compte</th><th>Libellé</th>
+                  <th style="text-align:right">Débit</th><th style="text-align:right">Crédit</th>
+                  <th style="text-align:right">Solde D</th><th style="text-align:right">Solde C</th>
+                </tr></thead>
+                <tbody id="tbody-gl"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- REVUE DES COMPTES -->      <!-- REVUE DES COMPTES -->
       <div class="page" id="page-revue-comptes">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
           <div>
@@ -1441,13 +1542,13 @@ async function createCompany() {
 }
 
 // ===== NAVIGATION =====
-const pageTitles={dashboard:'Tableau de bord',upload:'Upload & traitement',dossiers:'Dossiers','factures-achats':'Factures Achats','factures-ventes':'Factures Ventes',releves:'Relevés bancaires',tva:'Déclarations TVA',rapprochement:'Rapprochement',export:'Export','tva-deductions':'Déductions TVA','analyse-tva':'Analyse TVA','ras-tva':'RAS TVA','revue-comptes':'Revue des comptes',users:'Utilisateurs',portail:'Portail clients',profil:'Mon profil'};
+const pageTitles={dashboard:'Tableau de bord',upload:'Upload & traitement',dossiers:'Dossiers','factures-achats':'Factures Achats','factures-ventes':'Factures Ventes',releves:'Relevés bancaires',tva:'Déclarations TVA',rapprochement:'Rapprochement',export:'Export','tva-deductions':'Déductions TVA','analyse-tva':'Analyse TVA','ras-tva':'RAS TVA','balance-gl':'Balance & Grand Livre','revue-comptes':'Revue des comptes',users:'Utilisateurs',portail:'Portail clients',profil:'Mon profil'};
 // Correction automatique : déplacer les pages mal imbriquées dans page-export
 function fixPageNesting() {
   const pageExport = document.getElementById('page-export');
   if(!pageExport) return;
   const parent = pageExport.parentElement;
-  ['page-analyse-tva','page-tva-deductions','page-ras-tva','page-revue-comptes','page-users','page-portail','page-profil','page-factures-achats','page-factures-ventes'].forEach(id => {
+  ['page-analyse-tva','page-tva-deductions','page-ras-tva','page-balance-gl','page-revue-comptes','page-users','page-portail','page-profil','page-factures-achats','page-factures-ventes'].forEach(id => {
     const el = document.getElementById(id);
     if(el && el.parentElement.id === 'page-export') {
       parent.appendChild(el);
@@ -1501,6 +1602,10 @@ function showPage(id) {
   if(id==='ras-tva' && currentCompanyId) {
     prefillReportingFields();
     buildRasTVA();
+  }
+  if(id==='balance-gl' && currentCompanyId) {
+    prefillReportingFields();
+    buildBalanceGL();
   }
   if(id==='revue-comptes' && currentCompanyId) {
     prefillReportingFields();
@@ -4202,6 +4307,260 @@ function renderECRITPreview(){
 }
 
 
+// ===== BALANCE & GRAND LIVRE (depuis ECRIT) =====
+let _glData = null; // { balance: [], gl: [] }
+
+function buildBalanceGL() {
+  const annee    = parseInt(document.getElementById('gl-exercice')?.value) || new Date().getFullYear();
+  const periodeV = document.getElementById('gl-periode')?.value || '0';
+  const mois     = periodeMois(periodeV);
+
+  // Source : getECRITRows() avec overrides manuels
+  const ecritRows = getECRITRows();
+  if(!ecritRows.length) { toast('Aucune écriture ECRIT disponible — importez des documents d\'abord','error'); return; }
+
+  const parseD = (dateVal) => {
+    if(!dateVal) return null;
+    const s = String(dateVal).trim();
+    const m1 = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if(m1) return new Date(+m1[3], +m1[2]-1, +m1[1]);
+    const m2 = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if(m2) return new Date(+m2[1], +m2[2]-1, +m2[3]);
+    return null;
+  };
+
+  const inPeriode = (dateVal) => {
+    const d = parseD(dateVal);
+    if(!d || isNaN(d)) return true; // si pas de date, on inclut
+    if(d.getFullYear() !== annee) return false;
+    if(mois && !mois.includes(d.getMonth()+1)) return false;
+    return true;
+  };
+
+  // ECRIT row = [journal, date, compte, contrepartie, libelle, piece, lettrage, debit, credit]
+  // index :       0        1     2       3              4        5      6         7      8
+
+  // ── Grand Livre ─────────────────────────────────────────────────────────
+  const gl = [];
+  // Soldes courants par compte pour calcul solde progressif
+  const soldesCourants = {};
+
+  ecritRows.forEach(r => {
+    if(!inPeriode(r[1])) return;
+    const compte = String(r[2]||'').trim();
+    if(!compte) return;
+    const debit  = +r[7] || 0;
+    const credit = +r[8] || 0;
+    if(!soldesCourants[compte]) soldesCourants[compte] = { d: 0, c: 0 };
+    soldesCourants[compte].d += debit;
+    soldesCourants[compte].c += credit;
+    const net = soldesCourants[compte].d - soldesCourants[compte].c;
+    gl.push({
+      date:    r[1] || '',
+      journal: r[0] || '',
+      compte,
+      lib:     r[4] || '',
+      debit,
+      credit,
+      solded:  net > 0 ? net : 0,
+      soldec:  net < 0 ? -net : 0,
+    });
+  });
+
+  gl.sort((a,b) => {
+    if(a.compte < b.compte) return -1;
+    if(a.compte > b.compte) return 1;
+    return String(a.date).localeCompare(String(b.date));
+  });
+
+  // ── Balance depuis GL ────────────────────────────────────────────────────
+  const compteMap = {};
+  ecritRows.forEach(r => {
+    if(!inPeriode(r[1])) return;
+    const compte = String(r[2]||'').trim();
+    if(!compte) return;
+    if(!compteMap[compte]) compteMap[compte] = { nocompte:compte, lib:'', dreport:0, creport:0, md:0, mc:0 };
+    const lib = r[4]||'';
+    if(!compteMap[compte].lib && lib) compteMap[compte].lib = lib;
+    compteMap[compte].md += +r[7]||0;
+    compteMap[compte].mc += +r[8]||0;
+  });
+
+  // Enrichir les libellés depuis allFactures et allTransactions
+  (allFactures||[]).forEach(f => {
+    const cpt = '4411000000';
+    if(compteMap[cpt] && !compteMap[cpt].lib) compteMap[cpt].lib = 'FOURNISSEURS';
+  });
+
+  const LIBELLES_CGNC = {
+    '3421000000':'CLIENTS','4411000000':'FOURNISSEURS','5141000000':'BANQUES',
+    '4455000000':'ETAT TVA FACTUREE','3455000000':'ETAT TVA RECUPERABLE',
+    '4456000000':'ETAT IS/TVA DUE','4441000000':'CNSS','3497000000':'ACHATS CARTE',
+    '6147000000':'SERVICES BANCAIRES','7111000000':'VENTES SERVICES','6126000000':'ACHATS PRESTATIONS',
+  };
+
+  const balance = Object.values(compteMap)
+    .sort((a,b) => a.nocompte.localeCompare(b.nocompte))
+    .map(c => {
+      if(!c.lib || c.lib.length < 3) c.lib = LIBELLES_CGNC[c.nocompte] || c.nocompte;
+      const soldeNet = (c.dreport + c.md) - (c.creport + c.mc);
+      return { ...c, solded: soldeNet > 0 ? soldeNet : 0, soldec: soldeNet < 0 ? -soldeNet : 0 };
+    });
+
+  _glData = { balance, gl };
+
+  // Peupler le select comptes pour filtre GL
+  const selCompte = document.getElementById('filter-gl-compte');
+  if(selCompte) {
+    const comptes = [...new Set(gl.map(l=>l.compte).filter(Boolean))].sort();
+    selCompte.innerHTML = '<option value="">Tous les comptes</option>' +
+      comptes.map(c => `<option value="${c}">${c}</option>`).join('');
+  }
+
+  document.getElementById('gl-content').style.display = 'block';
+  renderBalance();
+  renderGL();
+  toast(`Balance : ${balance.length} comptes · Grand Livre : ${gl.length} lignes`, 'success');
+}
+
+function switchGLTab(tab) {
+  const isBalance = tab === 'balance';
+  document.getElementById('panel-balance').style.display = isBalance ? '' : 'none';
+  document.getElementById('panel-gl').style.display       = isBalance ? 'none' : '';
+  const tB = document.getElementById('tab-balance');
+  const tG = document.getElementById('tab-gl');
+  tB.style.borderBottomColor = isBalance ? 'var(--accent2)' : 'transparent';
+  tB.style.color             = isBalance ? 'var(--accent2)' : 'var(--muted)';
+  tB.style.fontWeight        = isBalance ? '600' : '500';
+  tG.style.borderBottomColor = isBalance ? 'transparent' : 'var(--accent2)';
+  tG.style.color             = isBalance ? 'var(--muted)' : 'var(--accent2)';
+  tG.style.fontWeight        = isBalance ? '500' : '600';
+}
+
+function renderBalance(data) {
+  const rows  = data || (_glData?.balance || []);
+  const tbody = document.getElementById('tbody-balance');
+  const tfoot = document.getElementById('tfoot-balance');
+  if(!tbody) return;
+  const fmtN = v => v ? Number(v).toLocaleString('fr-MA',{minimumFractionDigits:2,maximumFractionDigits:2}) : '';
+  let totDR=0,totCR=0,totMD=0,totMC=0,totSD=0,totSC=0;
+  tbody.innerHTML = rows.map(r => {
+    totDR+=r.dreport; totCR+=r.creport; totMD+=r.md; totMC+=r.mc; totSD+=r.solded; totSC+=r.soldec;
+    return `<tr>
+      <td style="font-family:var(--mono);font-size:11px;font-weight:600">${r.nocompte}</td>
+      <td style="font-size:12px">${r.lib}</td>
+      <td style="text-align:right;font-family:var(--mono);font-size:11px">${fmtN(r.dreport)}</td>
+      <td style="text-align:right;font-family:var(--mono);font-size:11px">${fmtN(r.creport)}</td>
+      <td style="text-align:right;font-family:var(--mono);font-size:11px">${fmtN(r.md)}</td>
+      <td style="text-align:right;font-family:var(--mono);font-size:11px">${fmtN(r.mc)}</td>
+      <td style="text-align:right;font-family:var(--mono);font-size:11px;color:var(--accent);font-weight:${r.solded?'600':'400'}">${fmtN(r.solded)}</td>
+      <td style="text-align:right;font-family:var(--mono);font-size:11px;color:var(--success);font-weight:${r.soldec?'600':'400'}">${fmtN(r.soldec)}</td>
+    </tr>`;
+  }).join('');
+  tfoot.innerHTML = `<tr>
+    <td colspan="2" style="font-size:11px;padding:8px 12px">TOTAUX — ${rows.length} comptes</td>
+    <td style="text-align:right;font-family:var(--mono);font-size:11px;padding:8px 12px">${fmtN(totDR)}</td>
+    <td style="text-align:right;font-family:var(--mono);font-size:11px;padding:8px 12px">${fmtN(totCR)}</td>
+    <td style="text-align:right;font-family:var(--mono);font-size:11px;padding:8px 12px">${fmtN(totMD)}</td>
+    <td style="text-align:right;font-family:var(--mono);font-size:11px;padding:8px 12px">${fmtN(totMC)}</td>
+    <td style="text-align:right;font-family:var(--mono);font-size:11px;padding:8px 12px;color:var(--accent)">${fmtN(totSD)}</td>
+    <td style="text-align:right;font-family:var(--mono);font-size:11px;padding:8px 12px;color:var(--success)">${fmtN(totSC)}</td>
+  </tr>`;
+  document.getElementById('balance-count').textContent = `${rows.length} compte${rows.length>1?'s':''}`;
+}
+
+function renderGL(data) {
+  const rows  = data || (_glData?.gl || []);
+  const tbody = document.getElementById('tbody-gl');
+  if(!tbody) return;
+  const fmtN = v => v ? Number(v).toLocaleString('fr-MA',{minimumFractionDigits:2,maximumFractionDigits:2}) : '';
+  const jrnColors = {'A':'var(--accent)','V':'var(--success)','B':'var(--warn)','C':'#1ABC9C','OD':'var(--accent2)'};
+  let prevCompte = '';
+  tbody.innerHTML = rows.map(r => {
+    const isNew = r.compte !== prevCompte;
+    if(r.compte) prevCompte = r.compte;
+    const col = jrnColors[r.journal] || 'var(--muted)';
+    return `${isNew ? `<tr style="background:rgba(59,94,166,.05)">
+      <td colspan="8" style="font-family:var(--mono);font-size:11px;font-weight:700;color:var(--accent2);padding:6px 12px;border-top:2px solid var(--accent2)">${r.compte}</td>
+    </tr>` : ''}
+    <tr>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--muted)">${r.date}</td>
+      <td><span style="background:rgba(79,142,247,.1);color:${col};padding:1px 6px;border-radius:4px;font-family:var(--mono);font-size:10px;font-weight:600">${r.journal}</span></td>
+      <td style="font-family:var(--mono);font-size:10px;color:var(--muted)">${r.compte}</td>
+      <td style="font-size:12px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.lib}">${r.lib}</td>
+      <td style="text-align:right;font-family:var(--mono);font-size:11px;color:${r.debit?'var(--accent)':'var(--border)'}">${fmtN(r.debit)}</td>
+      <td style="text-align:right;font-family:var(--mono);font-size:11px;color:${r.credit?'var(--success)':'var(--border)'}">${fmtN(r.credit)}</td>
+      <td style="text-align:right;font-family:var(--mono);font-size:11px">${fmtN(r.solded)}</td>
+      <td style="text-align:right;font-family:var(--mono);font-size:11px">${fmtN(r.soldec)}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('gl-count').textContent = `${rows.length} ligne${rows.length>1?'s':''}`;
+}
+
+function filterBalance(q) {
+  if(!_glData) return;
+  const kw = q.toLowerCase();
+  const filtered = !kw ? _glData.balance : _glData.balance.filter(r =>
+    r.nocompte.includes(kw) || (r.lib||'').toLowerCase().includes(kw)
+  );
+  renderBalance(filtered);
+}
+
+function filterGL() {
+  if(!_glData) return;
+  const kw = (document.getElementById('search-gl')?.value||'').toLowerCase();
+  const compteFilter = document.getElementById('filter-gl-compte')?.value || '';
+  const filtered = _glData.gl.filter(r => {
+    if(compteFilter && r.compte !== compteFilter) return false;
+    if(!kw) return true;
+    return r.compte.includes(kw) || (r.lib||'').toLowerCase().includes(kw) || (r.journal||'').toLowerCase().includes(kw);
+  });
+  renderGL(filtered);
+}
+
+function exportBalanceXLS() {
+  if(!_glData?.balance?.length) { toast('Générez la balance d\'abord','error'); return; }
+  const societe  = document.getElementById('gl-societe')?.value || '';
+  const exercice = document.getElementById('gl-exercice')?.value || '';
+  const wb = XLSX.utils.book_new();
+  const fN = v => v ? +Number(v).toFixed(2) : 0;
+  const data = [];
+  data.push([`BALANCE GÉNÉRALE — ${societe} — Exercice ${exercice}`]);
+  data.push([]);
+  data.push(['N° Compte','Libellé','Débit Report','Crédit Report','Mvt Débit','Mvt Crédit','Solde Débit','Solde Crédit']);
+  let tDR=0,tCR=0,tMD=0,tMC=0,tSD=0,tSC=0;
+  _glData.balance.forEach(r => {
+    tDR+=r.dreport; tCR+=r.creport; tMD+=r.md; tMC+=r.mc; tSD+=r.solded; tSC+=r.soldec;
+    data.push([r.nocompte, r.lib, fN(r.dreport), fN(r.creport), fN(r.md), fN(r.mc), fN(r.solded), fN(r.soldec)]);
+  });
+  data.push(['TOTAUX','', fN(tDR), fN(tCR), fN(tMD), fN(tMC), fN(tSD), fN(tSC)]);
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  ws['!cols'] = [{wch:14},{wch:40},{wch:14},{wch:14},{wch:14},{wch:14},{wch:14},{wch:14}];
+  XLSX.utils.book_append_sheet(wb, ws, 'Balance');
+  XLSX.writeFile(wb, `Balance_${societe.replace(/\s/g,'_')}_${exercice}.xls`, {bookType:'biff8'});
+  toast('Balance XLS exportée ✓','success');
+}
+
+function exportGrandLivreXLS() {
+  if(!_glData?.gl?.length) { toast('Générez le grand livre d\'abord','error'); return; }
+  const societe  = document.getElementById('gl-societe')?.value || '';
+  const exercice = document.getElementById('gl-exercice')?.value || '';
+  const wb = XLSX.utils.book_new();
+  const fN = v => v ? +Number(v).toFixed(2) : 0;
+  const data = [];
+  data.push([`GRAND LIVRE — ${societe} — Exercice ${exercice}`]);
+  data.push([]);
+  data.push(['Date Opération','Code Journal','Compte','Libellé','Débit','Crédit','Solde Débit','Solde Crédit']);
+  _glData.gl.forEach(r => {
+    data.push([r.date, r.journal, r.compte, r.lib, fN(r.debit), fN(r.credit), fN(r.solded), fN(r.soldec)]);
+  });
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  ws['!cols'] = [{wch:12},{wch:8},{wch:14},{wch:40},{wch:14},{wch:14},{wch:14},{wch:14}];
+  XLSX.utils.book_append_sheet(wb, ws, 'Grand Livre');
+  XLSX.writeFile(wb, `GrandLivre_${societe.replace(/\s/g,'_')}_${exercice}.xls`, {bookType:'biff8'});
+  toast('Grand Livre XLS exporté ✓','success');
+}
+
 // ===== PREFILL SOCIÉTÉ DANS LES REPORTINGS =====
 function prefillReportingFields() {
   const co = allCompanies.find(c => c.id === currentCompanyId);
@@ -4236,6 +4595,12 @@ function prefillReportingFields() {
   // Revue des comptes
   const revueRaison = document.getElementById('revue-raison');
   if(revueRaison) revueRaison.value = name;
+
+  // Balance & Grand Livre
+  const glSociete  = document.getElementById('gl-societe');
+  const glExercice = document.getElementById('gl-exercice');
+  if(glSociete)  glSociete.value  = name;
+  if(glExercice && !glExercice.value) glExercice.value = annee;
 }
 
 // ===== AGENT IA — SUGGESTION DE COMPTE CGNC =====
