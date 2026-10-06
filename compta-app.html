@@ -376,6 +376,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
         <option value="">— Choisir une société —</option>
       </select>
       <button class="btn-new-company" onclick="openNewCompanyModal()">+ Nouvelle société</button>
+      <button class="btn-new-company" id="btn-edit-company" onclick="openEditCompanyModal()" style="display:none;margin-top:4px">✏ Modifier société</button>
       <button class="btn-new-company" id="btn-delete-company" onclick="deleteCurrentCompany()" style="display:none;background:rgba(192,57,43,.08);border-color:rgba(192,57,43,.25);color:#C0392B;margin-top:4px">🗑 Supprimer cette société</button>
     </div>
     <nav class="nav">
@@ -755,6 +756,12 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
               <button class="btn btn-primary" style="width:100%" onclick="buildAnalyseTVA()">🔄 Générer</button>
             </div>
           </div>
+          <div style="padding:0 16px 12px;display:flex;align-items:center;gap:10px">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:var(--text)">
+              <input type="checkbox" id="atva-ras-option" onchange="buildAnalyseTVA()" style="cursor:pointer;accent-color:var(--danger)"/>
+              <span>Inclure la <strong>RAS TVA</strong> (retenue à la source 75%) — imputer sur la TVA due / crédit TVA</span>
+            </label>
+          </div>
         </div>
 
         <div id="atva-content" style="display:none">
@@ -816,6 +823,12 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
               <div style="padding:18px;background:rgba(79,142,247,.04)">
                 <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-family:var(--mono);margin-bottom:8px" id="atva-res-label">TVA due</div>
                 <div style="font-family:var(--display);font-size:24px" id="atva-res-final">—</div>
+                <div id="atva-ras-bloc" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+                  <div style="font-size:9px;color:var(--danger);text-transform:uppercase;letter-spacing:.8px;font-family:var(--mono);margin-bottom:4px">RAS TVA (75%)</div>
+                  <div style="font-family:var(--mono);font-size:14px;color:var(--danger)" id="atva-res-ras">—</div>
+                  <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-family:var(--mono);margin-bottom:4px;margin-top:8px" id="atva-res-net-label">TVA nette due</div>
+                  <div style="font-family:var(--display);font-size:18px;font-weight:700" id="atva-res-net">—</div>
+                </div>
               </div>
             </div>
           </div>
@@ -1452,6 +1465,8 @@ async function loadCompanies() {
 
     const btnDel = document.getElementById('btn-delete-company');
     if (btnDel) btnDel.style.display = currentCompanyId ? 'block' : 'none';
+    const btnEdit = document.getElementById('btn-edit-company');
+    if (btnEdit) btnEdit.style.display = currentCompanyId ? 'block' : 'none';
 
     if (companies.length === 1 && !currentCompanyId) {
       sel.value = companies[0].id;
@@ -1482,6 +1497,8 @@ async function selectCompany(id) {
     if(el && !el.value) el.value = currentYear;
   });
   if(btnDel) btnDel.style.display = id ? 'block' : 'none';
+  const btnEd = document.getElementById('btn-edit-company');
+  if(btnEd) btnEd.style.display = id ? 'block' : 'none';
 
   // Synchroniser les champs Déductions TVA avec la société active
   const co = allCompanies.find(c => c.id === id);
@@ -1502,6 +1519,55 @@ async function selectCompany(id) {
     if(activePage && activePage.id === 'page-portail') loadClientDocs();
     if(activePage && activePage.id === 'page-upload') refreshUnprocessed();
   }
+}
+
+function openEditCompanyModal() {
+  const co = allCompanies.find(c => c.id === currentCompanyId);
+  if(!co) return;
+  const m = document.createElement('div');
+  m.className = 'modal-overlay active';
+  m.id = 'modal-edit-company';
+  m.innerHTML = `
+    <div class="modal-content" style="max-width:420px">
+      <div class="modal-header"><h3>✏ Modifier la société</h3><button class="modal-close" onclick="document.getElementById('modal-edit-company').remove()">✕</button></div>
+      <div class="modal-body" style="display:flex;flex-direction:column;gap:12px">
+        <div class="form-group"><label>Raison sociale *</label><input class="form-input" id="edit-co-name" value="${co.name||''}" placeholder="Nom société"/></div>
+        <div class="form-group"><label>Identifiant Fiscal (IF)</label><input class="form-input" id="edit-co-if" value="${co.if_fiscal||''}" placeholder="IF fiscal"/></div>
+        <div class="form-group"><label>ICE</label><input class="form-input" id="edit-co-ice" value="${co.ice||''}" placeholder="ICE"/></div>
+        <div class="form-group"><label>Ville</label><input class="form-input" id="edit-co-ville" value="${co.ville||''}" placeholder="Ville"/></div>
+        <div class="form-group"><label>Exercice</label>
+          <select class="form-input" id="edit-co-exercice">
+            ${[2020,2021,2022,2023,2024,2025,2026,2027,2028,2029,2030].map(y=>
+              `<option value="${y}" ${co.exercice==y?'selected':''}>${y}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer" style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn btn-ghost" onclick="document.getElementById('modal-edit-company').remove()">Annuler</button>
+        <button class="btn btn-primary" onclick="updateCompany('${co.id}')">💾 Sauvegarder</button>
+      </div>
+    </div>`;
+  document.body.appendChild(m);
+}
+
+async function updateCompany(id) {
+  const name     = document.getElementById('edit-co-name')?.value?.trim();
+  const if_fis   = document.getElementById('edit-co-if')?.value?.trim();
+  const ice      = document.getElementById('edit-co-ice')?.value?.trim();
+  const ville    = document.getElementById('edit-co-ville')?.value?.trim();
+  const exercice = document.getElementById('edit-co-exercice')?.value;
+  if(!name) { toast('Raison sociale obligatoire','error'); return; }
+  try {
+    await api('PATCH', `/api/companies/${id}`, { name, if_fiscal: if_fis, ice, ville, exercice: +exercice });
+    // Mettre à jour localement
+    const co = allCompanies.find(c => c.id === id);
+    if(co) { co.name = name; co.if_fiscal = if_fis; co.ice = ice; co.ville = ville; co.exercice = +exercice; }
+    document.getElementById('modal-edit-company')?.remove();
+    await loadCompanies();
+    selectCompany(id);
+    prefillReportingFields();
+    toast('Société mise à jour ✓','success');
+  } catch(e) { toast('Erreur: '+e.message,'error'); }
 }
 
 function openNewCompanyModal() {
@@ -2216,6 +2282,8 @@ async function deleteCurrentCompany(){
     allFactures = []; allTransactions = []; allTVADeclarations = []; allDossiers = [];
     document.getElementById('topbar-company').textContent = 'Aucune société';
     document.getElementById('btn-delete-company').style.display = 'none';
+    const btnEd2 = document.getElementById('btn-edit-company');
+    if(btnEd2) btnEd2.style.display = 'none';
     await loadCompanies();
     updateDashboard();
     toast(`Société "${name}" supprimée`,'info');
@@ -2799,14 +2867,38 @@ function buildAnalyseTVA() {
 
   // Résultat
   const totalDeductible = totalTVAAchats + totalTVABanque;
-  const tvaResultat = totalTVAVentes - totalDeductible;
+  const tvaResultat     = totalTVAVentes - totalDeductible;
   document.getElementById('atva-res-collectee').textContent  = fmtA(totalTVAVentes) + ' MAD';
   document.getElementById('atva-res-deductible').textContent = fmtA(totalDeductible) + ' MAD';
   document.getElementById('atva-res-final').textContent      = fmtA(Math.abs(tvaResultat)) + ' MAD';
   document.getElementById('atva-res-final').style.color      = tvaResultat >= 0 ? 'var(--danger)' : 'var(--success)';
   document.getElementById('atva-res-label').textContent      = tvaResultat >= 0 ? 'TVA due' : 'Crédit de TVA';
 
-  window._analyseTVA = { ventesAnalyse, achatsPayes, fraisAnalyse, totalTVAVentes, totalTVAAchats, totalTVABanque, totalDeductible, tvaResultat };
+  // ── RAS TVA : option cochée ──────────────────────────────────────────────
+  const rasOption = document.getElementById('atva-ras-option')?.checked;
+  const rasBloc   = document.getElementById('atva-ras-bloc');
+  let totalRAS = 0;
+  if(rasOption) {
+    // Total RAS = 75% de la TVA sur les factures de vente cochées ras_tva
+    totalRAS = Math.round(
+      ventesAnalyse.reduce((sum, v) => {
+        const fac = (allFactures||[]).find(f => f.numero === v.num && f.type_facture === 'vente' && f.ras_tva);
+        return sum + (fac ? (+fac.montant_tva||0) * 0.75 : 0);
+      }, 0) * 100) / 100;
+    const tvaApresRAS = tvaResultat - totalRAS;
+    const isNetDu     = tvaApresRAS >= 0;
+    if(rasBloc) {
+      rasBloc.style.display = 'block';
+      document.getElementById('atva-res-ras').textContent       = '- ' + fmtA(totalRAS) + ' MAD';
+      document.getElementById('atva-res-net').textContent       = fmtA(Math.abs(tvaApresRAS)) + ' MAD';
+      document.getElementById('atva-res-net').style.color       = isNetDu ? 'var(--danger)' : 'var(--success)';
+      document.getElementById('atva-res-net-label').textContent = isNetDu ? 'TVA nette due' : 'Crédit net de TVA';
+    }
+    window._analyseTVA = { ventesAnalyse, achatsPayes, fraisAnalyse, totalTVAVentes, totalTVAAchats, totalTVABanque, totalDeductible, tvaResultat, totalRAS, tvaApresRAS };
+  } else {
+    if(rasBloc) rasBloc.style.display = 'none';
+    window._analyseTVA = { ventesAnalyse, achatsPayes, fraisAnalyse, totalTVAVentes, totalTVAAchats, totalTVABanque, totalDeductible, tvaResultat };
+  }
   document.getElementById('atva-content').style.display = 'block';
 }
 
@@ -2954,18 +3046,29 @@ function buildTVADeductionsTable() {
     if(/CHEQUE|CHQ/.test(lib)) mode = 2;
     else if(/PRELEVEMENT|PRÉLÈVEMENT/.test(lib)) mode = 3;
     else if(/ESPECE|CAISSE/.test(lib)) mode = 1;
+    // Chercher aussi dans allFactures par fournisseur si pas de match TTC exact
+    let factureBest = facture;
+    if(!factureBest) {
+      const libEcrit = (payRow[4]||'').toUpperCase();
+      factureBest = allFactures.find(f =>
+        f.type_facture !== 'vente' && f.fournisseur &&
+        libEcrit.includes((f.fournisseur||'').toUpperCase().substring(0,6))
+      );
+    }
+    const iceVal = factureBest?.fournisseur_ice || '';
+    const ifVal  = iceVal ? iceVal.replace(/\D/g,'').substring(0,8) : '';
     dedLines.push({
       idx,
-      num:      facture?.numero || '',
-      desc:     (facture?.description || facture?.categorie || payRow[4] || '').substring(0,40).toUpperCase(),
+      num:      factureBest?.numero || '',
+      desc:     (factureBest?.description || factureBest?.categorie || payRow[4] || '').substring(0,40).toUpperCase(),
       ht, tva, ttc,
-      if_frs:   facture?.fournisseur_ice ? facture.fournisseur_ice.replace(/\D/g,'').substring(0,8) : '',
-      frs:      facture?.fournisseur || (payRow[4]||'').substring(0,30),
-      ice:      facture?.fournisseur_ice || '',
+      if_frs:   ifVal,
+      frs:      factureBest?.fournisseur || (payRow[4]||'').substring(0,30),
+      ice:      iceVal,
       taux,
       mode,
       datePaie: payRow[1],
-      dateFac:  facture?.date_facture || '',
+      dateFac:  factureBest?.date_facture || '',
       _type:    'achat',
       _deleted: false,
     });

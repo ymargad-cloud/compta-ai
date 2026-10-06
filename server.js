@@ -292,6 +292,20 @@ const handler = async (req, res) => {
     return send(res, 200, allCompanies);
   }
 
+  // PATCH /api/companies/:id — modifier une société
+  if (req.method === 'PATCH' && /^\/api\/companies\/[^/]+$/.test(url)) {
+    const user = await getUser(req);
+    if (!user) return send(res, 401, { error: 'Non authentifié' });
+    const id   = url.split('/')[3];
+    const body = await parseBody(req);
+    const ALLOWED = ['name','if_fiscal','ice','ville','exercice'];
+    const patch = {};
+    for(const k of ALLOWED) { if(body[k] !== undefined) patch[k] = body[k]; }
+    if(!Object.keys(patch).length) return send(res, 400, { error: 'Aucun champ valide' });
+    await supa('PATCH', `companies?id=eq.${id}`, { body: patch });
+    return send(res, 200, { ok: true });
+  }
+
   // POST /api/companies
   if (req.method === 'POST' && url === '/api/companies') {
     const user = await getUser(req);
