@@ -759,7 +759,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
           <div style="padding:0 16px 12px;display:flex;align-items:center;gap:10px">
             <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:var(--text)">
               <input type="checkbox" id="atva-ras-option" onchange="buildAnalyseTVA()" style="cursor:pointer;accent-color:var(--danger)"/>
-              <span>Inclure la <strong>RAS TVA</strong> (retenue à la source 75%) — imputer sur la TVA due / crédit TVA</span>
+              <span>Inclure la <strong>RAS TVA</strong> — Reconstituer le CA brut (encaissé = TTC − RAS TVA 75% − RAS IS 5%)</span>
             </label>
           </div>
         </div>
@@ -776,6 +776,31 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
             </div>
             <div style="display:flex;justify-content:flex-end;gap:24px;padding:10px 16px;background:rgba(52,211,153,.06);border-top:1px solid var(--border);font-weight:600;font-size:12px;font-family:var(--mono)">
               <span>Total TVA facturée : <strong id="atva-total-ventes" style="color:var(--success)">—</strong></span>
+            </div>
+            <!-- Bloc CA brut reconstitué (visible uniquement si RAS cochée) -->
+            <div id="atva-brut-bloc" style="display:none;padding:12px 16px;background:rgba(239,68,68,.05);border-top:1px solid rgba(239,68,68,.2)">
+              <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-family:var(--mono);margin-bottom:8px">📊 CA brut reconstitué (avant retenues)</div>
+              <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;font-family:var(--mono);font-size:12px">
+                <div style="padding:10px;background:rgba(255,255,255,.05);border-radius:6px;border:1px solid var(--border)">
+                  <div style="font-size:9px;color:var(--muted);margin-bottom:4px">CA HT brut</div>
+                  <div style="font-size:14px;font-weight:700;color:var(--text)" id="atva-brut-ht">—</div>
+                </div>
+                <div style="padding:10px;background:rgba(255,255,255,.05);border-radius:6px;border:1px solid var(--border)">
+                  <div style="font-size:9px;color:var(--muted);margin-bottom:4px">TVA brute (20%)</div>
+                  <div style="font-size:14px;font-weight:700;color:var(--success)" id="atva-brut-tva">—</div>
+                </div>
+                <div style="padding:10px;background:rgba(239,68,68,.08);border-radius:6px;border:1px solid rgba(239,68,68,.2)">
+                  <div style="font-size:9px;color:var(--muted);margin-bottom:4px">RAS TVA (75%×TVA)</div>
+                  <div style="font-size:14px;font-weight:700;color:var(--danger)" id="atva-brut-ras-tva">—</div>
+                </div>
+                <div style="padding:10px;background:rgba(239,68,68,.08);border-radius:6px;border:1px solid rgba(239,68,68,.2)">
+                  <div style="font-size:9px;color:var(--muted);margin-bottom:4px">RAS IS (5%×HT)</div>
+                  <div style="font-size:14px;font-weight:700;color:var(--danger)" id="atva-brut-ras-is">—</div>
+                </div>
+              </div>
+              <div style="margin-top:8px;padding:8px 12px;background:rgba(255,255,255,.04);border-radius:6px;border:1px solid var(--border);font-size:11px;color:var(--muted);font-family:var(--mono)">
+                Montant encaissé = CA HT brut (<span id="atva-brut-ht2">—</span>) + TVA (<span id="atva-brut-tva2">—</span>) − RAS TVA (<span id="atva-brut-ras-tva2">—</span>) − RAS IS (<span id="atva-brut-ras-is2">—</span>) = <strong id="atva-brut-encaisse" style="color:var(--accent)">—</strong>
+              </div>
             </div>
           </div>
 
@@ -824,8 +849,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
                 <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-family:var(--mono);margin-bottom:8px" id="atva-res-label">TVA due</div>
                 <div style="font-family:var(--display);font-size:24px" id="atva-res-final">—</div>
                 <div id="atva-ras-bloc" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
-                  <div style="font-size:9px;color:var(--danger);text-transform:uppercase;letter-spacing:.8px;font-family:var(--mono);margin-bottom:4px">RAS TVA (75%)</div>
+                  <div style="font-size:9px;color:var(--danger);text-transform:uppercase;letter-spacing:.8px;font-family:var(--mono);margin-bottom:4px">RAS TVA retenue (75%)</div>
                   <div style="font-family:var(--mono);font-size:14px;color:var(--danger)" id="atva-res-ras">—</div>
+                  <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-family:var(--mono);margin-bottom:4px;margin-top:8px">RAS IS retenue (5%)</div>
+                  <div style="font-family:var(--mono);font-size:14px;color:var(--danger)" id="atva-res-ras-is">—</div>
                   <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-family:var(--mono);margin-bottom:4px;margin-top:8px" id="atva-res-net-label">TVA nette due</div>
                   <div style="font-family:var(--display);font-size:18px;font-weight:700" id="atva-res-net">—</div>
                 </div>
@@ -2741,21 +2768,68 @@ function buildAnalyseTVA() {
 
   // Pour chaque encaissement client, chercher la facture de vente correspondante
   // (même montant TTC dans allFactures type vente)
+  // Si RAS cochée : le montant encaissé est APRÈS retenues → reconstituer le brut
+  // Formule : TTC_brut = encaissé / (1 - 0.75×taux/(1+taux) - 0.05/(1+taux))
+  // Pour taux=20% : TTC_brut = encaissé × 120/100 → HT_brut = TTC/1.2, TVA_brut = TTC - HT
+  const rasOptionActive = document.getElementById('atva-ras-option')?.checked;
+
+  const reconstitueBrut = (encaisse, taux=0.20) => {
+    // encaissé = HT×0.95 + TVA×0.25  (RAS TVA=75%×TVA, RAS IS=5%×HT)
+    // = HT×(1-0.05) + HT×taux×(1-0.75)
+    // = HT × (0.95 + 0.25×taux)
+    // HT = encaisse / (0.95 + 0.25×taux)
+    const ht  = Math.round(encaisse / (0.95 + 0.25 * taux) * 100) / 100;
+    const tva = Math.round(ht * taux * 100) / 100;
+    const ttc = Math.round((ht + tva) * 100) / 100;
+    const rasTva = Math.round(tva * 0.75 * 100) / 100;
+    const rasIs  = Math.round(ht * 0.05 * 100) / 100;
+    return { ht, tva, ttc, rasTva, rasIs };
+  };
+
   const ventesAnalyse = [];
   encaissementsClients.forEach(encRow => {
-    const ttc = +encRow[8] || 0;
-    // Chercher la facture de vente avec ce TTC (ou approchant)
-    const facture = allFactures.find(f =>
+    const encaisse = +encRow[8] || 0;
+
+    // Chercher la facture de vente : d'abord par TTC brut, sinon par montant encaissé
+    let facture = allFactures.find(f =>
       f.type_facture === 'vente' &&
-      Math.abs((+f.montant_ttc||0) - ttc) < 1
+      Math.abs((+f.montant_ttc||0) - encaisse) < 1
     );
+    // Si RAS option, essayer aussi avec le TTC reconstitué
+    if(!facture && rasOptionActive) {
+      const brut = reconstitueBrut(encaisse);
+      facture = allFactures.find(f =>
+        f.type_facture === 'vente' &&
+        Math.abs((+f.montant_ttc||0) - brut.ttc) < 1
+      );
+    }
+
+    let ttc, ht, tva, rasTva=0, rasIs=0, hasRas=false;
+    if(rasOptionActive && (facture?.ras_tva || !facture)) {
+      // Reconstituer depuis le montant encaissé
+      const brut = reconstitueBrut(encaisse);
+      ttc    = brut.ttc;
+      ht     = brut.ht;
+      tva    = brut.tva;
+      rasTva = brut.rasTva;
+      rasIs  = brut.rasIs;
+      hasRas = true;
+    } else if(facture) {
+      ttc  = +facture.montant_ttc||0;
+      ht   = +facture.montant_ht||0;
+      tva  = +facture.montant_tva||0;
+    } else {
+      ttc  = encaisse;
+      ht   = Math.round(encaisse/1.20*100)/100;
+      tva  = Math.round((encaisse - ht)*100)/100;
+    }
+
     ventesAnalyse.push({
-      lib:    encRow[4] || (facture?.fournisseur || '—'),
-      num:    facture?.numero || '—',
-      ttc:    ttc,
-      ht:     facture ? +facture.montant_ht||0 : Math.round(ttc/1.20*100)/100,
-      tva:    facture ? +facture.montant_tva||0 : Math.round(ttc - ttc/1.20)*100/100,
-      dateFac: facture?.date_facture || '—',
+      lib:     encRow[4] || (facture?.fournisseur || '—'),
+      num:     facture?.numero || '—',
+      encaisse,
+      ttc, ht, tva, rasTva, rasIs, hasRas,
+      dateFac:  facture?.date_facture || '—',
       datePaie: encRow[1],
     });
   });
@@ -2814,22 +2888,44 @@ function buildAnalyseTVA() {
 
   // ── Rendu HTML ────────────────────────────────────────────────────────────
   // Ventes
-  let totalTVAVentes = 0;
+  let totalTVAVentes = 0, totalHTBrut = 0, totalTVABrut = 0, totalRasTvaVentes = 0, totalRasIsVentes = 0, totalEncaisse = 0;
   document.getElementById('atva-tbody-ventes').innerHTML = ventesAnalyse.length
     ? ventesAnalyse.map(v => {
-        totalTVAVentes += v.tva;
+        totalTVAVentes    += v.tva;
+        totalHTBrut       += v.ht;
+        totalTVABrut      += v.tva;
+        totalRasTvaVentes += v.rasTva||0;
+        totalRasIsVentes  += v.rasIs||0;
+        totalEncaisse     += v.encaisse;
         return `<tr>
           <td style="font-size:12px">${v.lib}
             <div style="font-size:10px;color:var(--muted);font-family:var(--mono)">Facture: ${v.dateFac} · Encaissement: ${v.datePaie||'—'}</div>
           </td>
           <td style="font-family:var(--mono);font-size:11px">${v.num}</td>
-          <td class="amount">${fmtA(v.ttc)}</td>
+          <td class="amount">${v.hasRas ? `<span style="font-size:10px;color:var(--muted)">encaissé</span><br>${fmtA(v.encaisse)}<br><span style="font-size:9px;color:var(--danger)">brut ${fmtA(v.ttc)}</span>` : fmtA(v.ttc)}</td>
           <td class="amount">${fmtA(v.ht)}</td>
-          <td class="amount pos">${fmtA(v.tva)}</td>
+          <td class="amount pos">${fmtA(v.tva)}${v.hasRas ? `<br><span style="font-size:9px;color:var(--danger)">RAS: ${fmtA(v.rasTva)}</span>` : ''}</td>
         </tr>`;
       }).join('')
     : '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">Aucun encaissement client (compte 3421 crédit) sur cette période</td></tr>';
   document.getElementById('atva-total-ventes').textContent = fmtA(totalTVAVentes) + ' MAD';
+
+  // Bloc brut reconstitué
+  const brutBloc = document.getElementById('atva-brut-bloc');
+  if(rasOptionActive && ventesAnalyse.some(v => v.hasRas)) {
+    brutBloc.style.display = 'block';
+    document.getElementById('atva-brut-ht').textContent          = fmtA(totalHTBrut) + ' MAD';
+    document.getElementById('atva-brut-tva').textContent         = fmtA(totalTVABrut) + ' MAD';
+    document.getElementById('atva-brut-ras-tva').textContent     = fmtA(totalRasTvaVentes) + ' MAD';
+    document.getElementById('atva-brut-ras-is').textContent      = fmtA(totalRasIsVentes) + ' MAD';
+    document.getElementById('atva-brut-ht2').textContent         = fmtA(totalHTBrut);
+    document.getElementById('atva-brut-tva2').textContent        = fmtA(totalTVABrut);
+    document.getElementById('atva-brut-ras-tva2').textContent    = fmtA(totalRasTvaVentes);
+    document.getElementById('atva-brut-ras-is2').textContent     = fmtA(totalRasIsVentes);
+    document.getElementById('atva-brut-encaisse').textContent    = fmtA(totalEncaisse) + ' MAD';
+  } else {
+    brutBloc.style.display = 'none';
+  }
 
   // Achats
   let totalTVAAchats = 0;
@@ -2875,26 +2971,22 @@ function buildAnalyseTVA() {
   document.getElementById('atva-res-label').textContent      = tvaResultat >= 0 ? 'TVA due' : 'Crédit de TVA';
 
   // ── RAS TVA : option cochée ──────────────────────────────────────────────
-  const rasOption = document.getElementById('atva-ras-option')?.checked;
-  const rasBloc   = document.getElementById('atva-ras-bloc');
-  let totalRAS = 0;
-  if(rasOption) {
-    // Total RAS = 75% de la TVA sur les factures de vente cochées ras_tva
-    totalRAS = Math.round(
-      ventesAnalyse.reduce((sum, v) => {
-        const fac = (allFactures||[]).find(f => f.numero === v.num && f.type_facture === 'vente' && f.ras_tva);
-        return sum + (fac ? (+fac.montant_tva||0) * 0.75 : 0);
-      }, 0) * 100) / 100;
-    const tvaApresRAS = tvaResultat - totalRAS;
+  const rasBloc = document.getElementById('atva-ras-bloc');
+  if(rasOptionActive) {
+    // RAS TVA = déjà calculé dans ventesAnalyse (75% de la TVA brute des lignes RAS)
+    const totalRasTva = Math.round(totalRasTvaVentes * 100) / 100;
+    const totalRasIs  = Math.round(totalRasIsVentes * 100) / 100;
+    const tvaApresRAS = tvaResultat - totalRasTva;
     const isNetDu     = tvaApresRAS >= 0;
     if(rasBloc) {
       rasBloc.style.display = 'block';
-      document.getElementById('atva-res-ras').textContent       = '- ' + fmtA(totalRAS) + ' MAD';
+      document.getElementById('atva-res-ras').textContent       = '- ' + fmtA(totalRasTva) + ' MAD';
+      document.getElementById('atva-res-ras-is').textContent    = '- ' + fmtA(totalRasIs) + ' MAD';
       document.getElementById('atva-res-net').textContent       = fmtA(Math.abs(tvaApresRAS)) + ' MAD';
       document.getElementById('atva-res-net').style.color       = isNetDu ? 'var(--danger)' : 'var(--success)';
       document.getElementById('atva-res-net-label').textContent = isNetDu ? 'TVA nette due' : 'Crédit net de TVA';
     }
-    window._analyseTVA = { ventesAnalyse, achatsPayes, fraisAnalyse, totalTVAVentes, totalTVAAchats, totalTVABanque, totalDeductible, tvaResultat, totalRAS, tvaApresRAS };
+    window._analyseTVA = { ventesAnalyse, achatsPayes, fraisAnalyse, totalTVAVentes, totalTVAAchats, totalTVABanque, totalDeductible, tvaResultat, totalRasTva, totalRasIs, tvaApresRAS, totalHTBrut, totalEncaisse };
   } else {
     if(rasBloc) rasBloc.style.display = 'none';
     window._analyseTVA = { ventesAnalyse, achatsPayes, fraisAnalyse, totalTVAVentes, totalTVAAchats, totalTVABanque, totalDeductible, tvaResultat };
