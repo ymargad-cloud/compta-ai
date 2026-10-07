@@ -298,7 +298,7 @@ const handler = async (req, res) => {
     if (!user) return send(res, 401, { error: 'Non authentifié' });
     const id   = url.split('/')[3];
     const body = await parseBody(req);
-    const ALLOWED = ['name','if_fiscal','ice','ville','exercice'];
+    const ALLOWED = ['name','if_fiscal','ice','ville','exercice','banque','activite'];
     const patch = {};
     for(const k of ALLOWED) { if(body[k] !== undefined) patch[k] = body[k]; }
     if(!Object.keys(patch).length) return send(res, 400, { error: 'Aucun champ valide' });
@@ -311,7 +311,7 @@ const handler = async (req, res) => {
     const user = await getUser(req);
     if (!user) return send(res, 401, { error: 'Non authentifié' });
     const body = await parseBody(req);
-    const { data } = await supa('POST', 'companies', { body: { name: body.name, ice: body.ice, if_fiscal: body.if_fiscal, ville: body.ville, exercice: body.exercice, owner_id: user.id } });
+    const { data } = await supa('POST', 'companies', { body: { name: body.name, ice: body.ice, if_fiscal: body.if_fiscal, ville: body.ville, exercice: body.exercice, banque: body.banque || null, activite: body.activite || null, owner_id: user.id } });
     const company = Array.isArray(data) ? data[0] : data;
     await supa('POST', 'user_companies', { body: { user_id: user.id, company_id: company.id } });
     return send(res, 201, company);
@@ -725,6 +725,58 @@ const handler = async (req, res) => {
       offset_0:      { count: Array.isArray(r4.data) ? r4.data.length : 'err', status: r4.status },
     });
   }
+
+  // ===== FOURNISSEURS =====
+
+  // GET /api/fournisseurs?company_id=xxx
+  if (req.method === 'GET' && url === '/api/fournisseurs') {
+    const user = await getUser(req);
+    if (!user) return send(res, 401, { error: 'Non authentifié' });
+    const p = new URLSearchParams(req.url.split('?')[1] || '');
+    const { data } = await supa('GET', 'fournisseurs', {
+      filter: `company_id=eq.${p.get('company_id')}&order=denomination.asc&limit=1000`
+    });
+    return send(res, 200, data || []);
+  }
+
+  // POST /api/fournisseurs
+  if (req.method === 'POST' && url === '/api/fournisseurs') {
+    const user = await getUser(req);
+    if (!user) return send(res, 401, { error: 'Non authentifié' });
+    const body = await parseBody(req);
+    const ALLOWED_F = ['company_id','denomination','if_fourn','ice_fourn','type_prestation','aliases'];
+    const payload = {};
+    for(const k of ALLOWED_F) { if(body[k] !== undefined) payload[k] = body[k]; }
+    if(!payload.denomination) return send(res, 400, { error: 'Dénomination obligatoire' });
+    const { data, status } = await supa('POST', 'fournisseurs', { body: payload });
+    if (status >= 400) return send(res, 500, { error: 'Erreur sauvegarde fournisseur' });
+    return send(res, 201, Array.isArray(data) ? data[0] : data);
+  }
+
+  // PATCH /api/fournisseurs/:id
+  if (req.method === 'PATCH' && /^\/api\/fournisseurs\/[^/]+$/.test(url)) {
+    const user = await getUser(req);
+    if (!user) return send(res, 401, { error: 'Non authentifié' });
+    const id = url.split('/')[3];
+    const body = await parseBody(req);
+    const ALLOWED_F = ['denomination','if_fourn','ice_fourn','type_prestation','aliases'];
+    const patch = {};
+    for(const k of ALLOWED_F) { if(body[k] !== undefined) patch[k] = body[k]; }
+    if(!Object.keys(patch).length) return send(res, 400, { error: 'Aucun champ valide' });
+    await supa('PATCH', `fournisseurs?id=eq.${id}`, { body: patch });
+    return send(res, 200, { ok: true });
+  }
+
+  // DELETE /api/fournisseurs/:id
+  if (req.method === 'DELETE' && /^\/api\/fournisseurs\/[^/]+$/.test(url)) {
+    const user = await getUser(req);
+    if (!user) return send(res, 401, { error: 'Non authentifié' });
+    const id = url.split('/')[3];
+    await supa('DELETE', 'fournisseurs', { filter: `id=eq.${id}` });
+    return send(res, 200, { ok: true });
+  }
+
+  // ===== FIN FOURNISSEURS =====
 
   send(res, 404, { error: 'Route inconnue: ' + url });
 };
