@@ -1566,7 +1566,7 @@ async function selectCompany(id) {
   document.getElementById('dashboard-content').style.display = noComp?'none':'block';
   document.getElementById('upload-no-company').style.display = noComp?'flex':'none';
   document.getElementById('upload-content').style.display = noComp?'none':'block';
-  if(id) { await loadFactures(); await loadTransactions(); await loadTVADeclarations(); await loadDossiers(); updateDashboard();
+  if(id) { await loadFactures(); await loadTransactions(); await loadTVADeclarations(); await loadDossiers(); loadFournisseurs(); updateDashboard();
     // Recharger les docs clients si on est sur la page portail
     const activePage = document.querySelector('.page.active');
     if(activePage && activePage.id === 'page-portail') loadClientDocs();
@@ -1693,13 +1693,14 @@ async function loadFournisseurs() {
     const key = `fournisseurs_${currentCompanyId}`;
     const stored = JSON.parse(localStorage.getItem(key) || '[]');
     if(stored.length === 0) {
-      // Premier chargement : pré-charger les banques
+      // Premier chargement : pré-charger les banques et persister
       allFournisseurs = FOURNISSEURS_BANQUES_DEFAULT.map((b,i) => ({
         id: 'default_' + i, company_id: currentCompanyId,
         denomination: b.denomination, if_fourn: b.if_fourn,
         ice_fourn: b.ice_fourn, type_prestation: b.type_prestation,
         aliases: b.aliases.join('|'),
       }));
+      localStorage.setItem(key, JSON.stringify(allFournisseurs));
     } else {
       allFournisseurs = stored;
     }
@@ -2943,7 +2944,8 @@ function getECRITRows() {
   });
 }
 
-function buildAnalyseTVA() {
+async function buildAnalyseTVA() {
+  if(!allFournisseurs.length && currentCompanyId) await loadFournisseurs();
   const annee    = parseInt(document.getElementById('atva-annee').value);
   const periodeV = document.getElementById('atva-periode').value;
   const mois     = periodeMois(periodeV);
@@ -3316,7 +3318,8 @@ function periodeLabel(val) {
   return tLabels[val] || val;
 }
 
-function buildTVADeductionsTable() {
+async function buildTVADeductionsTable() {
+  if(!allFournisseurs.length && currentCompanyId) await loadFournisseurs();
   const annee    = parseInt(document.getElementById('tva-ded-annee').value);
   const periodeVal = document.getElementById('tva-ded-periode').value;
   const moisFiltres = periodeMois(periodeVal);
