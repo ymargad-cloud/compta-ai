@@ -399,6 +399,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
       <div class="nav-item" onclick="showPage('releves')">
         <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>Relevés bancaires
       </div>
+      <div class="nav-item" onclick="showPage('fournisseurs')">
+        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M20 7H4a2 2 0 00-2 2v8a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></svg>Base Fournisseurs
+      </div>
       <div class="nav-item" onclick="showPage('tva')">
         <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M9 14l2 2 4-4M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z"/></svg>Déclarations TVA
       </div>
@@ -615,6 +618,29 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
         <div class="card">
           <div class="table-header"><h3>Relevés bancaires</h3><input class="search-input" placeholder="Rechercher..." id="search-releves" oninput="filterTable('releves',this.value)"/><button class="btn btn-success" onclick="exportTable('releves')">CSV</button></div>
           <div style="overflow-x:auto"><table class="data-table"><thead><tr><th style="width:32px"><input type="checkbox" id="cb-all-releves" onchange="document.querySelectorAll('.releve-cb').forEach(cb=>cb.checked=this.checked)" style="cursor:pointer;accent-color:var(--accent2)" title="Tout sélectionner"/></th><th>Date</th><th>Libellé</th><th>Type</th><th>Débit</th><th>Crédit</th><th>Solde</th><th><button onclick="deleteSelectedTransactions()" style="background:var(--danger);color:#fff;border:none;padding:3px 8px;border-radius:5px;font-size:10px;cursor:pointer" title="Supprimer la sélection">🗑 Sélection</button></th></tr></thead><tbody id="tbody-releves"><tr><td colspan="8" style="text-align:center;color:var(--muted);padding:40px">Aucune transaction</td></tr></tbody></table></div>
+        </div>
+      </div>
+
+      <!-- BASE FOURNISSEURS -->
+      <div class="page" id="page-fournisseurs">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+          <div>
+            <div style="font-family:var(--display);font-size:16px;font-weight:700">Base Fournisseurs</div>
+            <div style="color:var(--muted);font-size:12px;margin-top:4px">Répertoire des fournisseurs avec IF, ICE et type de prestations</div>
+          </div>
+          <button class="btn btn-primary" onclick="openNewFournisseurModal()">+ Nouveau fournisseur</button>
+        </div>
+        <div class="card">
+          <div class="table-header">
+            <h3>Fournisseurs</h3>
+            <input class="search-input" placeholder="Rechercher..." id="search-fournisseurs" oninput="filterFournisseurs(this.value)"/>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="data-table">
+              <thead><tr><th>Dénomination</th><th>IF</th><th>ICE</th><th>Type de prestations</th><th style="width:80px">Actions</th></tr></thead>
+              <tbody id="tbody-fournisseurs"><tr><td colspan="5" style="text-align:center;color:var(--muted);padding:40px">Chargement...</td></tr></tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -1568,6 +1594,8 @@ function openEditCompanyModal() {
               `<option value="${y}" ${co.exercice==y?'selected':''}>${y}</option>`).join('')}
           </select>
         </div>
+        <div class="form-group"><label>Banque principale</label><input class="form-input" id="edit-co-banque" value="${co.banque||''}" placeholder="Ex: Attijariwafa Bank, CIH..."/></div>
+        <div class="form-group"><label>Activité / Secteur</label><input class="form-input" id="edit-co-activite" value="${co.activite||''}" placeholder="Ex: Conseil informatique, BTP..."/></div>
       </div>
       <div class="modal-footer" style="display:flex;gap:8px;justify-content:flex-end">
         <button class="btn btn-ghost" onclick="document.getElementById('modal-edit-company').remove()">Annuler</button>
@@ -1583,12 +1611,14 @@ async function updateCompany(id) {
   const ice      = document.getElementById('edit-co-ice')?.value?.trim();
   const ville    = document.getElementById('edit-co-ville')?.value?.trim();
   const exercice = document.getElementById('edit-co-exercice')?.value;
+  const banque   = document.getElementById('edit-co-banque')?.value?.trim();
+  const activite = document.getElementById('edit-co-activite')?.value?.trim();
   if(!name) { toast('Raison sociale obligatoire','error'); return; }
   try {
-    await api('PATCH', `/api/companies/${id}`, { name, if_fiscal: if_fis, ice, ville, exercice: +exercice });
+    await api('PATCH', `/api/companies/${id}`, { name, if_fiscal: if_fis, ice, ville, exercice: +exercice, banque, activite });
     // Mettre à jour localement
     const co = allCompanies.find(c => c.id === id);
-    if(co) { co.name = name; co.if_fiscal = if_fis; co.ice = ice; co.ville = ville; co.exercice = +exercice; }
+    if(co) { co.name = name; co.if_fiscal = if_fis; co.ice = ice; co.ville = ville; co.exercice = +exercice; co.banque = banque; co.activite = activite; }
     document.getElementById('modal-edit-company')?.remove();
     await loadCompanies();
     selectCompany(id);
@@ -1611,6 +1641,8 @@ function openNewCompanyModal() {
           ${Array.from({length:11},(_,i)=>2020+i).map(y => `<option value="${y}" ${y===currentYear?'selected':''}>${y}</option>`).join('')}
         </select>
       </div>
+      <div class="form-group"><label>Banque principale</label><input class="form-input" id="new-co-banque" placeholder="Ex: Attijariwafa Bank, CIH..."/></div>
+      <div class="form-group"><label>Activité / Secteur</label><input class="form-input" id="new-co-activite" placeholder="Ex: Conseil informatique, BTP..."/></div>
       <div style="display:flex;gap:10px;margin-top:8px">
         <button class="btn btn-primary" style="flex:1" onclick="createCompany()">Créer</button>
         <button class="btn btn-ghost" onclick="closeModal()">Annuler</button>
@@ -1625,17 +1657,210 @@ async function createCompany() {
   const ice       = document.getElementById('new-co-ice').value.trim();
   const ville     = document.getElementById('new-co-ville').value.trim();
   const exercice  = document.getElementById('new-co-exercice').value;
+  const banque    = document.getElementById('new-co-banque')?.value?.trim();
+  const activite  = document.getElementById('new-co-activite')?.value?.trim();
   if(!name) { toast('Entrez le nom de la société','error'); return; }
   try {
-    await api('POST', '/api/companies', { name, if_fiscal, ice, ville, exercice });
+    await api('POST', '/api/companies', { name, if_fiscal, ice, ville, exercice, banque, activite });
     closeModal();
     await loadCompanies();
     toast(`Société "${name}" — Exercice ${exercice} créée ✓`,'success');
   } catch(e) { toast(e.message,'error'); }
 }
 
+// ===== BASE FOURNISSEURS =====
+// Données banques pré-chargées (depuis fichier BANQUE_ICE_IF.xlsx)
+const FOURNISSEURS_BANQUES_DEFAULT = [
+  { denomination:'Attijariwafa Bank', aliases:['AWB','ATTIJARI','ATTIJARIWAFA'], if_fourn:'1085221', ice_fourn:'001648789000071', type_prestation:'Services bancaires' },
+  { denomination:'BMCI', aliases:['BMCI'], if_fourn:'1084015', ice_fourn:'001514219000035', type_prestation:'Services bancaires' },
+  { denomination:'BMCE Bank', aliases:['BMCE','BANK OF AFRICA','BOA'], if_fourn:'1085112', ice_fourn:'001512572000078', type_prestation:'Services bancaires' },
+  { denomination:'Crédit du Maroc', aliases:['CDM','CREDIT DU MAROC'], if_fourn:'1085466', ice_fourn:'000102564000025', type_prestation:'Services bancaires' },
+  { denomination:'Société Générale Maroc', aliases:['SGMA','SG','SOCIETE GENERALE'], if_fourn:'1084160', ice_fourn:'001540367000005', type_prestation:'Services bancaires' },
+  { denomination:'Banque Populaire', aliases:['BP','BANQUE POPULAIRE','GROUPE DES BANQUES POPULAIRES','GBP'], if_fourn:'1084612', ice_fourn:'001534931000016', type_prestation:'Services bancaires' },
+  { denomination:'CIH Bank', aliases:['CIH','CREDIT IMMOBILIER','HOTELIER'], if_fourn:'1084033', ice_fourn:'001542240000068', type_prestation:'Services bancaires' },
+  { denomination:'CDG Capital Bourse', aliases:['CDG CAPITAL','CDG'], if_fourn:'1067975', ice_fourn:'000230986000090', type_prestation:'Services financiers' },
+];
+
+let allFournisseurs = []; // cache en mémoire
+
+async function loadFournisseurs() {
+  try {
+    const data = await api('GET', `/api/fournisseurs?company_id=${currentCompanyId}`);
+    allFournisseurs = data || [];
+    renderFournisseurs(allFournisseurs);
+  } catch(e) {
+    // Si la table n'existe pas encore, utiliser localStorage + banques par défaut
+    const key = `fournisseurs_${currentCompanyId}`;
+    const stored = JSON.parse(localStorage.getItem(key) || '[]');
+    if(stored.length === 0) {
+      // Premier chargement : pré-charger les banques
+      allFournisseurs = FOURNISSEURS_BANQUES_DEFAULT.map((b,i) => ({
+        id: 'default_' + i, company_id: currentCompanyId,
+        denomination: b.denomination, if_fourn: b.if_fourn,
+        ice_fourn: b.ice_fourn, type_prestation: b.type_prestation,
+        aliases: b.aliases.join('|'),
+      }));
+    } else {
+      allFournisseurs = stored;
+    }
+    renderFournisseurs(allFournisseurs);
+  }
+}
+
+async function saveFournisseurLocal(fourn) {
+  // Sauvegarde via API si disponible, sinon localStorage
+  try {
+    if(fourn.id && !String(fourn.id).startsWith('default_')) {
+      await api('PATCH', `/api/fournisseurs/${fourn.id}`, fourn);
+    } else if(!fourn.id || String(fourn.id).startsWith('default_')) {
+      const result = await api('POST', '/api/fournisseurs', { ...fourn, company_id: currentCompanyId });
+      fourn.id = result?.id || fourn.id;
+    }
+  } catch(e) {
+    // Fallback localStorage
+    const key = `fournisseurs_${currentCompanyId}`;
+    const idx = allFournisseurs.findIndex(f => f.id === fourn.id);
+    if(idx >= 0) allFournisseurs[idx] = fourn; else allFournisseurs.push(fourn);
+    localStorage.setItem(key, JSON.stringify(allFournisseurs));
+  }
+}
+
+function renderFournisseurs(list) {
+  const tbody = document.getElementById('tbody-fournisseurs');
+  if(!tbody) return;
+  if(!list || list.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:40px">Aucun fournisseur. Cliquez sur "+ Nouveau fournisseur" pour en ajouter.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = list.map(f => `<tr>
+    <td style="font-size:12px;font-weight:500">${f.denomination||'—'}
+      ${f.aliases ? `<div style="font-size:10px;color:var(--muted)">Alias: ${f.aliases}</div>` : ''}
+    </td>
+    <td style="font-family:var(--mono);font-size:11px">${f.if_fourn||'—'}</td>
+    <td style="font-family:var(--mono);font-size:11px">${f.ice_fourn||'—'}</td>
+    <td style="font-size:12px">${f.type_prestation||'—'}</td>
+    <td>
+      <button onclick="editFournisseur('${f.id}')" style="background:none;border:none;cursor:pointer;color:var(--accent);font-size:12px" title="Modifier">✏</button>
+      <button onclick="deleteFournisseur('${f.id}')" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:12px" title="Supprimer">🗑</button>
+    </td>
+  </tr>`).join('');
+}
+
+function filterFournisseurs(q) {
+  const ql = q.toLowerCase();
+  renderFournisseurs(allFournisseurs.filter(f =>
+    (f.denomination||'').toLowerCase().includes(ql) ||
+    (f.if_fourn||'').includes(ql) ||
+    (f.ice_fourn||'').includes(ql) ||
+    (f.type_prestation||'').toLowerCase().includes(ql)
+  ));
+}
+
+function openNewFournisseurModal() {
+  const m = document.createElement('div');
+  m.className = 'modal-overlay active';
+  m.id = 'modal-fourn';
+  m.innerHTML = `
+    <div class="modal-content" style="max-width:460px">
+      <div class="modal-header"><h3>+ Nouveau fournisseur</h3><button class="modal-close" onclick="document.getElementById('modal-fourn').remove()">✕</button></div>
+      <div class="modal-body" style="display:flex;flex-direction:column;gap:12px">
+        <div class="form-group"><label>Dénomination *</label><input class="form-input" id="fourn-denomination" placeholder="Nom du fournisseur" autofocus/></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="form-group"><label>IF</label><input class="form-input" id="fourn-if" placeholder="Identifiant fiscal"/></div>
+          <div class="form-group"><label>ICE</label><input class="form-input" id="fourn-ice" placeholder="ICE 15 chiffres"/></div>
+        </div>
+        <div class="form-group"><label>Type de prestations</label><input class="form-input" id="fourn-type" placeholder="Ex: Services bancaires, Loyer, Télécom..."/></div>
+        <div class="form-group"><label>Alias de détection (séparés par |)</label><input class="form-input" id="fourn-aliases" placeholder="Ex: ATW|ATTIJARIWAFA|AWB"/></div>
+      </div>
+      <div class="modal-footer" style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn btn-ghost" onclick="document.getElementById('modal-fourn').remove()">Annuler</button>
+        <button class="btn btn-primary" onclick="createFournisseur()">💾 Créer</button>
+      </div>
+    </div>`;
+  document.body.appendChild(m);
+}
+
+function editFournisseur(id) {
+  const f = allFournisseurs.find(x => String(x.id) === String(id));
+  if(!f) return;
+  const m = document.createElement('div');
+  m.className = 'modal-overlay active';
+  m.id = 'modal-fourn';
+  m.innerHTML = `
+    <div class="modal-content" style="max-width:460px">
+      <div class="modal-header"><h3>✏ Modifier fournisseur</h3><button class="modal-close" onclick="document.getElementById('modal-fourn').remove()">✕</button></div>
+      <div class="modal-body" style="display:flex;flex-direction:column;gap:12px">
+        <div class="form-group"><label>Dénomination *</label><input class="form-input" id="fourn-denomination" value="${f.denomination||''}" placeholder="Nom du fournisseur"/></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="form-group"><label>IF</label><input class="form-input" id="fourn-if" value="${f.if_fourn||''}" placeholder="Identifiant fiscal"/></div>
+          <div class="form-group"><label>ICE</label><input class="form-input" id="fourn-ice" value="${f.ice_fourn||''}" placeholder="ICE 15 chiffres"/></div>
+        </div>
+        <div class="form-group"><label>Type de prestations</label><input class="form-input" id="fourn-type" value="${f.type_prestation||''}" placeholder="Ex: Services bancaires..."/></div>
+        <div class="form-group"><label>Alias de détection (séparés par |)</label><input class="form-input" id="fourn-aliases" value="${f.aliases||''}" placeholder="Ex: ATW|ATTIJARIWAFA|AWB"/></div>
+      </div>
+      <div class="modal-footer" style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn btn-ghost" onclick="document.getElementById('modal-fourn').remove()">Annuler</button>
+        <button class="btn btn-primary" onclick="updateFournisseur('${id}')">💾 Sauvegarder</button>
+      </div>
+    </div>`;
+  document.body.appendChild(m);
+}
+
+async function createFournisseur() {
+  const denomination   = document.getElementById('fourn-denomination')?.value?.trim();
+  const if_fourn       = document.getElementById('fourn-if')?.value?.trim();
+  const ice_fourn      = document.getElementById('fourn-ice')?.value?.trim();
+  const type_prestation= document.getElementById('fourn-type')?.value?.trim();
+  const aliases        = document.getElementById('fourn-aliases')?.value?.trim();
+  if(!denomination) { toast('Dénomination obligatoire','error'); return; }
+  const fourn = { id: Date.now()+'', company_id: currentCompanyId, denomination, if_fourn, ice_fourn, type_prestation, aliases };
+  allFournisseurs.push(fourn);
+  await saveFournisseurLocal(fourn);
+  document.getElementById('modal-fourn')?.remove();
+  renderFournisseurs(allFournisseurs);
+  toast('Fournisseur créé ✓','success');
+}
+
+async function updateFournisseur(id) {
+  const f = allFournisseurs.find(x => String(x.id) === String(id));
+  if(!f) return;
+  f.denomination    = document.getElementById('fourn-denomination')?.value?.trim();
+  f.if_fourn        = document.getElementById('fourn-if')?.value?.trim();
+  f.ice_fourn       = document.getElementById('fourn-ice')?.value?.trim();
+  f.type_prestation = document.getElementById('fourn-type')?.value?.trim();
+  f.aliases         = document.getElementById('fourn-aliases')?.value?.trim();
+  await saveFournisseurLocal(f);
+  document.getElementById('modal-fourn')?.remove();
+  renderFournisseurs(allFournisseurs);
+  toast('Fournisseur mis à jour ✓','success');
+}
+
+async function deleteFournisseur(id) {
+  if(!confirm('Supprimer ce fournisseur ?')) return;
+  try { await api('DELETE', `/api/fournisseurs/${id}`); } catch(e){}
+  allFournisseurs = allFournisseurs.filter(f => String(f.id) !== String(id));
+  const key = `fournisseurs_${currentCompanyId}`;
+  localStorage.setItem(key, JSON.stringify(allFournisseurs));
+  renderFournisseurs(allFournisseurs);
+  toast('Fournisseur supprimé','success');
+}
+
+// Résoudre IF/ICE d'un libellé depuis la base fournisseurs
+function resolveFournisseurInfo(libelle) {
+  if(!libelle || !allFournisseurs.length) return null;
+  const l = libelle.toUpperCase();
+  for(const f of allFournisseurs) {
+    const aliases = (f.aliases||'').split('|').map(a=>a.trim().toUpperCase()).filter(Boolean);
+    const names   = [f.denomination.toUpperCase(), ...aliases];
+    if(names.some(n => n && l.includes(n))) {
+      return { if_fourn: f.if_fourn, ice_fourn: f.ice_fourn, denomination: f.denomination, type_prestation: f.type_prestation };
+    }
+  }
+  return null;
+}
+
 // ===== NAVIGATION =====
-const pageTitles={dashboard:'Tableau de bord',upload:'Upload & traitement',dossiers:'Dossiers','factures-achats':'Factures Achats','factures-ventes':'Factures Ventes',releves:'Relevés bancaires',tva:'Déclarations TVA',rapprochement:'Rapprochement',export:'Export','tva-deductions':'Déductions TVA','analyse-tva':'Analyse TVA','ras-tva':'RAS TVA','balance-gl':'Balance & Grand Livre','revue-comptes':'Revue des comptes',users:'Utilisateurs',portail:'Portail clients',profil:'Mon profil'};
+const pageTitles={dashboard:'Tableau de bord',upload:'Upload & traitement',dossiers:'Dossiers','factures-achats':'Factures Achats','factures-ventes':'Factures Ventes',releves:'Relevés bancaires',fournisseurs:'Base Fournisseurs',tva:'Déclarations TVA',rapprochement:'Rapprochement',export:'Export','tva-deductions':'Déductions TVA','analyse-tva':'Analyse TVA','ras-tva':'RAS TVA','balance-gl':'Balance & Grand Livre','revue-comptes':'Revue des comptes',users:'Utilisateurs',portail:'Portail clients',profil:'Mon profil'};
 // Correction automatique : déplacer les pages mal imbriquées dans page-export
 function fixPageNesting() {
   const pageExport = document.getElementById('page-export');
@@ -1684,6 +1909,7 @@ function showPage(id) {
   if(id==='dossiers') renderDossiers();
   if(id==='portail' && currentCompanyId) loadClientDocs();
   if((id==='factures-achats' || id==='factures-ventes') && currentCompanyId) renderFactures();
+  if(id==='fournisseurs' && currentCompanyId) loadFournisseurs();
   if(id==='tva-deductions' && currentCompanyId) {
     prefillReportingFields();
     buildTVADeductionsTable();
@@ -2824,13 +3050,17 @@ function buildAnalyseTVA() {
       tva  = Math.round((encaisse - ht)*100)/100;
     }
 
+    const vLib = encRow[4] || (facture?.fournisseur || '—');
+    const vFinfo = resolveFournisseurInfo(vLib);
     ventesAnalyse.push({
-      lib:     encRow[4] || (facture?.fournisseur || '—'),
+      lib:     vLib,
       num:     facture?.numero || '—',
       encaisse,
       ttc, ht, tva, rasTva, rasIs, hasRas,
       dateFac:  facture?.date_facture || '—',
       datePaie: encRow[1],
+      if_fourn: vFinfo?.if_fourn || facture?.fournisseur_ice?.replace(/\D/g,'').substring(0,8) || '',
+      ice_fourn: vFinfo?.ice_fourn || facture?.fournisseur_ice || '',
     });
   });
 
@@ -3147,15 +3377,21 @@ function buildTVADeductionsTable() {
         libEcrit.includes((f.fournisseur||'').toUpperCase().substring(0,6))
       );
     }
-    const iceVal = factureBest?.fournisseur_ice || '';
-    const ifVal  = iceVal ? iceVal.replace(/\D/g,'').substring(0,8) : '';
+    let iceVal = factureBest?.fournisseur_ice || '';
+    let ifVal  = iceVal ? iceVal.replace(/\D/g,'').substring(0,8) : '';
+    const frsName = factureBest?.fournisseur || (payRow[4]||'').substring(0,30);
+    if(!iceVal) {
+      const libLookup = factureBest?.fournisseur || payRow[4] || '';
+      const fInfo = resolveFournisseurInfo(libLookup);
+      if(fInfo) { iceVal = fInfo.ice_fourn || ''; ifVal = fInfo.if_fourn || ''; }
+    }
     dedLines.push({
       idx,
       num:      factureBest?.numero || '',
       desc:     (factureBest?.description || factureBest?.categorie || payRow[4] || '').substring(0,40).toUpperCase(),
       ht, tva, ttc,
       if_frs:   ifVal,
-      frs:      factureBest?.fournisseur || (payRow[4]||'').substring(0,30),
+      frs:      frsName,
       ice:      iceVal,
       taux,
       mode,
@@ -3182,14 +3418,17 @@ function buildTVADeductionsTable() {
     let mode = 3; // prélèvement par défaut pour frais bancaires
     if(/CHEQUE|CHQ/.test(lib)) mode = 2;
     if(/VIREMENT|VIR/.test(lib)) mode = 4;
+    let fbanIce = '', fbanIf = '';
+    const fbanInfo = resolveFournisseurInfo(lib);
+    if(fbanInfo) { fbanIce = fbanInfo.ice_fourn || ''; fbanIf = fbanInfo.if_fourn || ''; }
     dedLines.push({
       idx: paiements4411.length + i,
       num:      '',
       desc:     lib.substring(0,40),
       ht, tva, ttc,
-      if_frs:   '',
-      frs:      'FRAIS BANCAIRES',
-      ice:      '',
+      if_frs:   fbanIf,
+      frs:      fbanInfo?.denomination || 'FRAIS BANCAIRES',
+      ice:      fbanIce,
       taux:     10,
       mode,
       datePaie: r[1],
@@ -4267,7 +4506,9 @@ function getCompteBancaire(lib) {
   const l = lib.toUpperCase();
   // 1. DGI ou IS → 4456000000 (priorité absolue même si TVA dans le libellé)
   if (/\bDGI\b|\bIS\b|DIRECTION GENERALE.*IMPOTS/.test(l))                     return { cpte: '4456000000', tva: 0 };
-  // 2. Achats carte → 3497000000
+  // 2. Retrait carte / GAB → 5115000000 (virement de fonds)
+  if (/RETRAIT\s*(CARTE|GAB)|RETRAIT\s+GAB|\bGAB\b/.test(l))                    return { cpte: '5115000000', tva: 0 };
+  // 2b. Achat carte (paiement) → 3497000000
   if (/ACHAT CARTE|\bCARTE\b/.test(l))                                           return { cpte: '3497000000', tva: 0 };
   // 3. CNSS → 4441000000
   if (/\bCNSS\b/.test(l))                                                        return { cpte: '4441000000', tva: 0 };
