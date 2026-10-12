@@ -525,20 +525,20 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 
             <!-- Factures achats & charges -->
             <div class="drop-zone" id="dz-achats" ondragover="handleDragOver(event,'achats')" ondragleave="handleDragLeave(event,'achats')" ondrop="handleDrop(event,'achats')" style="padding:24px;text-align:center;position:relative">
-              <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.tiff" onchange="handleFiles(this.files,'achats')"/>
+              <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.tiff,.xlsx,.xls,.csv" onchange="handleFiles(this.files,'achats')"/>
               <div style="font-size:28px;margin-bottom:8px">🧾</div>
               <div style="font-size:13px;font-weight:600;margin-bottom:4px;color:var(--text)">Factures achats & charges</div>
               <div style="color:var(--muted);font-size:11px">Fournisseurs, loyers, services...</div>
-              <div class="fmt-badges" style="margin-top:10px"><span class="fmt-badge">PDF</span><span class="fmt-badge">JPG</span><span class="fmt-badge">PNG</span></div>
+              <div class="fmt-badges" style="margin-top:10px"><span class="fmt-badge">PDF</span><span class="fmt-badge">JPG</span><span class="fmt-badge">PNG</span><span class="fmt-badge" style="background:rgba(39,174,96,.15);color:#27ae60;border-color:rgba(39,174,96,.3)">XLSX</span><span class="fmt-badge" style="background:rgba(39,174,96,.15);color:#27ae60;border-color:rgba(39,174,96,.3)">CSV</span></div>
             </div>
 
             <!-- Factures de ventes -->
             <div class="drop-zone" id="dz-ventes" ondragover="handleDragOver(event,'ventes')" ondragleave="handleDragLeave(event,'ventes')" ondrop="handleDrop(event,'ventes')" style="padding:24px;text-align:center;position:relative;border-color:rgba(52,211,153,.3)">
-              <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.tiff" onchange="handleFiles(this.files,'ventes')"/>
+              <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.tiff,.xlsx,.xls,.csv" onchange="handleFiles(this.files,'ventes')"/>
               <div style="font-size:28px;margin-bottom:8px">📤</div>
               <div style="font-size:13px;font-weight:600;margin-bottom:4px;color:var(--text)">Factures de ventes</div>
               <div style="color:var(--muted);font-size:11px">Biens vendus, prestations facturées...</div>
-              <div class="fmt-badges" style="margin-top:10px"><span class="fmt-badge">PDF</span><span class="fmt-badge">JPG</span><span class="fmt-badge">PNG</span></div>
+              <div class="fmt-badges" style="margin-top:10px"><span class="fmt-badge">PDF</span><span class="fmt-badge">JPG</span><span class="fmt-badge">PNG</span><span class="fmt-badge" style="background:rgba(39,174,96,.15);color:#27ae60;border-color:rgba(39,174,96,.3)">XLSX</span><span class="fmt-badge" style="background:rgba(39,174,96,.15);color:#27ae60;border-color:rgba(39,174,96,.3)">CSV</span></div>
             </div>
 
             <!-- Relevés bancaires -->
@@ -552,11 +552,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 
             <!-- Tickets & bons de caisse -->
             <div class="drop-zone" id="dz-caisse" ondragover="handleDragOver(event,'caisse')" ondragleave="handleDragLeave(event,'caisse')" ondrop="handleDrop(event,'caisse')" style="padding:24px;text-align:center;position:relative;border-color:rgba(251,191,36,.3)">
-              <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.tiff" onchange="handleFiles(this.files,'caisse')"/>
+              <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.tiff,.xlsx,.xls,.csv" onchange="handleFiles(this.files,'caisse')"/>
               <div style="font-size:28px;margin-bottom:8px">🧮</div>
               <div style="font-size:13px;font-weight:600;margin-bottom:4px;color:var(--text)">Tickets & bons de caisse</div>
               <div style="color:var(--muted);font-size:11px">Reçus, tickets TPE, bons d'achat...</div>
-              <div class="fmt-badges" style="margin-top:10px"><span class="fmt-badge">PDF</span><span class="fmt-badge">JPG</span><span class="fmt-badge">PNG</span></div>
+              <div class="fmt-badges" style="margin-top:10px"><span class="fmt-badge">PDF</span><span class="fmt-badge">JPG</span><span class="fmt-badge">PNG</span><span class="fmt-badge" style="background:rgba(39,174,96,.15);color:#27ae60;border-color:rgba(39,174,96,.3)">XLSX</span><span class="fmt-badge" style="background:rgba(39,174,96,.15);color:#27ae60;border-color:rgba(39,174,96,.3)">CSV</span></div>
             </div>
 
           </div>
@@ -2005,9 +2005,14 @@ function handleFiles(files, uploadCategory) {
   if(!currentCompanyId){toast('Sélectionnez une société','error');return;}
   const cat = uploadCategory || 'achats';
   for(const file of files){
-    // Pour les relevés Excel/CSV → parser direct sans IA
+    // Pour les relevés Excel/CSV → parser relevé bancaire
     if(cat === 'releves' && isExcelOrCsv(file)) {
       readSheetRows(file).then(rows => openXlsxMappingModal(file, rows)).catch(e => toast('Erreur lecture Excel: ' + e.message, 'error'));
+      continue;
+    }
+    // Pour achats/caisse/ventes Excel/CSV → parser factures
+    if((cat === 'achats' || cat === 'caisse' || cat === 'ventes') && isExcelOrCsv(file)) {
+      readSheetRows(file).then(rows => openFactureMappingModal(file, rows, cat)).catch(e => toast('Erreur lecture Excel: ' + e.message, 'error'));
       continue;
     }
     const item={id:genId(),file,name:file.name,size:fmtSize(file.size),type:file.type.includes('pdf')?'pdf':'img',status:'pending',result:null,category:cat};
@@ -2411,6 +2416,221 @@ async function importXlsxReleve() {
   } catch(e) {
     toast('Erreur import: ' + e.message, 'error');
   }
+}
+
+// ===== IMPORT EXCEL FACTURES =====
+let _facturePendingFile = null;
+
+function guessFactureColumns(headers, cat) {
+  const h = headers.map((x,i) => ({ i, s: String(x).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'') }));
+  const find = (...terms) => { const r = h.find(x => terms.some(t => x.s.includes(t))); return r ? r.i : -1; };
+  const base = {
+    date:     find('date', 'jour'),
+    libelle:  find('libelle', 'designation', 'description', 'objet', 'detail', 'prestation', 'article'),
+    ht:       find('ht', 'hors taxe', 'montant ht', 'base'),
+    tva:      find('tva', 'taxe', 'montant tva'),
+    ttc:      find('ttc', 'toutes taxes', 'montant ttc', 'total'),
+  };
+  if(cat === 'ventes') {
+    return { ...base, tiers: find('client', 'acheteur', 'societe', 'raison sociale', 'destinataire'), ice: -1, if_f: -1, num: find('numero', 'facture', 'n°', 'ref') };
+  }
+  return { ...base, tiers: find('fournisseur', 'prestataire', 'vendeur', 'societe', 'raison sociale'), ice: find('ice'), if_f: find('if', 'identifiant fiscal'), num: find('numero', 'facture', 'n°', 'ref', 'bon') };
+}
+
+function openFactureMappingModal(file, rows, cat) {
+  _facturePendingFile = { file, rows, cat };
+  let headerIdx = 0;
+  for(let i = 0; i < Math.min(rows.length, 15); i++) {
+    if(rows[i].filter(c => String(c||'').trim() !== '').length >= 3) { headerIdx = i; break; }
+  }
+  const headers = rows[headerIdx] || [];
+  const guess = guessFactureColumns(headers, cat);
+  const isVentes = cat === 'ventes';
+  const colOptions = ['— ignorer —', ...headers.map((h,i) => `[${i}] ${h}`)];
+  const sel = (label, key, guessIdx, req='') => `
+    <div class="form-group">
+      <label>${label}${req ? ' <span style="color:var(--danger)">*</span>' : ''}</label>
+      <select class="form-input" id="fmap-${key}">
+        ${colOptions.map((o,i) => `<option value="${i===0?-1:i-1}" ${(i===0?-1:i-1)===guessIdx?'selected':''}>${o}</option>`).join('')}
+      </select>
+    </div>`;
+
+  const dataRows = rows.slice(headerIdx+1, headerIdx+6).filter(r => r.some(c => String(c||'').trim()));
+  const previewHtml = `
+    <div style="overflow-x:auto;margin-top:8px">
+      <table style="width:100%;font-size:10px;border-collapse:collapse;font-family:var(--mono)">
+        <thead><tr>${headers.map(h=>`<th style="padding:4px 6px;background:var(--bg3);border:1px solid var(--border);white-space:nowrap">${h||'—'}</th>`).join('')}</tr></thead>
+        <tbody>${dataRows.map(r=>`<tr>${headers.map((_,i)=>`<td style="padding:3px 6px;border:1px solid var(--border);white-space:nowrap;max-width:100px;overflow:hidden;text-overflow:ellipsis">${r[i]??''}</td>`).join('')}</tr>`).join('')}</tbody>
+      </table>
+    </div>`;
+
+  const catLabel = isVentes ? 'Factures ventes' : cat === 'caisse' ? 'Tickets & bons de caisse' : 'Factures achats';
+  const catIcon  = isVentes ? '📤' : cat === 'caisse' ? '🧮' : '🧾';
+  const tvaRateOptions = ['20','14','10','7','0'].map(r => `<option value="${r}" ${r==='20'?'selected':''}>${r}%</option>`).join('');
+  // Générer le template Excel correspondant au format attendu
+  const templateCols = isVentes
+    ? ['Date','Client','Libellé / Désignation','Montant HT','TVA','Montant TTC']
+    : ['Date','Fournisseur','Libellé / Désignation','Montant HT','TVA','Montant TTC','ICE Fournisseur','IF Fournisseur'];
+  const templateRows = isVentes
+    ? [['31/12/2025','CLIENT SARL','Prestation de conseil',10000,2000,12000]]
+    : [['31/12/2025','FOUR. EXAMPLE','Achat marchandises',5000,1000,6000,'001234567000089','12345678']];
+  const downloadTemplateJs = `downloadFactureTemplate(${JSON.stringify(templateCols)},${JSON.stringify(templateRows)},'${catLabel}')`;
+
+
+  const html = `
+    <div class="modal-overlay active" id="modal-facturemap" onclick="if(event.target===this)closeFactureModal()">
+      <div class="modal" style="max-width:700px;width:95%">
+        <div class="modal-header"><h3>${catIcon} Import Excel — ${catLabel} — ${file.name}</h3><button class="modal-close" onclick="closeFactureModal()">✕</button></div>
+        <div class="modal-body" style="max-height:78vh;overflow-y:auto">
+          <div style="background:rgba(59,94,166,.08);border:1px solid rgba(59,94,166,.2);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--accent2);display:flex;align-items:center;justify-content:space-between;gap:12px">
+            <span>${catIcon} Format attendu : <strong>Date / ${isVentes?'Client':'Fournisseur'} / Libellé / Montant HT / TVA / TTC${isVentes?'':' / ICE Fournisseur / IF Fournisseur'}</strong></span>
+            <button class="btn btn-ghost" style="font-size:11px;white-space:nowrap;padding:4px 10px" onclick="${downloadTemplateJs}">⬇ Modèle Excel</button>
+          </div>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Associez chaque colonne du fichier au champ correspondant. Les colonnes reconnues automatiquement sont pré-sélectionnées.</p>
+          <div style="margin-bottom:12px">
+            <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase">Aperçu du fichier</label>
+            ${previewHtml}
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 16px">
+            ${sel('Date', 'date', guess.date, true)}
+            ${sel(isVentes ? 'Client' : 'Fournisseur', 'tiers', guess.tiers, true)}
+            ${sel('Libellé / Désignation', 'libelle', guess.libelle)}
+            ${sel('N° Facture / Bon', 'num', guess.num)}
+            ${sel('Montant HT', 'ht', guess.ht)}
+            ${sel('Montant TVA', 'tva', guess.tva)}
+            ${sel('Montant TTC', 'ttc', guess.ttc)}
+            ${isVentes ? '' : sel('ICE Fournisseur', 'ice', guess.ice)}
+            ${isVentes ? '' : sel('IF Fournisseur', 'if_f', guess.if_f)}
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 16px;margin-top:4px">
+            <div class="form-group">
+              <label>Taux TVA par défaut (si colonne TVA absente)</label>
+              <select class="form-input" id="fmap-tvarate">${tvaRateOptions}</select>
+            </div>
+            <div class="form-group">
+              <label>Ligne d'en-tête (0 = première ligne)</label>
+              <input class="form-input" id="fmap-headerrow" type="number" value="${headerIdx}" min="0"/>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" onclick="closeFactureModal()">Annuler</button>
+          <button class="btn btn-primary" onclick="importFacturesExcel()">✓ Importer les factures</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function downloadFactureTemplate(cols, exampleRows, label) {
+  const wb = XLSX.utils.book_new();
+  const wsData = [cols, ...exampleRows];
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  // Largeurs colonnes
+  ws['!cols'] = cols.map((c,i) => ({ wch: Math.max(c.length + 4, 18) }));
+  XLSX.utils.book_append_sheet(wb, ws, label.substring(0,31));
+  const fname = 'modele_' + label.toLowerCase().replace(/[^a-z0-9]/g,'_') + '.xlsx';
+  XLSX.writeFile(wb, fname);
+}
+
+function closeFactureModal() {
+  document.getElementById('modal-facturemap')?.remove();
+  _facturePendingFile = null;
+}
+
+async function importFacturesExcel() {
+  if(!_facturePendingFile) return;
+  const { file, rows, cat } = _facturePendingFile;
+  const isVentes = cat === 'ventes';
+
+  const gv = id => parseInt(document.getElementById(id)?.value ?? -1);
+  const colDate   = gv('fmap-date');
+  const colTiers  = gv('fmap-tiers');
+  const colLib    = gv('fmap-libelle');
+  const colNum    = gv('fmap-num');
+  const colHT     = gv('fmap-ht');
+  const colTVA    = gv('fmap-tva');
+  const colTTC    = gv('fmap-ttc');
+  const colIce    = isVentes ? -1 : gv('fmap-ice');
+  const colIf     = isVentes ? -1 : gv('fmap-if_f');
+  const tvaRate   = parseFloat(document.getElementById('fmap-tvarate')?.value || '20') / 100;
+  const headerRow = parseInt(document.getElementById('fmap-headerrow')?.value ?? 0);
+
+  if(colDate < 0 || colTiers < 0) { toast('Date et '+(isVentes?'Client':'Fournisseur')+' sont obligatoires','error'); return; }
+
+  const dataRows = rows.slice(headerRow + 1).filter(r => r.some(c => String(c||'').trim()));
+  const factures = [];
+  let skipped = 0;
+
+  for(const r of dataRows) {
+    const dateStr = parseExcelDate(r[colDate]);
+    if(!dateStr || dateStr.length < 8) { skipped++; continue; }
+
+    const tiers = String(r[colTiers] || '').trim();
+    if(!tiers) { skipped++; continue; }
+
+    const parseAmt = col => col >= 0 ? (parseFloat(String(r[col]||'').replace(/[\s ]/g,'').replace(',','.')) || 0) : 0;
+    let ht  = parseAmt(colHT);
+    let tva = parseAmt(colTVA);
+    let ttc = parseAmt(colTTC);
+
+    // Reconstituer les montants manquants
+    if(ttc && !ht && !tva)      { ht = ttc / (1 + tvaRate); tva = ttc - ht; }
+    else if(ht && !tva && !ttc) { tva = ht * tvaRate; ttc = ht + tva; }
+    else if(ht && !tva && ttc)  { tva = ttc - ht; }
+    else if(ht && tva && !ttc)  { ttc = ht + tva; }
+
+    if(ttc === 0 && ht === 0) { skipped++; continue; }
+
+    const libelle = String(r[colLib] || '').trim() || (isVentes ? 'Facture vente' : 'Facture achat');
+    const numero  = String(r[colNum] || '').trim() || '';
+    const ice     = isVentes ? '' : String(r[colIce] || '').trim();
+    const if_f    = isVentes ? '' : String(r[colIf]  || '').trim();
+
+    // Résolution automatique IF/ICE via base fournisseurs
+    let resolvedIce = ice, resolvedIf = if_f;
+    if(!isVentes && (!ice || !if_f)) {
+      const fInfo = resolveFournisseurInfo(tiers);
+      if(fInfo) { resolvedIce = resolvedIce || fInfo.ice_fourn || ''; resolvedIf = resolvedIf || fInfo.if_fourn || ''; }
+    }
+
+    const facture = {
+      company_id:      currentCompanyId,
+      type_facture:    isVentes ? 'vente' : cat === 'caisse' ? 'caisse' : 'achat',
+      date_facture:    dateStr,
+      numero_facture:  numero,
+      libelle,
+      fournisseur:     isVentes ? '' : tiers,
+      client:          isVentes ? tiers : '',
+      montant_ht:      Math.round(ht * 100) / 100,
+      montant_tva:     Math.round(tva * 100) / 100,
+      montant_ttc:     Math.round(ttc * 100) / 100,
+      fournisseur_ice: resolvedIce,
+      fournisseur_if:  resolvedIf,
+      source_file:     file.name,
+      statut:          'importé',
+    };
+    factures.push(facture);
+  }
+
+  closeFactureModal();
+
+  if(!factures.length) { toast('Aucune facture trouvée — vérifiez le mapping et la colonne Date','error'); return; }
+
+  let imported = 0, errors = 0;
+  // Import par lot (10 à la fois pour éviter timeout)
+  for(let i = 0; i < factures.length; i += 10) {
+    const batch = factures.slice(i, i + 10);
+    try {
+      for(const f of batch) { await api('POST', '/api/factures', f); imported++; }
+    } catch(e) { errors += batch.length; }
+  }
+
+  await loadFactures(); updateDashboard();
+  const msg = skipped > 0
+    ? `✓ ${imported} factures importées (${skipped} lignes ignorées${errors?' · '+errors+' erreurs':''})`
+    : `✓ ${imported} factures importées depuis ${file.name}`;
+  toast(msg, errors > 0 ? 'warn' : 'success');
 }
 
 // ===== CHARGEMENT DONNÉES =====
