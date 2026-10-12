@@ -543,11 +543,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 
             <!-- Relevés bancaires -->
             <div class="drop-zone" id="dz-releves" ondragover="handleDragOver(event,'releves')" ondragleave="handleDragLeave(event,'releves')" ondrop="handleDrop(event,'releves')" style="padding:24px;text-align:center;position:relative;border-color:rgba(79,142,247,.3)">
-              <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.tiff" onchange="handleFiles(this.files,'releves')"/>
+              <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.tiff,.xlsx,.xls,.csv" onchange="handleFiles(this.files,'releves')"/>
               <div style="font-size:28px;margin-bottom:8px">🏦</div>
               <div style="font-size:13px;font-weight:600;margin-bottom:4px;color:var(--text)">Relevés bancaires</div>
               <div style="color:var(--muted);font-size:11px">Extraits de compte, virements...</div>
-              <div class="fmt-badges" style="margin-top:10px"><span class="fmt-badge">PDF</span><span class="fmt-badge">JPG</span><span class="fmt-badge">PNG</span></div>
+              <div class="fmt-badges" style="margin-top:10px"><span class="fmt-badge">PDF</span><span class="fmt-badge">JPG</span><span class="fmt-badge">PNG</span><span class="fmt-badge" style="background:rgba(39,174,96,.15);color:#27ae60;border-color:rgba(39,174,96,.3)">XLSX</span><span class="fmt-badge" style="background:rgba(39,174,96,.15);color:#27ae60;border-color:rgba(39,174,96,.3)">CSV</span></div>
             </div>
 
             <!-- Tickets & bons de caisse -->
@@ -2005,6 +2005,11 @@ function handleFiles(files, uploadCategory) {
   if(!currentCompanyId){toast('Sélectionnez une société','error');return;}
   const cat = uploadCategory || 'achats';
   for(const file of files){
+    // Pour les relevés Excel/CSV → parser direct sans IA
+    if(cat === 'releves' && isExcelOrCsv(file)) {
+      readSheetRows(file).then(rows => openXlsxMappingModal(file, rows)).catch(e => toast('Erreur lecture Excel: ' + e.message, 'error'));
+      continue;
+    }
     const item={id:genId(),file,name:file.name,size:fmtSize(file.size),type:file.type.includes('pdf')?'pdf':'img',status:'pending',result:null,category:cat};
     localQueue.push(item);
   }
@@ -2168,6 +2173,245 @@ Si autre: {"type":"autre"}`;
   return result;
 }
 function fileToBase64(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(',')[1]);r.onerror=()=>rej(new Error('Lecture impossible'));r.readAsDataURL(file);});}
+
+// ===== PARSER RELEVÉS EXCEL / CSV =====
+
+let _xlsxPendingFile = null; // fichier en attente de mapping
+
+function isExcelOrCsv(file) {
+  const n = file.name.toLowerCase();
+  return n.endsWith('.xlsx') || n.endsWith('.xls') || n.endsWith('.csv');
+}
+
+async function readSheetRows(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const wb = XLSX.read(data, { type: 'array', cellDates: true });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+        resolve(rows);
+      } catch(err) { reject(err); }
+    };
+    reader.onerror = () => reject(new Error('Lecture impossible'));
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function detectDateLike(v) {
+  if(!v) return false;
+  if(v instanceof Date) return true;
+  const s = String(v).trim();
+  return /^\d{2}[\/\-\.]\d{2}[\/\-\.]\d{2,4}$/.test(s) || /^\d{4}[\/\-]\d{2}[\/\-]\d{2}$/.test(s);
+}
+
+function parseExcelDate(v) {
+  if(!v) return '';
+  if(v instanceof Date) {
+    return v.toISOString().slice(0,10);
+  }
+  const s = String(v).trim();
+  // DD/MM/YYYY or DD-MM-YYYY or DD.MM.YYYY
+  const m = s.match(/^(\d{2})[\/\-\.](\d{2})[\/\-\.](\d{2,4})$/);
+  if(m) {
+    const y = m[3].length === 2 ? '20' + m[3] : m[3];
+    return `${y}-${m[2]}-${m[1]}`;
+  }
+  // YYYY-MM-DD
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  // Excel serial number
+  if(!isNaN(+v) && +v > 1000) {
+    try {
+      const d = XLSX.SSF.parse_date_code(+v);
+      if(d) return `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;
+    } catch(e) {}
+  }
+  return s;
+}
+
+function guessColumns(headers) {
+  // Retourne {date, libelle, debit, credit, solde, montant, sens} (indices 0-based)
+  const h = headers.map((x,i) => ({ i, s: String(x).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'') }));
+  const find = (...terms) => { const r = h.find(x => terms.some(t => x.s.includes(t))); return r ? r.i : -1; };
+  return {
+    date:    find('date op', 'date d\'op', 'date oper', 'date', 'jour'),
+    libelle: find('libelle', 'libelle', 'motif', 'description', 'detail', 'operation'),
+    debit:   find('debit', 'sortie', 'retrait', 'montant debit'),
+    credit:  find('credit', 'entree', 'versement', 'montant credit'),
+    montant: find('montant', 'amount'),
+    sens:    find('sens', 'type', 'mouvement', 'nature'),
+    solde:   find('solde', 'balance'),
+  };
+}
+
+function openXlsxMappingModal(file, rows) {
+  _xlsxPendingFile = { file, rows };
+  // Trouver la ligne d'en-tête (première ligne non vide avec plusieurs cellules)
+  let headerIdx = 0;
+  for(let i = 0; i < Math.min(rows.length, 15); i++) {
+    const filled = rows[i].filter(c => String(c||'').trim() !== '').length;
+    if(filled >= 3) { headerIdx = i; break; }
+  }
+  const headers = rows[headerIdx] || [];
+  const guess = guessColumns(headers);
+
+  const colOptions = ['— ignorer —', ...headers.map((h,i) => `[${i}] ${h}`)];
+  const sel = (label, key, guess) => `
+    <div class="form-group">
+      <label>${label}</label>
+      <select class="form-input" id="xlmap-${key}">
+        ${colOptions.map((o,i) => `<option value="${i===0?-1:i-1}" ${(i===0?-1:i-1)===guess?'selected':''}>${o}</option>`).join('')}
+      </select>
+    </div>`;
+
+  // Aperçu des premières lignes données
+  const dataRows = rows.slice(headerIdx+1, headerIdx+6).filter(r => r.some(c => String(c||'').trim()));
+  const previewHtml = `
+    <div style="overflow-x:auto;margin-top:8px">
+      <table style="width:100%;font-size:10px;border-collapse:collapse;font-family:var(--mono)">
+        <thead><tr>${headers.map(h=>`<th style="padding:4px 6px;background:var(--bg3);border:1px solid var(--border);white-space:nowrap">${h||'—'}</th>`).join('')}</tr></thead>
+        <tbody>${dataRows.map(r=>`<tr>${headers.map((_,i)=>`<td style="padding:3px 6px;border:1px solid var(--border);white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis">${r[i]??''}</td>`).join('')}</tr>`).join('')}</tbody>
+      </table>
+    </div>`;
+
+  const html = `
+    <div class="modal-overlay active" id="modal-xlsxmap" onclick="if(event.target===this)closeXlsxModal()">
+      <div class="modal" style="max-width:680px;width:95%">
+        <div class="modal-header"><h3>📊 Mapping colonnes — ${file.name}</h3><button class="modal-close" onclick="closeXlsxModal()">✕</button></div>
+        <div class="modal-body" style="max-height:75vh;overflow-y:auto">
+          <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Associez chaque colonne du fichier au champ correspondant. Les colonnes reconnues automatiquement sont pré-sélectionnées.</p>
+          <div style="margin-bottom:12px">
+            <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase">Aperçu du fichier</label>
+            ${previewHtml}
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 16px">
+            ${sel('Date opération *','date',guess.date)}
+            ${sel('Libellé *','libelle',guess.libelle)}
+            ${sel('Débit (sorties)','debit',guess.debit)}
+            ${sel('Crédit (entrées)','credit',guess.credit)}
+            ${sel('Montant (si colonne unique)','montant',guess.montant)}
+            ${sel('Sens (débit/crédit)','sens',guess.sens)}
+            ${sel('Solde','solde',guess.solde)}
+          </div>
+          <div class="form-group" style="margin-top:8px">
+            <label>Nom de la banque</label>
+            <input class="form-input" id="xlmap-banque" placeholder="Ex: Attijariwafa Bank" value="${detectBanqueFromFilename(file.name)}"/>
+          </div>
+          <div style="margin-top:4px">
+            <label style="font-size:11px;color:var(--muted)">Ligne d'en-tête (0 = première ligne)</label>
+            <input class="form-input" id="xlmap-headerrow" type="number" value="${headerIdx}" min="0" style="width:80px;margin-top:4px"/>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" onclick="closeXlsxModal()">Annuler</button>
+          <button class="btn btn-primary" onclick="importXlsxReleve()">✓ Importer</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function detectBanqueFromFilename(name) {
+  const n = name.toUpperCase();
+  if(/ATTIJARI|AWB/.test(n)) return 'Attijariwafa Bank';
+  if(/BMCI/.test(n)) return 'BMCI';
+  if(/BMCE|BOA/.test(n)) return 'BMCE Bank';
+  if(/CDM|CREDIT.DU.MAROC/.test(n)) return 'Crédit du Maroc';
+  if(/SGMA|SOCIETE.GEN/.test(n)) return 'Société Générale Maroc';
+  if(/BP|BANQUE.POP/.test(n)) return 'Banque Populaire';
+  if(/CIH/.test(n)) return 'CIH Bank';
+  if(/CDG/.test(n)) return 'CDG Capital';
+  return '';
+}
+
+function closeXlsxModal() {
+  document.getElementById('modal-xlsxmap')?.remove();
+  _xlsxPendingFile = null;
+}
+
+async function importXlsxReleve() {
+  if(!_xlsxPendingFile) return;
+  const { file, rows } = _xlsxPendingFile;
+
+  const gv = id => parseInt(document.getElementById(id)?.value ?? -1);
+  const colDate    = gv('xlmap-date');
+  const colLib     = gv('xlmap-libelle');
+  const colDebit   = gv('xlmap-debit');
+  const colCredit  = gv('xlmap-credit');
+  const colMontant = gv('xlmap-montant');
+  const colSens    = gv('xlmap-sens');
+  const colSolde   = gv('xlmap-solde');
+  const banque     = document.getElementById('xlmap-banque')?.value?.trim() || '';
+  const headerRow  = parseInt(document.getElementById('xlmap-headerrow')?.value ?? 0);
+
+  if(colDate < 0 || colLib < 0) { toast('Date et Libellé sont obligatoires','error'); return; }
+
+  const dataRows = rows.slice(headerRow + 1).filter(r => r.some(c => String(c||'').trim()));
+  const transactions = [];
+
+  for(const r of dataRows) {
+    const dateRaw = r[colDate];
+    const dateStr = parseExcelDate(dateRaw);
+    if(!dateStr || dateStr.length < 8) continue; // ligne sans date = ignorer (totaux, soldes...)
+
+    const libelle = String(r[colLib] || '').trim();
+    if(!libelle) continue;
+
+    // Filtrer les lignes SOLDE/REPORT
+    if(/^SOLDE$|^REPORT$|REPORT DE SOLDE|SOLDE REPORTE|SOLDE INITIAL|SOLDE FINAL|^SOLDE AU|REPORT NOUVEAU/i.test(libelle)) continue;
+
+    let montant = 0, sens = 'debit';
+
+    if(colDebit >= 0 || colCredit >= 0) {
+      const d = parseFloat(String(r[colDebit] ?? '').replace(/\s/g,'').replace(',','.')) || 0;
+      const c = parseFloat(String(r[colCredit] ?? '').replace(/\s/g,'').replace(',','.')) || 0;
+      if(c > 0)      { montant = c; sens = 'credit'; }
+      else if(d > 0) { montant = d; sens = 'debit'; }
+    } else if(colMontant >= 0) {
+      const raw = parseFloat(String(r[colMontant] ?? '').replace(/\s/g,'').replace(',','.')) || 0;
+      if(colSens >= 0) {
+        const s = String(r[colSens] || '').toLowerCase();
+        sens = /cr|crédit|credit|c\b|entree|entree/.test(s) ? 'credit' : 'debit';
+        montant = Math.abs(raw);
+      } else {
+        // Négatif = débit, positif = crédit
+        montant = Math.abs(raw);
+        sens = raw >= 0 ? 'credit' : 'debit';
+      }
+    }
+
+    if(montant === 0) continue; // pas de montant = ignorer
+
+    const solde = colSolde >= 0 ? (parseFloat(String(r[colSolde] ?? '').replace(/\s/g,'').replace(',','.')) || null) : null;
+
+    transactions.push({
+      company_id: currentCompanyId,
+      date_operation: dateStr,
+      libelle,
+      type_mouvement: sens,
+      montant,
+      solde,
+      source_file: file.name,
+      banque,
+      periode_debut: '',
+      periode_fin: '',
+    });
+  }
+
+  closeXlsxModal();
+
+  if(!transactions.length) { toast('Aucune transaction trouvée — vérifiez le mapping','error'); return; }
+
+  try {
+    await api('POST', '/api/transactions', transactions);
+    await loadTransactions(); updateDashboard();
+    toast(`✓ ${transactions.length} transactions importées depuis ${file.name}`, 'success');
+  } catch(e) {
+    toast('Erreur import: ' + e.message, 'error');
+  }
+}
 
 // ===== CHARGEMENT DONNÉES =====
 async function loadFactures(){
