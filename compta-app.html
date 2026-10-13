@@ -963,9 +963,13 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
           <div style="overflow-x:auto">
             <table class="data-table" id="table-ras">
               <thead><tr>
-                <th>N°</th><th>Type client</th><th>IF Client</th><th>ICE Client</th>
-                <th>Nom client</th><th>N° Facture</th><th>Date opération</th>
-                <th>Date paiement</th><th>HT</th><th>Taux TVA</th>
+                <th>N°</th><th>Type client</th>
+                <th title="Champ éditable">IF Client ✎</th>
+                <th title="Champ éditable">ICE Client ✎</th>
+                <th>Nom client</th>
+                <th title="Champ éditable">N° Facture ✎</th>
+                <th title="Champ éditable">Date opération ✎</th>
+                <th title="Champ éditable">Date paiement ✎</th><th>HT</th><th>Taux TVA</th>
                 <th>Montant TVA</th><th>Taux RAS</th><th style="color:var(--danger)">Montant RAS</th>
               </tr></thead>
               <tbody id="tbody-ras"></tbody>
@@ -3232,23 +3236,33 @@ function buildRasTVA() {
     return { f, ht, tva, taux, ras, datePaie, typeClt, natOp };
   });
 
-  const ec = (val, style='') =>
-    `<span contenteditable="true" spellcheck="false"
-      style="outline:none;cursor:text;padding:2px 4px;border-radius:3px;transition:background .15s;${style}"
-      onfocus="this._orig=this.innerText">${val}</span>`;
+  // Cellule éditable inline avec sauvegarde PATCH vers /api/factures/:id
+  const editCell = (fId, field, val, extraStyle='') => {
+    const mono = 'font-family:var(--mono);font-size:11px;';
+    return `<span contenteditable="true" spellcheck="false"
+      data-fid="${fId}" data-field="${field}"
+      style="outline:none;cursor:text;padding:2px 4px;border-radius:3px;transition:background .15s;display:inline-block;min-width:60px;${mono}${extraStyle}"
+      onfocus="this.style.background='rgba(var(--accent-rgb,.2),0.12)';this.style.outline='1px solid var(--accent)';this._orig=this.innerText.trim();"
+      onblur="rasFieldSave(this)"
+      onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}if(event.key==='Escape'){this.innerText=this._orig||'';this.blur();}"
+    >${val||''}</span>`;
+  };
 
   tbody.innerHTML = window._rasFactures.map((item, i) => {
     const { f, ht, tva, taux, ras, datePaie } = item;
     totalHT += ht; totalTVA += tva; totalRAS += ras;
+    const fId = f.id;
+    const ifVal  = f.fournisseur_if || f.fournisseur_ice?.replace(/\D/g,'').substring(0,8) || '';
+    const iceVal = f.fournisseur_ice || '';
     return `<tr>
       <td style="font-family:var(--mono);font-size:11px">${i+1}</td>
       <td style="font-size:11px">${typeCltLabels[typeClt]||typeClt}</td>
-      <td style="font-family:var(--mono);font-size:11px">${f.fournisseur_ice?.replace(/\D/g,'').substring(0,8)||''}</td>
-      <td style="font-family:var(--mono);font-size:10px">${f.fournisseur_ice||''}</td>
-      <td style="font-size:12px;font-weight:500">${f.fournisseur||'—'}</td>
-      <td style="font-family:var(--mono);font-size:11px">${f.numero||'—'}</td>
-      <td style="font-family:var(--mono);font-size:11px">${f.date_facture||'—'}</td>
-      <td style="font-family:var(--mono);font-size:11px">${ec(datePaie,'font-family:var(--mono);font-size:11px;min-width:80px;display:inline-block')}</td>
+      <td style="font-family:var(--mono);font-size:11px">${editCell(fId,'if_client', ifVal)}</td>
+      <td style="font-family:var(--mono);font-size:10px">${editCell(fId,'ice_client', iceVal,'max-width:120px;')}</td>
+      <td style="font-size:12px;font-weight:500">${f.fournisseur||f.client||'—'}</td>
+      <td style="font-family:var(--mono);font-size:11px">${editCell(fId,'numero', f.numero)}</td>
+      <td style="font-family:var(--mono);font-size:11px">${editCell(fId,'date_facture', f.date_facture)}</td>
+      <td style="font-family:var(--mono);font-size:11px">${editCell(fId,'date_paiement', datePaie)}</td>
       <td class="amount" style="font-family:var(--mono)">${fmtA(ht)}</td>
       <td style="font-family:var(--mono);font-size:11px;text-align:center">${taux}%</td>
       <td class="amount" style="font-family:var(--mono)">${fmtA(tva)}</td>
@@ -3262,6 +3276,62 @@ function buildRasTVA() {
   document.getElementById('ras-total-tva').textContent = fmtA(totalTVA) + ' MAD';
   document.getElementById('ras-total-ras').textContent = fmtA(totalRAS) + ' MAD';
   document.getElementById('ras-content').style.display = 'block';
+}
+
+// Sauvegarde inline d'un champ RAS TVA
+async function rasFieldSave(el) {
+  el.style.background = '';
+  el.style.outline = '';
+  const fId   = el.dataset.fid;
+  const field = el.dataset.field;
+  const val   = el.innerText.trim();
+  if(!fId || !field) return;
+  if(val === (el._orig || '').trim()) return; // rien n'a changé
+
+  el.style.opacity = '0.5';
+  try {
+    // Mapper les champs éditables vers les colonnes Supabase
+    const fieldMap = {
+      'if_client':     'fournisseur_if',   // IF fiscal client → fournisseur_if (côté vente = client)
+      'ice_client':    'fournisseur_ice',  // ICE client → fournisseur_ice
+      'numero':        'numero',
+      'date_facture':  'date_facture',
+      'date_paiement': '_local',           // date paiement = champ local uniquement (pas en DB factures)
+    };
+    const dbField = fieldMap[field];
+    if(dbField && dbField !== '_local') {
+      const res = await fetch(`/api/factures/${fId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [dbField]: val || null })
+      });
+      if(!res.ok) throw new Error(await res.text());
+      // Mettre à jour allFactures en mémoire
+      const f = allFactures.find(x => x.id === fId);
+      if(f) f[dbField] = val || null;
+      // Mettre à jour _rasFactures en mémoire aussi (pour export)
+      if(window._rasFactures) {
+        const item = window._rasFactures.find(x => x.f.id === fId);
+        if(item) item.f[dbField] = val || null;
+      }
+      el.style.background = 'rgba(39,174,96,.12)';
+      setTimeout(() => { el.style.background = ''; }, 1200);
+    } else if(dbField === '_local') {
+      // Stocker localement dans _rasFactures pour l'export
+      if(window._rasFactures) {
+        const item = window._rasFactures.find(x => x.f.id === fId);
+        if(item) item.datePaie = val;
+      }
+      el.style.background = 'rgba(39,174,96,.12)';
+      setTimeout(() => { el.style.background = ''; }, 1200);
+    }
+  } catch(e) {
+    toast('Erreur sauvegarde: ' + e.message, 'error');
+    el.innerText = el._orig || '';
+    el.style.background = 'rgba(231,76,60,.12)';
+    setTimeout(() => { el.style.background = ''; }, 1500);
+  }
+  el.style.opacity = '';
 }
 
 function exportRasTVAXLS() {
@@ -3301,7 +3371,7 @@ function exportRasTVAXLS() {
     const datePaieDate = datePaie ? (datePaie.includes('/') ? (() => { const p=datePaie.split('/'); return new Date(+p[2],+p[1]-1,+p[0]); })() : new Date(datePaie)) : null;
     data.push([
       typeCltLabels[typeClt]||typeClt,
-      f.fournisseur_ice?.replace(/\D/g,'').substring(0,8)||'',
+      f.fournisseur_if || f.fournisseur_ice?.replace(/\D/g,'').substring(0,8)||'',
       f.fournisseur_ice||'',
       natOpLabels[natOp]||natOp,
       (f.fournisseur||'').toUpperCase(),
