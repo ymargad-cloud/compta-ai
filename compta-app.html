@@ -3482,23 +3482,30 @@ async function buildAnalyseTVA() {
   encaissementsClients.forEach(encRow => {
     const encaisse = +encRow[8] || 0;
 
-    // Chercher la facture de vente : d'abord par TTC brut, sinon par montant encaissé
+    // Stratégie de recherche de la facture de vente :
+    // 1. Chercher par TTC exact (cas sans RAS, ou TTC déjà brut)
     let facture = allFactures.find(f =>
       f.type_facture === 'vente' &&
       Math.abs((+f.montant_ttc||0) - encaisse) < 1
     );
-    // Si RAS option, essayer aussi avec le TTC reconstitué
+    // 2. Si RAS option active, essayer aussi avec le TTC reconstitué (encaissé < TTC car retenues)
+    //    mais UNIQUEMENT pour les factures cochées ras_tva
     if(!facture && rasOptionActive) {
       const brut = reconstitueBrut(encaisse);
       facture = allFactures.find(f =>
         f.type_facture === 'vente' &&
+        f.ras_tva &&
         Math.abs((+f.montant_ttc||0) - brut.ttc) < 1
       );
     }
 
+    // Déterminer si cette ligne spécifique doit être traitée avec RAS :
+    // – la case globale "RAS TVA" doit être cochée ET la facture concernée doit avoir ras_tva=true
+    const appliqueRas = rasOptionActive && facture?.ras_tva === true;
+
     let ttc, ht, tva, rasTva=0, rasIs=0, hasRas=false;
-    if(rasOptionActive && (facture?.ras_tva || !facture)) {
-      // Reconstituer depuis le montant encaissé
+    if(appliqueRas) {
+      // Reconstituer le CA brut depuis le montant encaissé (net après retenues)
       const brut = reconstitueBrut(encaisse);
       ttc    = brut.ttc;
       ht     = brut.ht;
@@ -3584,32 +3591,51 @@ async function buildAnalyseTVA() {
 
   // ── Rendu HTML ────────────────────────────────────────────────────────────
   // Ventes
-  let totalTVAVentes = 0, totalHTBrut = 0, totalTVABrut = 0, totalRasTvaVentes = 0, totalRasIsVentes = 0, totalEncaisse = 0;
+  // Totaux ventes : séparer les lignes RAS des lignes normales
+  let totalTVAVentes = 0;
+  // Totaux du bloc CA brut (uniquement les lignes avec RAS TVA cochée)
+  let totalHTBrut = 0, totalTVABrut = 0, totalRasTvaVentes = 0, totalRasIsVentes = 0, totalEncaisseRas = 0, totalEncaisse = 0;
+  let nbRasLines = 0;
   document.getElementById('atva-tbody-ventes').innerHTML = ventesAnalyse.length
     ? ventesAnalyse.map(v => {
-        totalTVAVentes    += v.tva;
-        totalHTBrut       += v.ht;
-        totalTVABrut      += v.tva;
-        totalRasTvaVentes += v.rasTva||0;
-        totalRasIsVentes  += v.rasIs||0;
-        totalEncaisse     += v.encaisse;
-        return `<tr>
-          <td style="font-size:12px">${v.lib}
+        totalTVAVentes += v.tva;
+        totalEncaisse  += v.encaisse;
+        if(v.hasRas) {
+          // Ces lignes = montants reconstitués (bruts) ; séparer dans les totaux RAS
+          totalHTBrut       += v.ht;
+          totalTVABrut      += v.tva;
+          totalRasTvaVentes += v.rasTva;
+          totalRasIsVentes  += v.rasIs;
+          totalEncaisseRas  += v.encaisse;
+          nbRasLines++;
+        }
+        const rasLabel = v.hasRas
+          ? `<span style="display:inline-block;margin-left:4px;background:rgba(239,68,68,.12);color:var(--danger);font-size:9px;font-family:var(--mono);padding:1px 5px;border-radius:3px;border:1px solid rgba(239,68,68,.3)">RAS</span>`
+          : '';
+        return `<tr${v.hasRas ? ' style="background:rgba(239,68,68,.04)"' : ''}>
+          <td style="font-size:12px">${v.lib}${rasLabel}
             <div style="font-size:10px;color:var(--muted);font-family:var(--mono)">Facture: ${v.dateFac} · Encaissement: ${v.datePaie||'—'}</div>
           </td>
           <td style="font-family:var(--mono);font-size:11px">${v.num}</td>
-          <td class="amount">${v.hasRas ? `<span style="font-size:10px;color:var(--muted)">encaissé</span><br>${fmtA(v.encaisse)}<br><span style="font-size:9px;color:var(--danger)">brut ${fmtA(v.ttc)}</span>` : fmtA(v.ttc)}</td>
+          <td class="amount">${v.hasRas
+            ? `<span style="font-size:10px;color:var(--muted)">encaissé</span><br><strong>${fmtA(v.encaisse)}</strong><br><span style="font-size:9px;color:var(--danger)">↑ brut ${fmtA(v.ttc)}</span>`
+            : fmtA(v.ttc)}</td>
           <td class="amount">${fmtA(v.ht)}</td>
-          <td class="amount pos">${fmtA(v.tva)}${v.hasRas ? `<br><span style="font-size:9px;color:var(--danger)">RAS: ${fmtA(v.rasTva)}</span>` : ''}</td>
+          <td class="amount pos">${fmtA(v.tva)}${v.hasRas
+            ? `<br><span style="font-size:9px;color:var(--danger)">RAS TVA: −${fmtA(v.rasTva)}</span><br><span style="font-size:9px;color:var(--danger)">RAS IS: −${fmtA(v.rasIs)}</span>`
+            : ''}</td>
         </tr>`;
       }).join('')
     : '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">Aucun encaissement client (compte 3421 crédit) sur cette période</td></tr>';
   document.getElementById('atva-total-ventes').textContent = fmtA(totalTVAVentes) + ' MAD';
 
-  // Bloc brut reconstitué
+  // Bloc CA brut reconstitué (uniquement pour les factures avec RAS TVA cochée)
   const brutBloc = document.getElementById('atva-brut-bloc');
-  if(rasOptionActive && ventesAnalyse.some(v => v.hasRas)) {
+  if(rasOptionActive && nbRasLines > 0) {
     brutBloc.style.display = 'block';
+    // Légende du bloc : nb de factures concernées
+    const brutTitle = brutBloc.querySelector('div');
+    if(brutTitle) brutTitle.textContent = `📊 CA brut reconstitué (${nbRasLines} facture${nbRasLines>1?'s':''} avec RAS)`;
     document.getElementById('atva-brut-ht').textContent          = fmtA(totalHTBrut) + ' MAD';
     document.getElementById('atva-brut-tva').textContent         = fmtA(totalTVABrut) + ' MAD';
     document.getElementById('atva-brut-ras-tva').textContent     = fmtA(totalRasTvaVentes) + ' MAD';
@@ -3618,9 +3644,17 @@ async function buildAnalyseTVA() {
     document.getElementById('atva-brut-tva2').textContent        = fmtA(totalTVABrut);
     document.getElementById('atva-brut-ras-tva2').textContent    = fmtA(totalRasTvaVentes);
     document.getElementById('atva-brut-ras-is2').textContent     = fmtA(totalRasIsVentes);
-    document.getElementById('atva-brut-encaisse').textContent    = fmtA(totalEncaisse) + ' MAD';
+    document.getElementById('atva-brut-encaisse').textContent    = fmtA(totalEncaisseRas) + ' MAD';
   } else {
     brutBloc.style.display = 'none';
+    if(rasOptionActive && nbRasLines === 0) {
+      // Option cochée mais aucune facture marquée RAS → avertir
+      brutBloc.style.display = 'block';
+      brutBloc.innerHTML = `<div style="padding:10px;font-size:12px;color:var(--warn);text-align:center">
+        ⚠️ Option RAS activée mais aucune facture de vente n'est cochée "RAS TVA" dans la liste des factures ventes.<br>
+        <span style="font-size:11px;color:var(--muted)">Cochez la case RAS sur les factures concernées pour activer la reconstitution.</span>
+      </div>`;
+    }
   }
 
   // Achats
@@ -3666,23 +3700,24 @@ async function buildAnalyseTVA() {
   document.getElementById('atva-res-final').style.color      = tvaResultat >= 0 ? 'var(--danger)' : 'var(--success)';
   document.getElementById('atva-res-label').textContent      = tvaResultat >= 0 ? 'TVA due' : 'Crédit de TVA';
 
-  // ── RAS TVA : option cochée ──────────────────────────────────────────────
+  // ── RAS TVA : résultat net (uniquement si factures RAS effectivement présentes) ──
   const rasBloc = document.getElementById('atva-ras-bloc');
-  if(rasOptionActive) {
-    // RAS TVA = déjà calculé dans ventesAnalyse (75% de la TVA brute des lignes RAS)
+  if(rasOptionActive && nbRasLines > 0) {
+    // totalRasTvaVentes = cumul des 75%×TVA uniquement sur les lignes hasRas
     const totalRasTva = Math.round(totalRasTvaVentes * 100) / 100;
     const totalRasIs  = Math.round(totalRasIsVentes * 100) / 100;
+    // TVA nette = TVA collectée brute − RAS TVA déjà retenue par le client
     const tvaApresRAS = tvaResultat - totalRasTva;
     const isNetDu     = tvaApresRAS >= 0;
     if(rasBloc) {
       rasBloc.style.display = 'block';
-      document.getElementById('atva-res-ras').textContent       = '- ' + fmtA(totalRasTva) + ' MAD';
-      document.getElementById('atva-res-ras-is').textContent    = '- ' + fmtA(totalRasIs) + ' MAD';
+      document.getElementById('atva-res-ras').textContent       = '− ' + fmtA(totalRasTva) + ' MAD';
+      document.getElementById('atva-res-ras-is').textContent    = '− ' + fmtA(totalRasIs) + ' MAD';
       document.getElementById('atva-res-net').textContent       = fmtA(Math.abs(tvaApresRAS)) + ' MAD';
       document.getElementById('atva-res-net').style.color       = isNetDu ? 'var(--danger)' : 'var(--success)';
       document.getElementById('atva-res-net-label').textContent = isNetDu ? 'TVA nette due' : 'Crédit net de TVA';
     }
-    window._analyseTVA = { ventesAnalyse, achatsPayes, fraisAnalyse, totalTVAVentes, totalTVAAchats, totalTVABanque, totalDeductible, tvaResultat, totalRasTva, totalRasIs, tvaApresRAS, totalHTBrut, totalEncaisse };
+    window._analyseTVA = { ventesAnalyse, achatsPayes, fraisAnalyse, totalTVAVentes, totalTVAAchats, totalTVABanque, totalDeductible, tvaResultat, totalRasTva, totalRasIs, tvaApresRAS, totalHTBrut, totalEncaisseRas, nbRasLines };
   } else {
     if(rasBloc) rasBloc.style.display = 'none';
     window._analyseTVA = { ventesAnalyse, achatsPayes, fraisAnalyse, totalTVAVentes, totalTVAAchats, totalTVABanque, totalDeductible, tvaResultat };
