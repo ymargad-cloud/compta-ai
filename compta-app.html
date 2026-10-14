@@ -623,22 +623,41 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 
       <!-- BASE FOURNISSEURS -->
       <div class="page" id="page-fournisseurs">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px">
           <div>
-            <div style="font-family:var(--display);font-size:16px;font-weight:700">Base Fournisseurs</div>
-            <div style="color:var(--muted);font-size:12px;margin-top:4px">Répertoire des fournisseurs avec IF, ICE et type de prestations</div>
+            <div style="font-family:var(--display);font-size:16px;font-weight:700">Base Fournisseurs
+              <span id="badge-fourn-pending" style="display:none;background:var(--warn);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;margin-left:8px;vertical-align:middle">0 à valider</span>
+            </div>
+            <div style="color:var(--muted);font-size:12px;margin-top:4px">Base partagée entre tous les utilisateurs — IF, ICE et type de prestations enrichis automatiquement</div>
           </div>
-          <button class="btn btn-primary" onclick="openNewFournisseurModal()">+ Nouveau fournisseur</button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-ghost" onclick="enrichirDepuisFactures()" title="Importer les fournisseurs détectés dans les factures achats">
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="margin-right:5px"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+              Enrichir depuis factures
+            </button>
+            <button class="btn btn-primary" onclick="openNewFournisseurModal()">+ Nouveau fournisseur</button>
+          </div>
+        </div>
+        <!-- Bandeau fournisseurs en attente de validation -->
+        <div id="fourn-pending-banner" style="display:none;background:rgba(243,156,18,.1);border:1px solid rgba(243,156,18,.3);border-radius:8px;padding:12px 16px;margin-bottom:14px;display:none">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+            <div style="font-size:13px;font-weight:600;color:var(--warn)">⚠ Fournisseurs détectés à valider</div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="rejeterTousPending()">Tout ignorer</button>
+              <button class="btn btn-primary" style="font-size:11px;padding:4px 10px" onclick="validerTousPending()">✓ Valider tout</button>
+            </div>
+          </div>
+          <div id="fourn-pending-list" style="margin-top:10px;display:flex;flex-direction:column;gap:6px"></div>
         </div>
         <div class="card">
           <div class="table-header">
-            <h3>Fournisseurs</h3>
+            <h3>Fournisseurs <span id="fourn-count" style="color:var(--muted);font-weight:400;font-size:12px"></span></h3>
             <input class="search-input" placeholder="Rechercher..." id="search-fournisseurs" oninput="filterFournisseurs(this.value)"/>
           </div>
           <div style="overflow-x:auto">
             <table class="data-table">
-              <thead><tr><th>Dénomination</th><th>IF</th><th>ICE</th><th>Type de prestations</th><th style="width:80px">Actions</th></tr></thead>
-              <tbody id="tbody-fournisseurs"><tr><td colspan="5" style="text-align:center;color:var(--muted);padding:40px">Chargement...</td></tr></tbody>
+              <thead><tr><th>Dénomination</th><th>IF</th><th>ICE</th><th>Type de prestations</th><th>Sources</th><th style="width:80px">Actions</th></tr></thead>
+              <tbody id="tbody-fournisseurs"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:40px">Chargement...</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -1686,20 +1705,21 @@ const FOURNISSEURS_BANQUES_DEFAULT = [
 ];
 
 let allFournisseurs = []; // cache en mémoire
+let _fournPending  = []; // candidats détectés à valider
 
 async function loadFournisseurs() {
   try {
-    const data = await api('GET', `/api/fournisseurs?company_id=${currentCompanyId}`);
+    // Base PARTAGÉE entre tous les utilisateurs — pas de filtre company_id
+    const data = await api('GET', '/api/fournisseurs');
     allFournisseurs = data || [];
     renderFournisseurs(allFournisseurs);
   } catch(e) {
     // Si la table n'existe pas encore, utiliser localStorage + banques par défaut
-    const key = `fournisseurs_${currentCompanyId}`;
+    const key = 'fournisseurs_shared';
     const stored = JSON.parse(localStorage.getItem(key) || '[]');
     if(stored.length === 0) {
-      // Premier chargement : pré-charger les banques et persister
       allFournisseurs = FOURNISSEURS_BANQUES_DEFAULT.map((b,i) => ({
-        id: 'default_' + i, company_id: currentCompanyId,
+        id: 'default_' + i,
         denomination: b.denomination, if_fourn: b.if_fourn,
         ice_fourn: b.ice_fourn, type_prestation: b.type_prestation,
         aliases: b.aliases.join('|'),
@@ -1713,17 +1733,24 @@ async function loadFournisseurs() {
 }
 
 async function saveFournisseurLocal(fourn) {
-  // Sauvegarde via API si disponible, sinon localStorage
+  // Base partagée — pas de company_id requis
+  const payload = {
+    denomination:    fourn.denomination,
+    if_fourn:        fourn.if_fourn   || null,
+    ice_fourn:       fourn.ice_fourn  || null,
+    type_prestation: fourn.type_prestation || null,
+    aliases:         fourn.aliases || null,
+    sources:         fourn.sources || null,
+  };
   try {
     if(fourn.id && !String(fourn.id).startsWith('default_')) {
-      await api('PATCH', `/api/fournisseurs/${fourn.id}`, fourn);
-    } else if(!fourn.id || String(fourn.id).startsWith('default_')) {
-      const result = await api('POST', '/api/fournisseurs', { ...fourn, company_id: currentCompanyId });
+      await api('PATCH', `/api/fournisseurs/${fourn.id}`, payload);
+    } else {
+      const result = await api('POST', '/api/fournisseurs', payload);
       fourn.id = result?.id || fourn.id;
     }
   } catch(e) {
-    // Fallback localStorage
-    const key = `fournisseurs_${currentCompanyId}`;
+    const key = 'fournisseurs_shared';
     const idx = allFournisseurs.findIndex(f => f.id === fourn.id);
     if(idx >= 0) allFournisseurs[idx] = fourn; else allFournisseurs.push(fourn);
     localStorage.setItem(key, JSON.stringify(allFournisseurs));
@@ -1733,22 +1760,36 @@ async function saveFournisseurLocal(fourn) {
 function renderFournisseurs(list) {
   const tbody = document.getElementById('tbody-fournisseurs');
   if(!tbody) return;
+  // Compteur
+  const countEl = document.getElementById('fourn-count');
+  if(countEl) countEl.textContent = list?.length ? `(${list.length})` : '';
   if(!list || list.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:40px">Aucun fournisseur. Cliquez sur "+ Nouveau fournisseur" pour en ajouter.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:40px">Aucun fournisseur. Cliquez sur "+ Nouveau fournisseur" pour en ajouter.</td></tr>';
     return;
   }
-  tbody.innerHTML = list.map(f => `<tr>
-    <td style="font-size:12px;font-weight:500">${f.denomination||'—'}
-      ${f.aliases ? `<div style="font-size:10px;color:var(--muted)">Alias: ${f.aliases}</div>` : ''}
-    </td>
-    <td style="font-family:var(--mono);font-size:11px">${f.if_fourn||'—'}</td>
-    <td style="font-family:var(--mono);font-size:11px">${f.ice_fourn||'—'}</td>
-    <td style="font-size:12px">${f.type_prestation||'—'}</td>
-    <td>
-      <button onclick="editFournisseur('${f.id}')" style="background:none;border:none;cursor:pointer;color:var(--accent);font-size:12px" title="Modifier">✏</button>
-      <button onclick="deleteFournisseur('${f.id}')" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:12px" title="Supprimer">🗑</button>
-    </td>
-  </tr>`).join('');
+  tbody.innerHTML = list.map(f => {
+    const srcArr  = (f.sources||'').split(',').map(s=>s.trim()).filter(Boolean);
+    const srcTags = srcArr.map(s => {
+      const col = s === 'manuel' ? 'var(--accent)' : s === 'ia' ? '#8e44ad' : '#27ae60';
+      const lbl = s === 'ia' ? '🤖 IA' : s === 'excel' ? '📊 Excel' : s === 'manuel' ? '✏ Manuel' : s;
+      return `<span style="font-size:9px;padding:1px 5px;border-radius:8px;background:${col}22;color:${col};border:1px solid ${col}44;white-space:nowrap">${lbl}</span>`;
+    }).join(' ');
+    const hasIf  = f.if_fourn  && f.if_fourn  !== '—';
+    const hasIce = f.ice_fourn && f.ice_fourn !== '—';
+    return `<tr>
+      <td style="font-size:12px;font-weight:500">${f.denomination||'—'}
+        ${f.aliases ? `<div style="font-size:10px;color:var(--muted)">Alias: ${f.aliases}</div>` : ''}
+      </td>
+      <td style="font-family:var(--mono);font-size:11px;color:${hasIf?'var(--text)':'var(--muted)'}">${f.if_fourn||'—'}</td>
+      <td style="font-family:var(--mono);font-size:11px;color:${hasIce?'var(--text)':'var(--muted)'}">${f.ice_fourn||'—'}</td>
+      <td style="font-size:12px">${f.type_prestation||'—'}</td>
+      <td style="white-space:nowrap">${srcTags||'<span style="color:var(--muted);font-size:11px">—</span>'}</td>
+      <td>
+        <button onclick="editFournisseur('${f.id}')" style="background:none;border:none;cursor:pointer;color:var(--accent);font-size:12px" title="Modifier">✏</button>
+        <button onclick="deleteFournisseur('${f.id}')" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:12px" title="Supprimer">🗑</button>
+      </td>
+    </tr>`;
+  }).join('');
 }
 
 function filterFournisseurs(q) {
@@ -1818,7 +1859,7 @@ async function createFournisseur() {
   const type_prestation= document.getElementById('fourn-type')?.value?.trim();
   const aliases        = document.getElementById('fourn-aliases')?.value?.trim();
   if(!denomination) { toast('Dénomination obligatoire','error'); return; }
-  const fourn = { id: Date.now()+'', company_id: currentCompanyId, denomination, if_fourn, ice_fourn, type_prestation, aliases };
+  const fourn = { id: Date.now()+'', denomination, if_fourn, ice_fourn, type_prestation, aliases, sources: 'manuel' };
   allFournisseurs.push(fourn);
   await saveFournisseurLocal(fourn);
   document.getElementById('modal-fourn')?.remove();
@@ -1844,7 +1885,7 @@ async function deleteFournisseur(id) {
   if(!confirm('Supprimer ce fournisseur ?')) return;
   try { await api('DELETE', `/api/fournisseurs/${id}`); } catch(e){}
   allFournisseurs = allFournisseurs.filter(f => String(f.id) !== String(id));
-  const key = `fournisseurs_${currentCompanyId}`;
+  const key = 'fournisseurs_shared';
   localStorage.setItem(key, JSON.stringify(allFournisseurs));
   renderFournisseurs(allFournisseurs);
   toast('Fournisseur supprimé','success');
@@ -1863,6 +1904,158 @@ function resolveFournisseurInfo(libelle) {
   }
   return null;
 }
+
+// ─── ENRICHISSEMENT BASE FOURNISSEURS ─────────────────────────────────────────
+
+/**
+ * Enrichissement automatique depuis une facture venant d'être traitée par l'IA.
+ * Appelée avec les infos extraites (denomination, if_fourn, ice_fourn).
+ * Si le fournisseur n'existe pas encore, l'ajoute silencieusement à la base.
+ * Si incomplet, l'ajoute aux candidats _fournPending pour validation.
+ */
+async function autoEnrichFournisseur({ denomination, if_fourn, ice_fourn, type_prestation, source = 'ia' }) {
+  if(!denomination) return;
+  const nomClean = denomination.trim();
+  // Vérifier si déjà présent (par nom exact ou alias)
+  const existing = allFournisseurs.find(f => {
+    const aliases = (f.aliases||'').split('|').map(a=>a.trim().toUpperCase()).filter(Boolean);
+    const names = [f.denomination.toUpperCase(), ...aliases];
+    return names.includes(nomClean.toUpperCase());
+  });
+
+  if(existing) {
+    // Enrichir les champs manquants si on a de nouvelles infos
+    let updated = false;
+    if(if_fourn  && !existing.if_fourn)  { existing.if_fourn  = if_fourn;  updated = true; }
+    if(ice_fourn && !existing.ice_fourn) { existing.ice_fourn = ice_fourn; updated = true; }
+    if(!existing.sources) existing.sources = source; // ne pas écraser les sources existantes
+    else if(!existing.sources.includes(source)) existing.sources += ',' + source;
+    if(updated) {
+      await saveFournisseurLocal(existing);
+      renderFournisseurs(allFournisseurs);
+    }
+    return;
+  }
+
+  // Nouveau fournisseur — si IF et ICE présents : ajouter directement, sinon en attente
+  const candidat = { denomination: nomClean, if_fourn: if_fourn||'', ice_fourn: ice_fourn||'', type_prestation: type_prestation||'', sources: source };
+  const complet = !!(if_fourn && ice_fourn);
+
+  if(complet) {
+    // Ajout immédiat sans intervention
+    const fourn = { id: Date.now()+'_'+Math.random().toString(36).slice(2), ...candidat };
+    allFournisseurs.push(fourn);
+    await saveFournisseurLocal(fourn);
+    renderFournisseurs(allFournisseurs);
+    toast(`Fournisseur "${nomClean}" ajouté à la base ✓`, 'success');
+  } else {
+    // Ajouter aux candidats en attente si pas déjà présent
+    const dejaPending = _fournPending.find(p => p.denomination.toUpperCase() === nomClean.toUpperCase());
+    if(!dejaPending) {
+      _fournPending.push(candidat);
+      renderFournPending();
+    }
+  }
+}
+
+function renderFournPending() {
+  const banner  = document.getElementById('fourn-pending-banner');
+  const listEl  = document.getElementById('fourn-pending-list');
+  const badgeEl = document.getElementById('badge-fourn-pending');
+  if(!banner || !listEl) return;
+  if(_fournPending.length === 0) {
+    banner.style.display  = 'none';
+    if(badgeEl) badgeEl.style.display = 'none';
+    return;
+  }
+  banner.style.display = 'block';
+  if(badgeEl) { badgeEl.style.display = 'inline'; badgeEl.textContent = _fournPending.length + ' à valider'; }
+
+  listEl.innerHTML = _fournPending.map((c, i) => `
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <div style="flex:1;min-width:160px">
+        <div style="font-weight:600;font-size:12px">${c.denomination}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">IF: ${c.if_fourn||'—'} · ICE: ${c.ice_fourn||'—'}</div>
+      </div>
+      <input placeholder="IF" style="width:90px;font-size:11px;padding:3px 7px;border:1px solid var(--border);border-radius:4px;background:var(--input-bg);color:var(--text)" value="${c.if_fourn||''}" oninput="_fournPending[${i}].if_fourn=this.value"/>
+      <input placeholder="ICE" style="width:130px;font-size:11px;padding:3px 7px;border:1px solid var(--border);border-radius:4px;background:var(--input-bg);color:var(--text)" value="${c.ice_fourn||''}" oninput="_fournPending[${i}].ice_fourn=this.value"/>
+      <input placeholder="Type prestation" style="width:120px;font-size:11px;padding:3px 7px;border:1px solid var(--border);border-radius:4px;background:var(--input-bg);color:var(--text)" value="${c.type_prestation||''}" oninput="_fournPending[${i}].type_prestation=this.value"/>
+      <button onclick="validerPending(${i})" style="padding:3px 10px;font-size:11px;border-radius:4px;background:var(--success);color:#fff;border:none;cursor:pointer">✓</button>
+      <button onclick="rejeterPending(${i})" style="padding:3px 8px;font-size:11px;border-radius:4px;background:var(--border);color:var(--text);border:none;cursor:pointer">✕</button>
+    </div>`).join('');
+}
+
+async function validerPending(i) {
+  const c = _fournPending[i];
+  if(!c) return;
+  const fourn = { id: Date.now()+'_'+Math.random().toString(36).slice(2), ...c };
+  allFournisseurs.push(fourn);
+  await saveFournisseurLocal(fourn);
+  _fournPending.splice(i, 1);
+  renderFournPending();
+  renderFournisseurs(allFournisseurs);
+  toast(`"${fourn.denomination}" ajouté ✓`, 'success');
+}
+
+function rejeterPending(i) {
+  _fournPending.splice(i, 1);
+  renderFournPending();
+}
+
+async function validerTousPending() {
+  for(const c of [..._fournPending]) {
+    const fourn = { id: Date.now()+'_'+Math.random().toString(36).slice(2), ...c };
+    allFournisseurs.push(fourn);
+    await saveFournisseurLocal(fourn);
+  }
+  _fournPending.length = 0;
+  renderFournPending();
+  renderFournisseurs(allFournisseurs);
+  toast('Tous les fournisseurs validés ✓', 'success');
+}
+
+function rejeterTousPending() {
+  _fournPending.length = 0;
+  renderFournPending();
+}
+
+/**
+ * Enrichir la base depuis TOUTES les factures achats existantes.
+ * Scanne allFactures (type achat) et propose les fournisseurs non encore en base.
+ */
+async function enrichirDepuisFactures() {
+  if(!allFactures.length) { toast('Aucune facture chargée', 'error'); return; }
+  const achats = allFactures.filter(f => f.type_facture === 'achat' || f.type_facture === 'caisse');
+  if(!achats.length) { toast('Aucune facture achat dans la période chargée', 'error'); return; }
+
+  let nbNew = 0, nbEnrichi = 0;
+  for(const f of achats) {
+    const nom = (f.fournisseur||'').trim();
+    if(!nom) continue;
+    await autoEnrichFournisseur({
+      denomination:     nom,
+      if_fourn:         f.fournisseur_if  || '',
+      ice_fourn:        f.fournisseur_ice || '',
+      type_prestation:  f.categorie || '',
+      source:           f.source_file ? 'ia' : 'excel',
+    });
+    nbNew++;
+  }
+
+  // Afficher le résultat
+  const pending = _fournPending.length;
+  if(pending > 0) {
+    // Naviguer vers la page fournisseurs pour valider
+    showPage('fournisseurs');
+    toast(`${pending} fournisseur(s) détecté(s) à valider`, 'success');
+  } else if(nbNew > 0) {
+    toast(`Base fournisseurs enrichie (${nbEnrichi} mis à jour)`, 'success');
+  } else {
+    toast('Base fournisseurs déjà à jour', 'success');
+  }
+}
+
+// ─── FIN ENRICHISSEMENT ────────────────────────────────────────────────────────
 
 // ===== NAVIGATION =====
 const pageTitles={dashboard:'Tableau de bord',upload:'Upload & traitement',dossiers:'Dossiers','factures-achats':'Factures Achats','factures-ventes':'Factures Ventes',releves:'Relevés bancaires',fournisseurs:'Base Fournisseurs',tva:'Déclarations TVA',rapprochement:'Rapprochement',export:'Export','tva-deductions':'Déductions TVA','analyse-tva':'Analyse TVA','ras-tva':'RAS TVA','balance-gl':'Balance & Grand Livre','revue-comptes':'Revue des comptes',users:'Utilisateurs',portail:'Portail clients',profil:'Mon profil'};
@@ -2058,6 +2251,7 @@ async function processQueue(){
           date_facture:result.date_facture,
           fournisseur:result.fournisseur,
           fournisseur_ice:result.fournisseur_ice,
+          fournisseur_if:result.fournisseur_if||result.if_fourn||null,
           categorie:result.categorie,
           description:result.description,
           montant_ht:result.montant_ht,
@@ -2067,7 +2261,18 @@ async function processQueue(){
           devise:result.devise||'MAD',
           journal:result.journal||'A',
           type_facture:'achat',
+          source_file: item.name,
         });
+        // Enrichissement automatique de la base fournisseurs
+        if(result.fournisseur) {
+          autoEnrichFournisseur({
+            denomination:    result.fournisseur,
+            if_fourn:        result.fournisseur_if || result.if_fourn || '',
+            ice_fourn:       result.fournisseur_ice || '',
+            type_prestation: result.categorie || '',
+            source: 'ia',
+          });
+        }
       } else if(result.type==='facture_vente'){
         await api('POST','/api/factures',{
           company_id:currentCompanyId,

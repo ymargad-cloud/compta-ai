@@ -733,26 +733,45 @@ const handler = async (req, res) => {
 
   // ===== FOURNISSEURS =====
 
-  // GET /api/fournisseurs?company_id=xxx
+  // GET /api/fournisseurs — base partagée entre tous les utilisateurs
   if (req.method === 'GET' && url === '/api/fournisseurs') {
     const user = await getUser(req);
     if (!user) return send(res, 401, { error: 'Non authentifié' });
-    const p = new URLSearchParams(req.url.split('?')[1] || '');
     const { data } = await supa('GET', 'fournisseurs', {
-      filter: `company_id=eq.${p.get('company_id')}&order=denomination.asc&limit=1000`
+      filter: 'order=denomination.asc&limit=2000'
     });
     return send(res, 200, data || []);
   }
 
-  // POST /api/fournisseurs
+  // POST /api/fournisseurs — création partagée (pas de company_id)
   if (req.method === 'POST' && url === '/api/fournisseurs') {
     const user = await getUser(req);
     if (!user) return send(res, 401, { error: 'Non authentifié' });
     const body = await parseBody(req);
-    const ALLOWED_F = ['company_id','denomination','if_fourn','ice_fourn','type_prestation','aliases'];
+    const ALLOWED_F = ['denomination','if_fourn','ice_fourn','type_prestation','aliases','sources'];
     const payload = {};
     for(const k of ALLOWED_F) { if(body[k] !== undefined) payload[k] = body[k]; }
     if(!payload.denomination) return send(res, 400, { error: 'Dénomination obligatoire' });
+    // Dédoublonnage côté serveur : vérifier si déjà existant
+    const { data: existing } = await supa('GET', 'fournisseurs', {
+      filter: `denomination=ilike.${encodeURIComponent(payload.denomination)}&limit=1`
+    });
+    if(existing && existing.length > 0) {
+      // Enrichir les champs manquants plutôt que de créer un doublon
+      const ex = existing[0];
+      const enrichPatch = {};
+      if(payload.if_fourn  && !ex.if_fourn)  enrichPatch.if_fourn  = payload.if_fourn;
+      if(payload.ice_fourn && !ex.ice_fourn) enrichPatch.ice_fourn = payload.ice_fourn;
+      if(payload.sources) {
+        const srcSet = new Set((ex.sources||'').split(',').map(s=>s.trim()).filter(Boolean));
+        payload.sources.split(',').forEach(s => srcSet.add(s.trim()));
+        enrichPatch.sources = [...srcSet].join(',');
+      }
+      if(Object.keys(enrichPatch).length) {
+        await supa('PATCH', `fournisseurs?id=eq.${ex.id}`, { body: enrichPatch });
+      }
+      return send(res, 200, { ...ex, ...enrichPatch });
+    }
     const { data, status } = await supa('POST', 'fournisseurs', { body: payload });
     if (status >= 400) return send(res, 500, { error: 'Erreur sauvegarde fournisseur' });
     return send(res, 201, Array.isArray(data) ? data[0] : data);
@@ -764,7 +783,7 @@ const handler = async (req, res) => {
     if (!user) return send(res, 401, { error: 'Non authentifié' });
     const id = url.split('/')[3];
     const body = await parseBody(req);
-    const ALLOWED_F = ['denomination','if_fourn','ice_fourn','type_prestation','aliases'];
+    const ALLOWED_F = ['denomination','if_fourn','ice_fourn','type_prestation','aliases','sources'];
     const patch = {};
     for(const k of ALLOWED_F) { if(body[k] !== undefined) patch[k] = body[k]; }
     if(!Object.keys(patch).length) return send(res, 400, { error: 'Aucun champ valide' });
