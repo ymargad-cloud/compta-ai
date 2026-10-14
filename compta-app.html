@@ -2367,11 +2367,24 @@ Exclure les lignes dont le libellé est SOLDE, REPORT, SOLDE REPORTE, REPORT DE 
     prompt = `Tu es expert en comptabilité marocaine. Analyse ce ticket ou bon de caisse. Réponds UNIQUEMENT en JSON valide sans markdown.
 {"type":"facture","numero":"","date_facture":"YYYY-MM-DD","fournisseur":"","fournisseur_ice":"","categorie":"Fournitures|Services|Restauration|Transport|Autre","description":"","montant_ht":0,"taux_tva":20,"montant_tva":0,"montant_ttc":0,"devise":"MAD","journal":"C"}`;
   } else {
-    prompt = `Tu es expert en comptabilité marocaine. Analyse ce document. Réponds UNIQUEMENT en JSON valide sans markdown.
-Si FACTURE ACHAT: {"type":"facture","numero":"","date_facture":"YYYY-MM-DD","fournisseur":"","fournisseur_ice":"","categorie":"Fournitures|Services|Transport|Loyer|Télécommunications|Restauration|Honoraires|Energie|Autre","description":"","montant_ht":0,"taux_tva":20,"montant_tva":0,"montant_ttc":0,"devise":"MAD"}
-Si RELEVÉ BANCAIRE: utilise la DATE D'OPÉRATION (pas la date valeur). Exclure lignes SOLDE/REPORT. {"type":"releve_bancaire","banque":"","periode_debut":"YYYY-MM-DD","periode_fin":"YYYY-MM-DD","solde_initial":0,"solde_final":0,"transactions":[{"date_operation":"YYYY-MM-DD","libelle":"","type_mouvement":"debit|credit","montant":0,"solde":0}]}
-Si DÉCLARATION TVA: {"type":"declaration_tva","periode":"T1 2026","raison_sociale":"","identifiant_fiscal":"","ligne_132_tva_exigible":0,"ligne_182_total_deductions":0,"ligne_170_credit_precedent":0,"ligne_200_tva_due":0,"ligne_201_credit":0,"montant_total":0,"devise":"MAD"}
-Si autre: {"type":"autre"}`;
+    // Catégorie achats : c'est TOUJOURS une facture achat — pas besoin de deviner
+    prompt = `Tu es expert en comptabilité marocaine. Analyse cette FACTURE D'ACHAT et extrait toutes les informations. Réponds UNIQUEMENT en JSON valide sans markdown, sans texte avant ou après.
+Champs à extraire :
+- fournisseur : nom/raison sociale du fournisseur (l'émetteur de la facture, PAS le destinataire)
+- fournisseur_ice : ICE du fournisseur (numéro à 15 chiffres commençant souvent par 0) — cherche dans tout le document y compris pied de page
+- fournisseur_if : identifiant fiscal (IF) du fournisseur — cherche "IF", "I.F.", "Identifiant Fiscal" dans le document
+- numero : numéro de facture
+- date_facture : date au format YYYY-MM-DD
+- description : désignation principale de la prestation ou marchandise
+- categorie : Fournitures | Services | Transport | Loyer | Télécommunications | Restauration | Honoraires | Energie | Autre
+- montant_ht : montant hors taxes (nombre décimal)
+- taux_tva : taux TVA en % (ex: 20)
+- montant_tva : montant TVA
+- montant_ttc : montant toutes taxes comprises
+- devise : MAD (par défaut)
+
+Format de réponse :
+{"type":"facture","numero":"","date_facture":"YYYY-MM-DD","fournisseur":"","fournisseur_ice":"","fournisseur_if":"","categorie":"Services","description":"","montant_ht":0,"taux_tva":20,"montant_tva":0,"montant_ttc":0,"devise":"MAD"}`;
   }
 
   const body={model:'claude-haiku-4-5-20251001',max_tokens:2000,messages:[{role:'user',content:[{type:isPdf?'document':'image',source:{type:'base64',media_type:mediaType,data:base64}},{type:'text',text:prompt}]}]};
