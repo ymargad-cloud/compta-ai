@@ -2320,6 +2320,13 @@ async function processQueue(){
           });
         }
         toast('✓ Déclaration TVA '+result.periode+' extraite','success');
+      } else if(result.type==='autre' || !result.type) {
+        // L'IA n'a pas reconnu le document — afficher ce qu'elle a retourné
+        item.status = 'error';
+        const detail = JSON.stringify(result).substring(0, 200);
+        toast(`⚠ ${item.name} — document non reconnu. Réponse IA : ${detail}`, 'error');
+        renderQueue();
+        continue;
       } else if(result.type==='releve_bancaire' && result.transactions){
         const sourceFile = item.name;
         // Filtrer les lignes SOLDE/REPORT qui ne sont pas des mouvements réels

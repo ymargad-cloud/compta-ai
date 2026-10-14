@@ -366,7 +366,35 @@ const handler = async (req, res) => {
       source_file:     body.source_file || null,
       statut:          body.statut || null,
     };
-    const { data } = await supa('POST', 'factures', { body: payload });
+    let { data, status } = await supa('POST', 'factures', { body: payload });
+    // Si erreur Supabase (ex: colonnes manquantes avant migration), réessayer sans les colonnes optionnelles
+    if (status >= 400) {
+      const errMsg = typeof data === 'object' ? JSON.stringify(data) : String(data);
+      console.log('POST factures erreur (payload complet):', errMsg);
+      // Payload minimal sans colonnes ajoutées par migration
+      const payloadMin = {
+        company_id:      payload.company_id,
+        numero:          payload.numero,
+        date_facture:    payload.date_facture,
+        fournisseur:     payload.fournisseur,
+        fournisseur_ice: payload.fournisseur_ice,
+        categorie:       payload.categorie,
+        description:     payload.description,
+        montant_ht:      payload.montant_ht,
+        taux_tva:        payload.taux_tva,
+        montant_tva:     payload.montant_tva,
+        montant_ttc:     payload.montant_ttc,
+        devise:          payload.devise,
+        journal:         payload.journal,
+        type_facture:    payload.type_facture,
+      };
+      const r2 = await supa('POST', 'factures', { body: payloadMin });
+      if (r2.status >= 400) {
+        const err2 = typeof r2.data === 'object' ? JSON.stringify(r2.data) : String(r2.data);
+        return send(res, 400, { error: 'Erreur Supabase: ' + err2 });
+      }
+      data = r2.data;
+    }
     return send(res, 201, Array.isArray(data) ? data[0] : data);
   }
 
@@ -389,7 +417,27 @@ const handler = async (req, res) => {
     if (!user) return send(res, 401, { error: 'Non authentifié' });
     const body = await parseBody(req);
     const rows = Array.isArray(body) ? body : [body];
-    const { data } = await supa('POST', 'transactions', { body: rows });
+    const { data, status } = await supa('POST', 'transactions', { body: rows });
+    if (status >= 400) {
+      const errMsg = typeof data === 'object' ? JSON.stringify(data) : String(data);
+      console.log('POST transactions erreur:', errMsg);
+      // Réessayer sans colonnes optionnelles
+      const rowsMin = rows.map(r => ({
+        company_id:     r.company_id,
+        date_operation: r.date_operation,
+        libelle:        r.libelle,
+        type_mouvement: r.type_mouvement,
+        montant:        r.montant,
+        solde:          r.solde,
+        banque:         r.banque,
+      }));
+      const r2 = await supa('POST', 'transactions', { body: rowsMin });
+      if (r2.status >= 400) {
+        const err2 = typeof r2.data === 'object' ? JSON.stringify(r2.data) : String(r2.data);
+        return send(res, 400, { error: 'Erreur Supabase transactions: ' + err2 });
+      }
+      return send(res, 201, r2.data);
+    }
     return send(res, 201, data);
   }
 
@@ -700,6 +748,27 @@ const handler = async (req, res) => {
 
   // Health
   if (url === '/health') return send(res, 200, { ok: true, supabase: !!SUPA_URL });
+
+  // Diagnostic colonnes table factures
+  if (url === '/api/debug-factures-schema') {
+    const user = await getUser(req);
+    if (!user) return send(res, 401, { error: 'Non authentifié' });
+    // Tenter d'insérer une ligne minimale pour voir les colonnes disponibles
+    const testPayload = { company_id: '00000000-0000-0000-0000-000000000000', type_facture: 'test_schema' };
+    const r1 = await supa('POST', 'factures', { body: testPayload });
+    // Aussi vérifier quelles colonnes existent via une ligne réelle
+    const r2 = await supa('GET', 'factures', { filter: 'limit=1', select: '*' });
+    const cols = Array.isArray(r2.data) && r2.data[0] ? Object.keys(r2.data[0]) : [];
+    return send(res, 200, {
+      insert_test_status: r1.status,
+      insert_test_error: r1.status >= 400 ? r1.data : null,
+      existing_columns: cols,
+      has_fournisseur_if: cols.includes('fournisseur_if'),
+      has_source_file: cols.includes('source_file'),
+      has_statut: cols.includes('statut'),
+      has_client: cols.includes('client'),
+    });
+  }
   if (url === '/test-supa') {
     const result = await supa('GET', 'users', { select: 'id,email' });
     return send(res, 200, { status: result.status, data: result.data });
@@ -772,8 +841,19 @@ const handler = async (req, res) => {
       }
       return send(res, 200, { ...ex, ...enrichPatch });
     }
-    const { data, status } = await supa('POST', 'fournisseurs', { body: payload });
-    if (status >= 400) return send(res, 500, { error: 'Erreur sauvegarde fournisseur' });
+    let { data, status } = await supa('POST', 'fournisseurs', { body: payload });
+    if (status >= 400) {
+      const errMsg = typeof data === 'object' ? JSON.stringify(data) : String(data);
+      console.log('POST fournisseurs erreur (payload complet):', errMsg);
+      // Réessayer sans la colonne "sources" si elle n'existe pas encore
+      const { sources: _s, ...payloadMin } = payload;
+      const r2 = await supa('POST', 'fournisseurs', { body: payloadMin });
+      if (r2.status >= 400) {
+        const err2 = typeof r2.data === 'object' ? JSON.stringify(r2.data) : String(r2.data);
+        return send(res, 500, { error: 'Erreur sauvegarde fournisseur: ' + err2 });
+      }
+      data = r2.data;
+    }
     return send(res, 201, Array.isArray(data) ? data[0] : data);
   }
 
