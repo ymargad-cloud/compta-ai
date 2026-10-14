@@ -867,7 +867,15 @@ const handler = async (req, res) => {
     const patch = {};
     for(const k of ALLOWED_F) { if(body[k] !== undefined) patch[k] = body[k]; }
     if(!Object.keys(patch).length) return send(res, 400, { error: 'Aucun champ valide' });
-    await supa('PATCH', `fournisseurs?id=eq.${id}`, { body: patch });
+    const { data: pd, status: ps } = await supa('PATCH', `fournisseurs?id=eq.${id}`, { body: patch });
+    if (ps >= 400) {
+      // Réessayer sans "sources" si colonne absente
+      const { sources: _s, ...patchMin } = patch;
+      if(Object.keys(patchMin).length) {
+        const r2 = await supa('PATCH', `fournisseurs?id=eq.${id}`, { body: patchMin });
+        if (r2.status >= 400) return send(res, 400, { error: 'Erreur PATCH fournisseur' });
+      }
+    }
     return send(res, 200, { ok: true });
   }
 

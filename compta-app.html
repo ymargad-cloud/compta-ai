@@ -1743,17 +1743,28 @@ async function saveFournisseurLocal(fourn) {
     sources:         fourn.sources || null,
   };
   try {
-    if(fourn.id && !String(fourn.id).startsWith('default_')) {
+    // Un id "réel" Supabase est un UUID (format xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
+    // Un id temporaire généré côté client est de la forme "1728919200000_abc123" ou commence par "default_"
+    const isRealId = fourn.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(fourn.id));
+    if(isRealId) {
       await api('PATCH', `/api/fournisseurs/${fourn.id}`, payload);
     } else {
       const result = await api('POST', '/api/fournisseurs', payload);
-      fourn.id = result?.id || fourn.id;
+      if(result?.id) {
+        // Mettre à jour l'id dans allFournisseurs avec l'UUID Supabase
+        const idx = allFournisseurs.findIndex(f => f.id === fourn.id);
+        fourn.id = result.id;
+        if(idx >= 0) allFournisseurs[idx].id = result.id;
+      }
     }
   } catch(e) {
+    console.error('saveFournisseurLocal error:', e.message);
+    // Fallback localStorage si API indisponible
     const key = 'fournisseurs_shared';
     const idx = allFournisseurs.findIndex(f => f.id === fourn.id);
     if(idx >= 0) allFournisseurs[idx] = fourn; else allFournisseurs.push(fourn);
     localStorage.setItem(key, JSON.stringify(allFournisseurs));
+    throw e; // Re-propager pour que l'appelant sache
   }
 }
 
@@ -1937,25 +1948,18 @@ async function autoEnrichFournisseur({ denomination, if_fourn, ice_fourn, type_p
     return;
   }
 
-  // Nouveau fournisseur — si IF et ICE présents : ajouter directement, sinon en attente
+  // Nouveau fournisseur — ajouter directement à la base dès qu'on a la dénomination
+  // (IF et ICE peuvent être partiels, ils seront enrichis à la prochaine facture du même fournisseur)
   const candidat = { denomination: nomClean, if_fourn: if_fourn||'', ice_fourn: ice_fourn||'', type_prestation: type_prestation||'', sources: source };
-  const complet = !!(if_fourn && ice_fourn);
 
-  if(complet) {
-    // Ajout immédiat sans intervention
-    const fourn = { id: Date.now()+'_'+Math.random().toString(36).slice(2), ...candidat };
-    allFournisseurs.push(fourn);
-    await saveFournisseurLocal(fourn);
-    renderFournisseurs(allFournisseurs);
-    toast(`Fournisseur "${nomClean}" ajouté à la base ✓`, 'success');
-  } else {
-    // Ajouter aux candidats en attente si pas déjà présent
-    const dejaPending = _fournPending.find(p => p.denomination.toUpperCase() === nomClean.toUpperCase());
-    if(!dejaPending) {
-      _fournPending.push(candidat);
-      renderFournPending();
-    }
-  }
+  // Toujours ajouter directement si on a au moins le nom
+  const fourn = { id: Date.now()+'_'+Math.random().toString(36).slice(2), ...candidat };
+  allFournisseurs.push(fourn);
+  await saveFournisseurLocal(fourn);
+  renderFournisseurs(allFournisseurs);
+  // Toast discret seulement si on a des infos utiles
+  const infos = [if_fourn && `IF: ${if_fourn}`, ice_fourn && `ICE: ${ice_fourn}`].filter(Boolean).join(' · ');
+  toast(`Fournisseur "${nomClean}" ajouté à la base${infos ? ' (' + infos + ')' : ''}`, 'success');
 }
 
 function renderFournPending() {
