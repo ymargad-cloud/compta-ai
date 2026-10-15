@@ -3883,9 +3883,10 @@ async function buildAnalyseTVA() {
   // Trouver la TVA associée (ligne suivante compte 3455)
   const fraisAnalyse = [];
   fraisEcrit.forEach((r, idx) => {
-    const ht  = +r[7] || 0;
-    const tva = Math.round(ht * 0.10 * 100) / 100;
-    fraisAnalyse.push({ lib: r[4], date: r[1], ttc: Math.round((ht+tva)*100)/100, ht, tva });
+    const ttc = +r[7] || 0;                                   // montant débité = TTC
+    const ht  = Math.round(ttc / 1.1 * 100) / 100;           // HT = TTC / 1.1
+    const tva = Math.round((ttc - ht) * 100) / 100;           // TVA = TTC - HT
+    fraisAnalyse.push({ lib: r[4], date: r[1], ttc, ht, tva });
   });
 
   // ── Rendu HTML ────────────────────────────────────────────────────────────
@@ -4212,9 +4213,9 @@ async function buildTVADeductionsTable() {
   );
 
   frais6147.forEach((r, i) => {
-    const ht  = +r[7] || 0;
-    const tva = Math.round(ht * 0.10 * 100) / 100;
-    const ttc = Math.round((ht + tva) * 100) / 100;
+    const ttc = +r[7] || 0;                                   // montant débité = TTC
+    const ht  = Math.round(ttc / 1.1 * 100) / 100;           // HT = TTC / 1.1
+    const tva = Math.round((ttc - ht) * 100) / 100;           // TVA = TTC - HT
     const lib = (r[4]||'').toUpperCase();
     let mode = 3; // prélèvement par défaut pour frais bancaires
     if(/CHEQUE|CHQ/.test(lib)) mode = 2;
