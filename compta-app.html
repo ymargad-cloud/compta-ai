@@ -3683,19 +3683,26 @@ ${lignes}
 // ===== ANALYSE TVA =====
 function getECRITRows() {
   // Retourner les lignes ECRIT avec les overrides manuels appliqués
+  // Chaque ligne porte _manualCpte=true si le compte a été corrigé manuellement vers 6147000000
   const baseRows = buildECRITRows();
   const rows = baseRows.map((r, i) => {
     const ov = ecritOverrides[i];
     if(!ov) return r;
     const pf = s => s==='' ? null : parseFloat(String(s).replace(/[\s\u00a0]/g,'').replace(',','.')) || null;
-    return [
+    const newCpte = ov.cpte !== undefined ? ov.cpte : r[2];
+    const row = [
       ov.journal!==undefined ? ov.journal : r[0],
       ov.date!==undefined    ? ov.date    : r[1],
-      ov.cpte!==undefined    ? ov.cpte    : r[2], r[3],
+      newCpte, r[3],
       ov.lib!==undefined     ? ov.lib     : r[4], r[5], r[6],
       ov.debit!==undefined   ? pf(ov.debit)  : r[7],
       ov.credit!==undefined  ? pf(ov.credit) : r[8],
     ];
+    // Marquer correction manuelle vers 6147000000
+    if(ov.cpte !== undefined && String(ov.cpte) === '6147000000' && String(r[2]) !== '6147000000') {
+      row._manualCpte = true;
+    }
+    return row;
   });
   // Éliminer les doublons (même journal+date+compte+libellé+débit+crédit)
   const seen = new Set();
@@ -3883,10 +3890,18 @@ async function buildAnalyseTVA() {
   // Trouver la TVA associée (ligne suivante compte 3455)
   const fraisAnalyse = [];
   fraisEcrit.forEach((r, idx) => {
-    const ttc = +r[7] || 0;                                   // montant débité = TTC
-    const ht  = Math.round(ttc / 1.1 * 100) / 100;           // HT = TTC / 1.1
-    const tva = Math.round((ttc - ht) * 100) / 100;           // TVA = TTC - HT
-    fraisAnalyse.push({ lib: r[4], date: r[1], ttc, ht, tva });
+    if(r._manualCpte) {
+      // Correction manuelle vers 6147 : le montant débité est TTC → recalcul HT/TVA
+      const ttc = +r[7] || 0;
+      const ht  = Math.round(ttc / 1.1 * 100) / 100;
+      const tva = Math.round((ttc - ht) * 100) / 100;
+      fraisAnalyse.push({ lib: r[4], date: r[1], ttc, ht, tva });
+    } else {
+      // Compte 6147 automatique : le montant est déjà HT
+      const ht  = +r[7] || 0;
+      const tva = Math.round(ht * 0.10 * 100) / 100;
+      fraisAnalyse.push({ lib: r[4], date: r[1], ttc: Math.round((ht + tva) * 100) / 100, ht, tva });
+    }
   });
 
   // ── Rendu HTML ────────────────────────────────────────────────────────────
@@ -4213,9 +4228,18 @@ async function buildTVADeductionsTable() {
   );
 
   frais6147.forEach((r, i) => {
-    const ttc = +r[7] || 0;                                   // montant débité = TTC
-    const ht  = Math.round(ttc / 1.1 * 100) / 100;           // HT = TTC / 1.1
-    const tva = Math.round((ttc - ht) * 100) / 100;           // TVA = TTC - HT
+    let ht, tva, ttc;
+    if(r._manualCpte) {
+      // Correction manuelle vers 6147 : le montant débité est TTC → recalcul HT/TVA
+      ttc = +r[7] || 0;
+      ht  = Math.round(ttc / 1.1 * 100) / 100;
+      tva = Math.round((ttc - ht) * 100) / 100;
+    } else {
+      // Compte 6147 automatique : le montant est déjà HT
+      ht  = +r[7] || 0;
+      tva = Math.round(ht * 0.10 * 100) / 100;
+      ttc = Math.round((ht + tva) * 100) / 100;
+    }
     const lib = (r[4]||'').toUpperCase();
     let mode = 3; // prélèvement par défaut pour frais bancaires
     if(/CHEQUE|CHQ/.test(lib)) mode = 2;
