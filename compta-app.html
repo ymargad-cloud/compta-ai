@@ -4011,9 +4011,7 @@ async function buildAnalyseTVA() {
   const tvaResultat     = totalTVAVentes - totalDeductible;
   document.getElementById('atva-res-collectee').textContent  = fmtA(totalTVAVentes) + ' MAD';
   document.getElementById('atva-res-deductible').textContent = fmtA(totalDeductible) + ' MAD';
-  document.getElementById('atva-res-final').textContent      = fmtA(Math.abs(tvaResultat)) + ' MAD';
-  document.getElementById('atva-res-final').style.color      = tvaResultat >= 0 ? 'var(--danger)' : 'var(--success)';
-  document.getElementById('atva-res-label').textContent      = tvaResultat >= 0 ? 'TVA due' : 'Crédit de TVA';
+  // atva-res-final et atva-res-label sont mis à jour dans le bloc RAS ci-dessous (avec ou sans RAS)
 
   // ── RAS TVA : résultat net (uniquement si factures RAS effectivement présentes) ──
   const rasBloc = document.getElementById('atva-ras-bloc');
@@ -4032,9 +4030,17 @@ async function buildAnalyseTVA() {
       document.getElementById('atva-res-net').style.color       = isNetDu ? 'var(--danger)' : 'var(--success)';
       document.getElementById('atva-res-net-label').textContent = isNetDu ? 'TVA nette due' : 'Crédit net de TVA';
     }
+    // ── Mettre à jour le widget résumé principal avec la valeur nette après RAS ──
+    document.getElementById('atva-res-final').textContent = fmtA(Math.abs(tvaApresRAS)) + ' MAD';
+    document.getElementById('atva-res-final').style.color = isNetDu ? 'var(--danger)' : 'var(--success)';
+    document.getElementById('atva-res-label').textContent  = isNetDu ? 'TVA due (après RAS)' : 'Crédit de TVA (après RAS)';
     window._analyseTVA = { ventesAnalyse, achatsPayes, fraisAnalyse, totalTVAVentes, totalTVAAchats, totalTVABanque, totalDeductible, tvaResultat, totalRasTva, totalRasIs, tvaApresRAS, totalHTBrut, totalEncaisseRas, nbRasLines };
   } else {
     if(rasBloc) rasBloc.style.display = 'none';
+    // Résultat brut sans RAS
+    document.getElementById('atva-res-final').textContent = fmtA(Math.abs(tvaResultat)) + ' MAD';
+    document.getElementById('atva-res-final').style.color = tvaResultat >= 0 ? 'var(--danger)' : 'var(--success)';
+    document.getElementById('atva-res-label').textContent  = tvaResultat >= 0 ? 'TVA due' : 'Crédit de TVA';
     window._analyseTVA = { ventesAnalyse, achatsPayes, fraisAnalyse, totalTVAVentes, totalTVAAchats, totalTVABanque, totalDeductible, tvaResultat };
   }
   document.getElementById('atva-content').style.display = 'block';
