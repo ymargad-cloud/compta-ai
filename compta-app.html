@@ -4073,7 +4073,18 @@ function exportAnalyseTVAXLS() {
   (d.fraisAnalyse||[]).forEach(f => data.push([f.lib||'', f.date||'', fmtN(f.ttc), fmtN(f.ht), fmtN(f.tva)]));
   data.push(['TVA récupérable frais bancaires','','','','',fmtN(d.totalTVABanque)]);
   data.push([]);
-  data.push([d.tvaResultat >= 0 ? 'TVA DUE' : 'CRÉDIT DE TVA','','','','',fmtN(Math.abs(d.tvaResultat))]);
+  // ── Résultat TVA ──
+  data.push([d.tvaResultat >= 0 ? 'TVA DUE (brute)' : 'CRÉDIT DE TVA (brut)','','','','',fmtN(Math.abs(d.tvaResultat))]);
+  // ── RAS TVA (si présente) ──
+  if(d.totalRasTva != null && d.nbRasLines > 0) {
+    data.push([]);
+    data.push(['RAS TVA & RÉSULTAT NET']);
+    data.push(['RAS TVA retenue (75% × TVA ventes)','','','','', fmtN(-d.totalRasTva)]);
+    data.push(['RAS IS retenue (5% × HT ventes)','','','','', fmtN(-d.totalRasIs)]);
+    data.push([]);
+    const netDu = d.tvaApresRAS >= 0;
+    data.push([netDu ? 'TVA DUE NETTE (après RAS TVA)' : 'CRÉDIT DE TVA NET (après RAS TVA)','','','','', fmtN(Math.abs(d.tvaApresRAS))]);
+  }
   const ws = XLSX.utils.aoa_to_sheet(data);
   ws['!cols'] = [{wch:40},{wch:16},{wch:14},{wch:14},{wch:14},{wch:14},{wch:14}];
   XLSX.utils.book_append_sheet(wb, ws, 'Analyse TVA');
