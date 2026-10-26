@@ -3521,14 +3521,14 @@ async function rasFieldSave(el) {
   try {
     // Mapper les champs éditables vers les colonnes Supabase
     const fieldMap = {
-      'if_client':     'fournisseur_if',   // IF fiscal client → fournisseur_if (côté vente = client)
-      'ice_client':    'fournisseur_ice',  // ICE client → fournisseur_ice
+      'if_client':     '_local_if',   // IF client → stocké localement dans _rasFactures pour export
+      'ice_client':    '_local_ice',  // ICE client → stocké localement dans _rasFactures
       'numero':        'numero',
       'date_facture':  'date_facture',
-      'date_paiement': '_local',           // date paiement = champ local uniquement (pas en DB factures)
+      'date_paiement': '_local',      // date paiement = champ local uniquement
     };
     const dbField = fieldMap[field];
-    if(dbField && dbField !== '_local') {
+    if(dbField && !dbField.startsWith('_')) {
       const res = await fetch(`/api/factures/${fId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -3546,11 +3546,31 @@ async function rasFieldSave(el) {
       el.style.background = 'rgba(39,174,96,.12)';
       setTimeout(() => { el.style.background = ''; }, 1200);
     } else if(dbField === '_local') {
-      // Stocker localement dans _rasFactures pour l'export
+      // Date paiement → local uniquement
       if(window._rasFactures) {
         const item = window._rasFactures.find(x => x.f.id === fId);
         if(item) item.datePaie = val;
       }
+      el.style.background = 'rgba(39,174,96,.12)';
+      setTimeout(() => { el.style.background = ''; }, 1200);
+    } else if(dbField === '_local_if') {
+      // IF client → local dans _rasFactures
+      if(window._rasFactures) {
+        const item = window._rasFactures.find(x => x.f.id === fId);
+        if(item) { item.ifClient = val; item.f.fournisseur_if = val; }
+      }
+      const f = allFactures.find(x => x.id === fId);
+      if(f) f.fournisseur_if = val;
+      el.style.background = 'rgba(39,174,96,.12)';
+      setTimeout(() => { el.style.background = ''; }, 1200);
+    } else if(dbField === '_local_ice') {
+      // ICE client → local dans _rasFactures
+      if(window._rasFactures) {
+        const item = window._rasFactures.find(x => x.f.id === fId);
+        if(item) { item.iceClient = val; item.f.fournisseur_ice = val; }
+      }
+      const f = allFactures.find(x => x.id === fId);
+      if(f) f.fournisseur_ice = val;
       el.style.background = 'rgba(39,174,96,.12)';
       setTimeout(() => { el.style.background = ''; }, 1200);
     }
@@ -3598,10 +3618,12 @@ function exportRasTVAXLS() {
     totHT+=ht; totTVA+=tva; totRAS+=ras;
     const dateOp  = f.date_facture ? new Date(f.date_facture) : null;
     const datePaieDate = datePaie ? (datePaie.includes('/') ? (() => { const p=datePaie.split('/'); return new Date(+p[2],+p[1]-1,+p[0]); })() : new Date(datePaie)) : null;
+    const exportIf  = item.ifClient  ?? f.fournisseur_if  ?? f.fournisseur_ice?.replace(/\D/g,'').substring(0,8) ?? '';
+    const exportIce = item.iceClient ?? f.fournisseur_ice ?? '';
     data.push([
       typeCltLabels[typeClt]||typeClt,
-      f.fournisseur_if || f.fournisseur_ice?.replace(/\D/g,'').substring(0,8)||'',
-      f.fournisseur_ice||'',
+      exportIf,
+      exportIce,
       natOpLabels[natOp]||natOp,
       (f.fournisseur||'').toUpperCase(),
       f.numero||'',
@@ -3785,28 +3807,43 @@ async function buildAnalyseTVA() {
   };
 
   const ventesAnalyse = [];
+  const matchedFactureIds = new Set(); // éviter double-matching de la même facture
   encaissementsClients.forEach(encRow => {
     const encaisse = +encRow[8] || 0;
+    const encDossier = encRow[5]; // dossier_id de la ligne ECRIT
 
     // Stratégie de recherche de la facture de vente :
-    // 1. Chercher par TTC exact (cas sans RAS, ou TTC déjà brut)
-    let facture = allFactures.find(f =>
-      f.type_facture === 'vente' &&
-      Math.abs((+f.montant_ttc||0) - encaisse) < 1
-    );
-    // 2. Si RAS option active, essayer aussi avec le TTC reconstitué (encaissé < TTC car retenues)
-    //    mais UNIQUEMENT pour les factures cochées ras_tva
+    // 1. Priorité : même dossier_id si disponible
+    let facture = encDossier
+      ? allFactures.find(f =>
+          f.type_facture === 'vente' &&
+          f.dossier_id === encDossier &&
+          !matchedFactureIds.has(f.id)
+        )
+      : null;
+    // 2. Chercher par TTC exact (cas sans RAS, ou TTC déjà brut)
+    if(!facture) {
+      facture = allFactures.find(f =>
+        f.type_facture === 'vente' &&
+        Math.abs((+f.montant_ttc||0) - encaisse) < 1 &&
+        !matchedFactureIds.has(f.id)
+      );
+    }
+    // 3. Si RAS option active, essayer avec le TTC reconstitué
+    //    mais UNIQUEMENT pour les factures explicitement cochées ras_tva
     if(!facture && rasOptionActive) {
       const brut = reconstitueBrut(encaisse);
       facture = allFactures.find(f =>
         f.type_facture === 'vente' &&
-        f.ras_tva &&
-        Math.abs((+f.montant_ttc||0) - brut.ttc) < 1
+        f.ras_tva === true &&
+        Math.abs((+f.montant_ttc||0) - brut.ttc) < 1 &&
+        !matchedFactureIds.has(f.id)
       );
     }
+    if(facture) matchedFactureIds.add(facture.id);
 
     // Déterminer si cette ligne spécifique doit être traitée avec RAS :
-    // – la case globale "RAS TVA" doit être cochée ET la facture concernée doit avoir ras_tva=true
+    // La facture doit EXPLICITEMENT avoir ras_tva=true (pas juste l'option globale cochée)
     const appliqueRas = rasOptionActive && facture?.ras_tva === true;
 
     let ttc, ht, tva, rasTva=0, rasIs=0, hasRas=false;
